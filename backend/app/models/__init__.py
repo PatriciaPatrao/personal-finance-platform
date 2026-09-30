@@ -1,0 +1,5 @@
+"""Import models so they register on the shared metadata."""
+
+from app.models.transaction import Transaction
+
+__all__ = ["Transaction"]
