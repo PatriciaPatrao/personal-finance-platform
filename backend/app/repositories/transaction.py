@@ -3,6 +3,8 @@
 from datetime import date
 from decimal import Decimal
 
+from sqlalchemy import select
+
 from app.db.session import Session
 from app.models.transaction import Transaction
 from app.models.transaction import TransactionType
@@ -35,3 +37,18 @@ class TransactionRepository:
         self._session.commit()
         self._session.refresh(transaction)
         return transaction
+
+    def list_all(self) -> list[Transaction]:
+        """Return every transaction, newest first."""
+        statement = select(Transaction).order_by(
+            Transaction.occurred_on.desc(),
+            Transaction.id.desc(),
+        )
+        return list(self._session.scalars(statement).all())
+
+    def get_by_id(self, transaction_id: int) -> Transaction | None:
+        """Return one transaction by its primary key, if it exists."""
+        statement = select(Transaction).where(
+            Transaction.id == transaction_id,
+        )
+        return self._session.scalars(statement).one_or_none()

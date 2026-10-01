@@ -22,3 +22,11 @@ class TransactionService:
             description=data.description,
             category=data.category,
         )
+
+    def list_all(self) -> list[Transaction]:
+        """Return every stored transaction."""
+        return self._repository.list_all()
+
+    def get_by_id(self, transaction_id: int) -> Transaction | None:
+        """Return one stored transaction, if it exists."""
+        return self._repository.get_by_id(transaction_id)
