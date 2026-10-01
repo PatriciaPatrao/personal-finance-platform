@@ -1,5 +1,7 @@
 """Alembic environment connected to the application database."""
 
+import os
+import re
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
@@ -34,6 +36,10 @@ config.set_main_option(
 
 target_metadata = Base.metadata
 
+schema = os.environ.get("ALEMBIC_SCHEMA", "public")
+if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", schema) is None:
+    raise RuntimeError("ALEMBIC_SCHEMA must be a PostgreSQL identifier")
+
 
 def run_migrations_offline() -> None:
     """Emit SQL for the migrations without connecting."""
@@ -43,9 +49,11 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        version_table_schema=schema,
     )
 
     with context.begin_transaction():
+        context.execute(f"SET search_path TO {schema}")
         context.run_migrations()
 
 
@@ -62,9 +70,11 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            version_table_schema=schema,
         )
 
         with context.begin_transaction():
+            context.execute(f"SET search_path TO {schema}")
             context.run_migrations()
 
 

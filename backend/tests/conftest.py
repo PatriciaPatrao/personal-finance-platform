@@ -5,6 +5,7 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
+from sqlalchemy import delete
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
@@ -13,6 +14,7 @@ from app.core.config import settings
 from app.db.session import _with_psycopg2_driver
 from app.db.session import get_db
 from app.main import app
+from app.models.transaction import Transaction
 
 
 # Keep test rows in the existing "test" schema, away from public.
@@ -42,6 +44,22 @@ def override_get_db() -> Generator[Session, None, None]:
     session = SessionLocal()
     try:
         yield session
+    finally:
+        session.close()
+
+
+# Delete children before parents when more tables are added.
+_TABLES_TO_CLEAN = (Transaction,)
+
+
+@pytest.fixture(autouse=True)
+def clean_test_database() -> None:
+    """Remove existing test rows before each test."""
+    session = SessionLocal()
+    try:
+        for model in reversed(_TABLES_TO_CLEAN):
+            session.execute(delete(model))
+        session.commit()
     finally:
         session.close()
 
