@@ -52,3 +52,13 @@ class TransactionRepository:
             Transaction.id == transaction_id,
         )
         return self._session.scalars(statement).one_or_none()
+
+    def delete(self, transaction_id: int) -> bool:
+        """Remove a transaction from the database."""
+        # TODO: consider soft delete because financial transactions may need an audit trail
+        transaction = self.get_by_id(transaction_id)
+        if transaction is None:
+            return False
+        self._session.delete(transaction)
+        self._session.commit()
+        return True

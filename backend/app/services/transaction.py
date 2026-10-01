@@ -30,3 +30,7 @@ class TransactionService:
     def get_by_id(self, transaction_id: int) -> Transaction | None:
         """Return one stored transaction, if it exists."""
         return self._repository.get_by_id(transaction_id)
+
+    def delete(self, transaction_id: int) -> bool:
+        """Remove a transaction from the database."""
+        return self._repository.delete(transaction_id)

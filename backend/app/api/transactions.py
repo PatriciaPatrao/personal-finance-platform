@@ -63,3 +63,22 @@ def get_transaction(
             detail="Transaction not found",
         )
     return TransactionResponse.model_validate(transaction)
+
+
+@router.delete(
+    "/transactions/{transaction_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_transaction(
+    transaction_id: int,
+    session: Session = Depends(get_db),
+) -> None:
+    """Remove a transaction from the database."""
+    service = TransactionService(session)
+    deleted = service.delete(transaction_id)
+    if deleted is False:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Transaction not found",
+        )
+    return None
