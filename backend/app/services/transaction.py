@@ -1,0 +1,24 @@
+"""Application logic for recording transactions."""
+
+from app.db.session import Session
+from app.models.transaction import Transaction
+from app.repositories.transaction import TransactionRepository
+from app.schemas.transaction import TransactionCreate
+
+
+class TransactionService:
+    """Coordinate creation of a transaction."""
+
+    def __init__(self, session: Session) -> None:
+        """Bind the service to one database session."""
+        self._repository = TransactionRepository(session)
+
+    def create(self, data: TransactionCreate) -> Transaction:
+        """Persist a new transaction from incoming data."""
+        return self._repository.create(
+            amount=data.amount,
+            transaction_type=data.transaction_type,
+            occurred_on=data.occurred_on,
+            description=data.description,
+            category=data.category,
+        )
