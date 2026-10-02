@@ -22,6 +22,17 @@ class TransactionCreate(BaseModel):
     category: str | None = None
 
 
+class TransactionUpdate(BaseModel):
+    """Incoming data for fully updating a transaction."""
+
+    account_id: int
+    description: str | None
+    amount: Decimal = Field(gt=0)
+    transaction_type: TransactionType
+    occurred_on: date
+    category: str | None
+
+
 class TransactionResponse(BaseModel):
     """Transaction data returned by the API."""
 

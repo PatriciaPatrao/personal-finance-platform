@@ -5,6 +5,7 @@ from app.models.transaction import Transaction
 from app.repositories.account import AccountRepository
 from app.repositories.transaction import TransactionRepository
 from app.schemas.transaction import TransactionCreate
+from app.schemas.transaction import TransactionUpdate
 
 
 class AccountNotFoundError(Exception):
@@ -44,6 +45,32 @@ class TransactionService:
     def get_by_id(self, transaction_id: int) -> Transaction | None:
         """Return one stored transaction, if it exists."""
         return self._repository.get_by_id(transaction_id)
+
+    def update(
+        self,
+        transaction_id: int,
+        data: TransactionUpdate,
+    ) -> Transaction | None:
+        """Fully update a stored transaction, if it exists."""
+        transaction = self._repository.get_by_id(transaction_id)
+        if transaction is None:
+            return None
+        account = self._account_repository.get_by_id(
+            data.account_id,
+        )
+        if account is None:
+            raise AccountNotFoundError(
+                f"Account {data.account_id} not found",
+            )
+        return self._repository.update(
+            transaction_id=transaction_id,
+            account_id=data.account_id,
+            amount=data.amount,
+            transaction_type=data.transaction_type,
+            occurred_on=data.occurred_on,
+            description=data.description,
+            category=data.category,
+        )
 
     def delete(self, transaction_id: int) -> bool:
         """Remove a transaction from the database."""

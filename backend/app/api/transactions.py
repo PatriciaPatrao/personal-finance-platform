@@ -9,6 +9,7 @@ from app.db.session import Session
 from app.db.session import get_db
 from app.schemas.transaction import TransactionCreate
 from app.schemas.transaction import TransactionResponse
+from app.schemas.transaction import TransactionUpdate
 from app.services.transaction import AccountNotFoundError
 from app.services.transaction import TransactionService
 
@@ -64,6 +65,32 @@ def get_transaction(
     """Return one stored transaction."""
     service = TransactionService(session)
     transaction = service.get_by_id(transaction_id)
+    if transaction is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Transaction not found",
+        )
+    return TransactionResponse.model_validate(transaction)
+
+
+@router.put(
+    "/transactions/{transaction_id}",
+    response_model=TransactionResponse,
+)
+def update_transaction(
+    transaction_id: int,
+    data: TransactionUpdate,
+    session: Session = Depends(get_db),
+) -> TransactionResponse:
+    """Fully update a transaction and return the stored record."""
+    service = TransactionService(session)
+    try:
+        transaction = service.update(transaction_id, data)
+    except AccountNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found",
+        )
     if transaction is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

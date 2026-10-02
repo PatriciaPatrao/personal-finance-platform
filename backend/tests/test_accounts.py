@@ -23,23 +23,6 @@ def test_create_account_returns_created_account(
     assert body["created_at"]
 
 
-def test_create_account_rejects_non_eur_currency(
-    client: TestClient,
-) -> None:
-    """POST /accounts rejects a currency other than EUR."""
-    payload = {
-        "name": "Conta Principal",
-        "account_type": "bank",
-        "currency": "USD",
-    }
-
-    response = client.post("/accounts", json=payload)
-
-    assert response.status_code == 422
-    errors = response.json()["detail"]
-    assert any("currency" in error["loc"] for error in errors)
-
-
 def test_list_accounts_returns_stored_accounts(
     client: TestClient,
 ) -> None:

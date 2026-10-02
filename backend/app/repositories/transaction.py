@@ -55,6 +55,30 @@ class TransactionRepository:
         )
         return self._session.scalars(statement).one_or_none()
 
+    def update(
+        self,
+        transaction_id: int,
+        account_id: int,
+        amount: Decimal,
+        transaction_type: TransactionType,
+        occurred_on: date,
+        description: str | None = None,
+        category: str | None = None,
+    ) -> Transaction | None:
+        """Update editable fields on a transaction and return it."""
+        transaction = self.get_by_id(transaction_id)
+        if transaction is None:
+            return None
+        transaction.account_id = account_id
+        transaction.description = description
+        transaction.amount = amount
+        transaction.transaction_type = transaction_type
+        transaction.occurred_on = occurred_on
+        transaction.category = category
+        self._session.commit()
+        self._session.refresh(transaction)
+        return transaction
+
     def delete(self, transaction_id: int) -> bool:
         """Remove a transaction from the database."""
         # TODO: consider soft delete because financial transactions may need an audit trail
