@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from app.api.accounts import router as accounts_router
 from app.api.financial_summary import router as financial_summary_router
+from app.api.recurring_expenses import router as recurring_expenses_router
 from app.api.transactions import router as transactions_router
 
 app = FastAPI(
@@ -11,6 +12,7 @@ app = FastAPI(
 
 app.include_router(accounts_router)
 app.include_router(financial_summary_router)
+app.include_router(recurring_expenses_router)
 app.include_router(transactions_router)
 
 

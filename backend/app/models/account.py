@@ -54,3 +54,8 @@ class Account(Base):
     transactions: Mapped[list["Transaction"]] = relationship(
         back_populates="account",
     )
+    recurring_expenses: Mapped[list["RecurringExpense"]] = (
+        relationship(
+            back_populates="account",
+        )
+    )
