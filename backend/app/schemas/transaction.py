@@ -14,6 +14,7 @@ from app.models.transaction import TransactionType
 class TransactionCreate(BaseModel):
     """Incoming data for creating a transaction."""
 
+    account_id: int
     description: str | None = None
     amount: Decimal = Field(gt=0)
     transaction_type: TransactionType
@@ -27,6 +28,7 @@ class TransactionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    account_id: int
     description: str | None = None
     amount: Decimal = Field(gt=0)
     transaction_type: TransactionType

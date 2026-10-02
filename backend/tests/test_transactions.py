@@ -2,14 +2,31 @@
 
 from decimal import Decimal
 
+import pytest
 from fastapi.testclient import TestClient
+
+
+@pytest.fixture
+def account_id(client: TestClient) -> int:
+    """Create an account and return its id for transaction tests."""
+    response = client.post(
+        "/accounts",
+        json={
+            "name": "Conta Principal",
+            "account_type": "bank",
+        },
+    )
+    assert response.status_code == 201
+    return response.json()["id"]
 
 
 def test_create_transaction_returns_created_transaction(
     client: TestClient,
+    account_id: int,
 ) -> None:
     """POST /transactions stores a valid transaction and returns it."""
     payload = {
+        "account_id": account_id,
         "description": "Supermercado",
         "amount": 52.40,
         "transaction_type": "expense",
@@ -22,6 +39,7 @@ def test_create_transaction_returns_created_transaction(
     assert response.status_code == 201
     body = response.json()
     assert isinstance(body["id"], int)
+    assert body["account_id"] == account_id
     assert body["description"] == payload["description"]
     assert Decimal(body["amount"]) == Decimal("52.40")
     assert body["transaction_type"] == payload["transaction_type"]
@@ -32,9 +50,11 @@ def test_create_transaction_returns_created_transaction(
 
 def test_create_transaction_rejects_zero_amount(
     client: TestClient,
+    account_id: int,
 ) -> None:
     """POST /transactions rejects an amount of zero."""
     payload = {
+        "account_id": account_id,
         "description": "Supermercado",
         "amount": 0,
         "transaction_type": "expense",
@@ -51,9 +71,11 @@ def test_create_transaction_rejects_zero_amount(
 
 def test_create_transaction_rejects_negative_amount(
     client: TestClient,
+    account_id: int,
 ) -> None:
     """POST /transactions rejects a negative amount."""
     payload = {
+        "account_id": account_id,
         "description": "Supermercado",
         "amount": -10.50,
         "transaction_type": "expense",
@@ -68,11 +90,32 @@ def test_create_transaction_rejects_negative_amount(
     assert any("amount" in error["loc"] for error in errors)
 
 
+def test_create_transaction_returns_404_for_missing_account(
+    client: TestClient,
+) -> None:
+    """POST /transactions returns 404 for a missing account."""
+    payload = {
+        "account_id": 999999,
+        "description": "Supermercado",
+        "amount": 52.40,
+        "transaction_type": "expense",
+        "occurred_on": "2026-10-01",
+        "category": "Food",
+    }
+
+    response = client.post("/transactions", json=payload)
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Account not found"
+
+
 def test_list_transactions_returns_stored_transactions(
     client: TestClient,
+    account_id: int,
 ) -> None:
     """GET /transactions includes a transaction created through the API."""
     payload = {
+        "account_id": account_id,
         "description": "Supermercado",
         "amount": 52.40,
         "transaction_type": "expense",
@@ -95,6 +138,7 @@ def test_list_transactions_returns_stored_transactions(
         if item["id"] == created_body["id"]
     )
     assert stored["id"] == created_body["id"]
+    assert stored["account_id"] == account_id
     assert stored["description"] == payload["description"]
     assert Decimal(stored["amount"]) == Decimal("52.40")
     assert stored["transaction_type"] == payload["transaction_type"]
@@ -104,9 +148,11 @@ def test_list_transactions_returns_stored_transactions(
 
 def test_get_transaction_returns_stored_transaction(
     client: TestClient,
+    account_id: int,
 ) -> None:
     """GET /transactions/{id} returns a transaction created through the API."""
     payload = {
+        "account_id": account_id,
         "description": "Supermercado",
         "amount": 52.40,
         "transaction_type": "expense",
@@ -124,6 +170,7 @@ def test_get_transaction_returns_stored_transaction(
     assert response.status_code == 200
     stored = response.json()
     assert stored["id"] == transaction_id
+    assert stored["account_id"] == account_id
     assert stored["description"] == payload["description"]
     assert Decimal(stored["amount"]) == Decimal("52.40")
     assert stored["transaction_type"] == payload["transaction_type"]
@@ -143,9 +190,11 @@ def test_get_transaction_returns_404_when_not_found(
 
 def test_delete_transaction_removes_stored_transaction(
     client: TestClient,
+    account_id: int,
 ) -> None:
     """DELETE /transactions/{id} removes a stored transaction."""
     payload = {
+        "account_id": account_id,
         "description": "Supermercado",
         "amount": 52.40,
         "transaction_type": "expense",

@@ -9,6 +9,7 @@ from app.db.session import Session
 from app.db.session import get_db
 from app.schemas.transaction import TransactionCreate
 from app.schemas.transaction import TransactionResponse
+from app.services.transaction import AccountNotFoundError
 from app.services.transaction import TransactionService
 
 
@@ -26,7 +27,13 @@ def create_transaction(
 ) -> TransactionResponse:
     """Create a transaction and return the stored record."""
     service = TransactionService(session)
-    transaction = service.create(data)
+    try:
+        transaction = service.create(data)
+    except AccountNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found",
+        )
     return TransactionResponse.model_validate(transaction)
 
 

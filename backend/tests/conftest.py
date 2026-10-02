@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.db.session import _with_psycopg2_driver
 from app.db.session import get_db
 from app.main import app
+from app.models.account import Account
 from app.models.transaction import Transaction
 
 
@@ -49,7 +50,7 @@ def override_get_db() -> Generator[Session, None, None]:
 
 
 # Delete children before parents when more tables are added.
-_TABLES_TO_CLEAN = (Transaction,)
+_TABLES_TO_CLEAN = (Account, Transaction)
 
 
 @pytest.fixture(autouse=True)

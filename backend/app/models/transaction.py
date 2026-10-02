@@ -9,11 +9,13 @@ from sqlalchemy import CheckConstraint
 from sqlalchemy import Date
 from sqlalchemy import DateTime
 from sqlalchemy import Enum
+from sqlalchemy import ForeignKey
 from sqlalchemy import Numeric
 from sqlalchemy import String
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
 
 from app.db.base import Base
 
@@ -38,6 +40,10 @@ class Transaction(Base):
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
+        nullable=False,
+    )
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id"),
         nullable=False,
     )
     description: Mapped[str | None] = mapped_column(
@@ -65,3 +71,7 @@ class Transaction(Base):
         server_default=func.now(),
         nullable=False,
     )
+    account: Mapped["Account"] = relationship(
+        back_populates="transactions",
+    )
+

@@ -19,6 +19,7 @@ class TransactionRepository:
 
     def create(
         self,
+        account_id: int,
         amount: Decimal,
         transaction_type: TransactionType,
         occurred_on: date,
@@ -27,6 +28,7 @@ class TransactionRepository:
     ) -> Transaction:
         """Insert a transaction and return it with generated fields."""
         transaction = Transaction(
+            account_id=account_id,
             description=description,
             amount=amount,
             transaction_type=transaction_type,

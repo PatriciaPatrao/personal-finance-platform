@@ -1,13 +1,15 @@
 from fastapi import FastAPI
 
-from app.api.transactions import router
+from app.api.accounts import router as accounts_router
+from app.api.transactions import router as transactions_router
 
 app = FastAPI(
     title="Personal Finance Platform API",
     version="0.1.0",
 )
 
-app.include_router(router)
+app.include_router(accounts_router)
+app.include_router(transactions_router)
 
 
 @app.get("/")
