@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.accounts import router as accounts_router
+from app.api.analysis import router as analysis_router
 from app.api.financial_summary import router as financial_summary_router
 from app.api.forecast import router as forecast_router
 from app.api.incomes import router as incomes_router
@@ -13,6 +14,7 @@ app = FastAPI(
 )
 
 app.include_router(accounts_router)
+app.include_router(analysis_router)
 app.include_router(financial_summary_router)
 app.include_router(forecast_router)
 app.include_router(incomes_router)
