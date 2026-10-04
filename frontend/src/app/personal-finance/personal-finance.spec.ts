@@ -14,12 +14,12 @@ describe('PersonalFinance', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should render the Personal Finance Platform heading', async () => {
+  it('should render the Personal Finance heading', async () => {
     const fixture = TestBed.createComponent(PersonalFinance);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('h1')?.textContent).toContain(
-      'Personal Finance Platform',
+      'Personal Finance',
     );
   });
 });

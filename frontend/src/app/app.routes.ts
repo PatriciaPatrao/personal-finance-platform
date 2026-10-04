@@ -9,18 +9,27 @@ export const routes: Routes = [
   {
     path: 'personal_finance',
     loadComponent: () =>
-      import('./personal-finance/personal-finance').then(
-        (m) => m.PersonalFinance,
+      import('./personal-finance/personal-finance-layout').then(
+        (m) => m.PersonalFinanceLayout,
       ),
-  },
-  {
-    path: 'analysis',
-    loadComponent: () =>
-      import('./analysis/analysis').then((m) => m.Analysis),
-  },
-  {
-    path: 'forecast',
-    loadComponent: () =>
-      import('./forecast/forecast').then((m) => m.Forecast),
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./personal-finance/personal-finance').then(
+            (m) => m.PersonalFinance,
+          ),
+      },
+      {
+        path: 'analysis',
+        loadComponent: () =>
+          import('./analysis/analysis').then((m) => m.Analysis),
+      },
+      {
+        path: 'forecast',
+        loadComponent: () =>
+          import('./forecast/forecast').then((m) => m.Forecast),
+      },
+    ],
   },
 ];

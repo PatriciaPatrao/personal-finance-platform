@@ -1,0 +1,29 @@
+header {
+  border-bottom: 1px solid #d0d0d0;
+  padding: 1rem 1.5rem;
+}
+
+.brand {
+  margin: 0 0 1rem;
+  font-weight: 600;
+}
+
+nav {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+nav a {
+  color: #222;
+  text-decoration: none;
+}
+
+nav a.active {
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+main {
+  padding: 1.5rem;
+}

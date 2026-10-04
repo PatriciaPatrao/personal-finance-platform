@@ -1,0 +1,21 @@
+<header>
+  <p class="brand">Personal Finance Platform</p>
+  <nav>
+    <a
+      routerLink="/personal_finance"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      Dashboard
+    </a>
+    <a routerLink="/personal_finance/analysis" routerLinkActive="active">
+      Analysis
+    </a>
+    <a routerLink="/personal_finance/forecast" routerLinkActive="active">
+      Forecast
+    </a>
+  </nav>
+</header>
+<main>
+  <router-outlet />
+</main>
