@@ -22,4 +22,14 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('router-outlet')).toBeTruthy();
   });
+
+  it('should render header navigation links', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const compiled = fixture.nativeElement as HTMLElement;
+    const hrefs = [...compiled.querySelectorAll('header nav a')].map((el) =>
+      el.getAttribute('href'),
+    );
+    expect(hrefs).toEqual(['/personal_finance', '/analysis', '/forecast']);
+  });
 });

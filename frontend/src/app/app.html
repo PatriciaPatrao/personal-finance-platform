@@ -1,1 +1,28 @@
-<router-outlet />
+<header>
+  <nav>
+    <a
+      routerLink="/personal_finance"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      Personal Finance Platform
+    </a>
+    <a
+      routerLink="/analysis"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      Analysis
+    </a>
+    <a
+      routerLink="/forecast"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+    >
+      Forecast
+    </a>
+  </nav>
+</header>
+<main>
+  <router-outlet />
+</main>
