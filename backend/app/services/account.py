@@ -19,6 +19,7 @@ class AccountService:
             name=data.name,
             account_type=data.account_type,
             currency=data.currency,
+            current_balance=data.current_balance,
         )
 
     def list_all(self) -> list[Account]:

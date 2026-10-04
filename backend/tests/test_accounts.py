@@ -1,5 +1,7 @@
 """API tests for accounts."""
 
+from decimal import Decimal
+
 from fastapi.testclient import TestClient
 
 
@@ -21,6 +23,7 @@ def test_create_account_returns_created_account(
     assert body["account_type"] == payload["account_type"]
     assert body["currency"] == "EUR"
     assert body["created_at"]
+    assert Decimal(body["current_balance"]) == Decimal("0.00")
 
 
 def test_list_accounts_returns_stored_accounts(
@@ -50,6 +53,7 @@ def test_list_accounts_returns_stored_accounts(
     assert stored["name"] == payload["name"]
     assert stored["account_type"] == payload["account_type"]
     assert stored["currency"] == "EUR"
+    assert Decimal(stored["current_balance"]) == Decimal("0.00")
 
 
 def test_get_account_returns_stored_account(
@@ -74,6 +78,7 @@ def test_get_account_returns_stored_account(
     assert stored["name"] == payload["name"]
     assert stored["account_type"] == payload["account_type"]
     assert stored["currency"] == "EUR"
+    assert Decimal(stored["current_balance"]) == Decimal("0.00")
 
 
 def test_get_account_returns_404_when_not_found(
@@ -84,3 +89,22 @@ def test_get_account_returns_404_when_not_found(
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Account not found"
+
+
+def test_create_account_allows_negative_current_balance(
+    client: TestClient,
+) -> None:
+    """POST /accounts accepts a negative current_balance."""
+    payload = {
+        "name": "Cartão Crédito",
+        "account_type": "credit_card",
+        "current_balance": -150.00,
+    }
+
+    response = client.post("/accounts", json=payload)
+
+    assert response.status_code == 201
+    body = response.json()
+    assert Decimal(body["current_balance"]) == Decimal(
+        "-150.00",
+    )

@@ -1,6 +1,7 @@
 """Pydantic schemas for the account API."""
 
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -19,6 +20,10 @@ class AccountCreate(BaseModel):
         min_length=3,
         max_length=3,
     )
+    current_balance: Decimal = Field(
+        default=Decimal("0.00"),
+        decimal_places=2,
+    )
 
 
 class AccountResponse(BaseModel):
@@ -30,4 +35,5 @@ class AccountResponse(BaseModel):
     name: str
     account_type: AccountType
     currency: str
+    current_balance: Decimal = Field(decimal_places=2)
     created_at: datetime

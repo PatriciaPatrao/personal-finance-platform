@@ -2,9 +2,11 @@
 
 import enum
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import DateTime
 from sqlalchemy import Enum
+from sqlalchemy import Numeric
 from sqlalchemy import String
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped
@@ -45,6 +47,12 @@ class Account(Base):
         nullable=False,
         default="EUR",
         server_default="EUR",
+    )
+    current_balance: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2),
+        nullable=False,
+        default=0,
+        server_default="0",
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -1,5 +1,7 @@
 """Persistence for account records."""
 
+from decimal import Decimal
+
 from sqlalchemy import select
 
 from app.db.session import Session
@@ -19,12 +21,14 @@ class AccountRepository:
         name: str,
         account_type: AccountType,
         currency: str = "EUR",
+        current_balance: Decimal = Decimal("0.00"),
     ) -> Account:
         """Insert an account and return it with generated fields."""
         account = Account(
             name=name,
             account_type=account_type,
             currency=currency,
+            current_balance=current_balance,
         )
         self._session.add(account)
         self._session.commit()
