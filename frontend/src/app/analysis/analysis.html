@@ -1,2 +1,46 @@
 <h1>Analysis</h1>
-<p>The Analysis area will be implemented later.</p>
+
+<label>
+  From:
+  <input
+    type="date"
+    [value]="from"
+    (change)="from = $any($event.target).value"
+  />
+</label>
+
+<label>
+  To:
+  <input
+    type="date"
+    [value]="to"
+    (change)="to = $any($event.target).value"
+  />
+</label>
+
+<button type="button" (click)="apply()">Apply</button>
+
+@if (validationMessage) {
+  <p>{{ validationMessage }}</p>
+}
+
+@if (loading) {
+  <p>Loading...</p>
+}
+
+@if (errorMessage) {
+  <p>{{ errorMessage }}</p>
+}
+
+@if (summary && !loading) {
+  <section>
+    <h2>Income</h2>
+    <p>{{ summary.total_income | currency: 'EUR' }}</p>
+
+    <h2>Expenses</h2>
+    <p>{{ summary.total_expenses | currency: 'EUR' }}</p>
+
+    <h2>Net Cash Flow</h2>
+    <p>{{ summary.net_cash_flow | currency: 'EUR' }}</p>
+  </section>
+}

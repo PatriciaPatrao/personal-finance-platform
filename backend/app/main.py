@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.accounts import router as accounts_router
 from app.api.analysis import router as analysis_router
@@ -11,6 +12,12 @@ from app.api.transactions import router as transactions_router
 app = FastAPI(
     title="Personal Finance Platform API",
     version="0.1.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:4200"],
+    allow_methods=["GET"],
 )
 
 app.include_router(accounts_router)
