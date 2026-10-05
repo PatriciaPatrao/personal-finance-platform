@@ -98,19 +98,20 @@ export class Forecast implements OnInit {
     const to = parseEuropeanDate(this.toDisplay);
     if (!from || !to) {
       this.validationMessage = 'Enter dates as DD-MM-YYYY.';
+      this.clearForecastResult();
+      this.changeDetector.detectChanges();
+      return;
+    }
+
+    if (from > to) {
+      this.validationMessage = 'From must be on or before To.';
+      this.clearForecastResult();
       this.changeDetector.detectChanges();
       return;
     }
 
     this.from = from;
     this.to = to;
-
-    if (this.from > this.to) {
-      this.validationMessage = 'From must be on or before To.';
-      this.changeDetector.detectChanges();
-      return;
-    }
-
     this.validationMessage = null;
     this.loadForecast();
   }
@@ -128,9 +129,16 @@ export class Forecast implements OnInit {
     return period.period;
   }
 
+  private clearForecastResult(): void {
+    this.forecast = null;
+    this.loading = false;
+    this.errorMessage = null;
+  }
+
   private loadForecast(): void {
     this.loading = true;
     this.errorMessage = null;
+    this.forecast = null;
 
     this.forecastService
       .getForecast(this.from, this.to, this.groupBy)
@@ -141,6 +149,7 @@ export class Forecast implements OnInit {
           this.changeDetector.markForCheck();
         },
         error: () => {
+          this.forecast = null;
           this.errorMessage = 'Unable to load the forecast.';
           this.loading = false;
           this.changeDetector.markForCheck();

@@ -211,26 +211,49 @@ describe('Forecast', () => {
     const fixture = TestBed.createComponent(Forecast);
     fixture.detectChanges();
     await fixture.whenStable();
+    fixture.detectChanges();
     getForecast.mockClear();
 
     const component = fixture.componentInstance;
-    component.fromDisplay = '10-10-2026';
-    component.toDisplay = '01-10-2026';
+    component.fromDisplay = '03-04-2027';
+    component.toDisplay = '31-12-2026';
     const compiled = fixture.nativeElement as HTMLElement;
     (
       compiled.querySelector('.apply-button') as HTMLButtonElement
     ).click();
     fixture.detectChanges();
 
+    const text = compiled.textContent ?? '';
     expect(getForecast).not.toHaveBeenCalled();
-    expect(compiled.textContent).toContain('From must be on or before To.');
+    expect(text).toContain('From must be on or before To.');
+    expect(component.forecast).toBeNull();
+    expect(component.endingProjectedBalance).toBeNull();
+    expect(text).not.toContain('3,500.00');
+    expect(text).not.toContain('2026-10');
+    expect(compiled.querySelector('.data-table')).toBeNull();
   });
 
   it('should request forecast for the selected dates when Apply is clicked', async () => {
+    const nextForecast: ForecastResponse = {
+      ...sampleForecast,
+      from_date: '2026-11-01',
+      to_date: '2026-11-30',
+      periods: [
+        {
+          period: '2026-11',
+          income: '2000.00',
+          expenses: '1250.00',
+          net_cash_flow: '750.00',
+          projected_balance: '4100.00',
+        },
+      ],
+    };
     const fixture = TestBed.createComponent(Forecast);
     fixture.detectChanges();
     await fixture.whenStable();
+    fixture.detectChanges();
     getForecast.mockClear();
+    getForecast.mockReturnValue(of(nextForecast));
 
     const component = fixture.componentInstance;
     component.fromDisplay = '01-11-2026';
@@ -240,12 +263,46 @@ describe('Forecast', () => {
       compiled.querySelector('.apply-button') as HTMLButtonElement
     ).click();
     await fixture.whenStable();
+    fixture.detectChanges();
 
+    const text = compiled.textContent ?? '';
     expect(getForecast).toHaveBeenCalledWith(
       '2026-11-01',
       '2026-11-30',
       'month',
     );
+    expect(text).toContain('2026-11');
+    expect(text).toContain('4,100.00');
+    expect(text).not.toContain('3,500.00');
+    expect(text).not.toContain('2026-12');
+  });
+
+  it('should clear the previous forecast when the request fails', async () => {
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    getForecast.mockReturnValue(
+      throwError(() => new Error('Internal Server Error')),
+    );
+
+    const component = fixture.componentInstance;
+    component.fromDisplay = '01-11-2026';
+    component.toDisplay = '30-11-2026';
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector('.apply-button') as HTMLButtonElement
+    ).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = compiled.textContent ?? '';
+    expect(text).toContain('Unable to load the forecast.');
+    expect(text).not.toContain('Internal Server Error');
+    expect(component.forecast).toBeNull();
+    expect(component.endingProjectedBalance).toBeNull();
+    expect(text).not.toContain('3,500.00');
+    expect(compiled.querySelector('.data-table')).toBeNull();
   });
 
   it('should request forecast again when grouping changes', async () => {
