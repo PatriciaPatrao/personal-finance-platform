@@ -1,47 +1,165 @@
-<h1>Analysis</h1>
+<section class="analysis-page">
+  <header class="page-header">
+    <h1>Analysis</h1>
+    <p class="page-intro">
+      Review historical income, expenses, and cash flow for a selected period.
+    </p>
+  </header>
 
-<label>
-  From:
-  <input
-    type="date"
-    [value]="from"
-    (change)="from = $any($event.target).value"
-  />
-</label>
+  <form class="filters" (submit)="$event.preventDefault(); apply()">
+    <div class="filter-fields">
+      <label class="field">
+        <span class="field-label">From</span>
+        <input
+          type="text"
+          name="from"
+          inputmode="numeric"
+          placeholder="DD-MM-YYYY"
+          maxlength="10"
+          autocomplete="off"
+          [value]="fromDisplay"
+          (input)="fromDisplay = $any($event.target).value"
+        />
+      </label>
 
-<label>
-  To:
-  <input
-    type="date"
-    [value]="to"
-    [max]="maxTo"
-    (change)="to = $any($event.target).value"
-  />
-</label>
+      <label class="field">
+        <span class="field-label">To</span>
+        <input
+          type="text"
+          name="to"
+          inputmode="numeric"
+          placeholder="DD-MM-YYYY"
+          maxlength="10"
+          autocomplete="off"
+          [value]="toDisplay"
+          (input)="toDisplay = $any($event.target).value"
+        />
+      </label>
+    </div>
 
-<button type="button" (click)="apply()">Apply</button>
+    <button type="submit" class="apply-button">Apply</button>
+  </form>
 
-@if (validationMessage) {
-  <p>{{ validationMessage }}</p>
-}
+  @if (validationMessage) {
+    <p class="status status-validation" role="alert">{{ validationMessage }}</p>
+  }
 
-@if (loading) {
-  <p>Loading...</p>
-}
+  @if (loading) {
+    <p class="status status-loading" aria-live="polite">Loading analysis...</p>
+  }
 
-@if (errorMessage) {
-  <p>{{ errorMessage }}</p>
-}
+  @if (errorMessage) {
+    <p class="status status-error" role="alert">{{ errorMessage }}</p>
+  }
 
-@if (summary && !loading) {
-  <section>
-    <h2>Income</h2>
-    <p>{{ summary.total_income | currency: 'EUR' }}</p>
+  @if (!loading && !errorMessage && summary) {
+    <section class="panel summary-panel" aria-labelledby="summary-heading">
+      <h2 id="summary-heading">Summary</h2>
+      <div class="metric-grid">
+        <article class="metric">
+          <h3>Income</h3>
+          <p class="metric-value">
+            {{ summary.total_income | currency: 'EUR' }}
+          </p>
+        </article>
+        <article class="metric">
+          <h3>Expenses</h3>
+          <p class="metric-value">
+            {{ summary.total_expenses | currency: 'EUR' }}
+          </p>
+        </article>
+        <article class="metric">
+          <h3>Net Cash Flow</h3>
+          <p class="metric-value">
+            {{ summary.net_cash_flow | currency: 'EUR' }}
+          </p>
+        </article>
+      </div>
+    </section>
 
-    <h2>Expenses</h2>
-    <p>{{ summary.total_expenses | currency: 'EUR' }}</p>
+    <section class="panel" aria-labelledby="expenses-heading">
+      <h2 id="expenses-heading">Expenses by Category</h2>
 
-    <h2>Net Cash Flow</h2>
-    <p>{{ summary.net_cash_flow | currency: 'EUR' }}</p>
-  </section>
-}
+      @if (expenses && expenses.categories.length > 0) {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Category</th>
+              <th scope="col">Amount</th>
+              <th scope="col">Share</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of expenses.categories; track item.category) {
+              <tr>
+                <td>{{ item.category }}</td>
+                <td>{{ item.amount | currency: 'EUR' }}</td>
+                <td>{{ item.percentage }}%</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      } @else {
+        <p class="empty-state">No expenses recorded for this period.</p>
+      }
+    </section>
+
+    <section class="panel" aria-labelledby="cash-flow-heading">
+      <div class="panel-header">
+        <h2 id="cash-flow-heading">Cash Flow Over Time</h2>
+        <label class="field group-by-field">
+          <span class="field-label">Grouping</span>
+          <select
+            name="groupBy"
+            [value]="groupBy"
+            (change)="onGroupByChange($any($event.target).value)"
+          >
+            <option value="month">Monthly</option>
+            <option value="day">Daily</option>
+          </select>
+        </label>
+      </div>
+
+      @if (cashFlowLoading) {
+        <p class="status status-loading" aria-live="polite">
+          Loading cash flow...
+        </p>
+      }
+
+      @if (cashFlowErrorMessage) {
+        <p class="status status-error" role="alert">
+          {{ cashFlowErrorMessage }}
+        </p>
+      }
+
+      @if (!cashFlowLoading && !cashFlowErrorMessage && cashFlow) {
+        @if (cashFlow.periods.length > 0) {
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Period</th>
+                <th scope="col">Income</th>
+                <th scope="col">Expenses</th>
+                <th scope="col">Net Cash Flow</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (period of cashFlow.periods; track period.period) {
+                <tr>
+                  <td>{{ period.period }}</td>
+                  <td>{{ period.income | currency: 'EUR' }}</td>
+                  <td>{{ period.expenses | currency: 'EUR' }}</td>
+                  <td>{{ period.net_cash_flow | currency: 'EUR' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <p class="empty-state">
+            No cash flow periods recorded for this range.
+          </p>
+        }
+      }
+    </section>
+  }
+</section>
