@@ -108,6 +108,14 @@
   font-weight: 650;
 }
 
+.panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+  justify-content: space-between;
+}
+
 .overview-copy {
   margin: 0;
   color: #555;
@@ -115,11 +123,16 @@
   line-height: 1.45;
 }
 
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
 .metric {
   padding: 0.9rem 1rem;
   border: 1px solid #d8d8d8;
   background: #fff;
-  max-width: 18rem;
 }
 
 .projected-balance-metric {
@@ -145,6 +158,19 @@
 .projected-balance-value {
   font-size: 1.6rem;
   font-weight: 700;
+}
+
+.metric-caption {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.table-note {
+  margin: 0;
+  color: #555;
+  max-width: 42rem;
+  line-height: 1.45;
 }
 
 .data-table {
@@ -183,6 +209,10 @@
 }
 
 @media (max-width: 720px) {
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+
   .filters {
     align-items: stretch;
   }

@@ -116,7 +116,7 @@ describe('Forecast', () => {
     );
   });
 
-  it('should display forecast periods and projected balance', async () => {
+  it('should display forecast periods and ending projected balance', async () => {
     const fixture = TestBed.createComponent(Forecast);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -125,18 +125,68 @@ describe('Forecast', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const text = compiled.textContent ?? '';
     expect(text).toContain('Forecast overview');
-    expect(text).toContain('Projected balance');
+    expect(text).toContain('Ending projected balance');
     expect(text).toContain('3,500.00');
+    expect(text).toContain('At 31 December 2026');
     expect(text).toContain('Forecast periods');
     expect(text).toContain('2026-10');
     expect(text).toContain('2026-11');
     expect(text).toContain('2026-12');
     expect(text).toContain(
-      'Projected balance combines the current account balance with future known income and recurring expenses.',
+      'The starting balance is the balance at the beginning of the range.',
+    );
+    expect(text).toContain(
+      'Each projected balance is the running balance after that period.',
     );
   });
 
-  it('should render zero-activity periods', async () => {
+  it('should derive starting balance from the first period', async () => {
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const compiled = fixture.nativeElement as HTMLElement;
+    const text = compiled.textContent ?? '';
+
+    expect(component.startingBalance).toBe('2000.00');
+    expect(component.endingProjectedBalance).toBe('3500.00');
+    expect(text).toContain('Starting balance');
+    expect(text).toContain('2,000.00');
+    expect(text).toContain('At the start of the forecast');
+  });
+
+  it('should handle empty periods safely', async () => {
+    getForecast.mockReturnValue(
+      of({
+        ...sampleForecast,
+        periods: [],
+      }),
+    );
+
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const compiled = fixture.nativeElement as HTMLElement;
+    const text = compiled.textContent ?? '';
+
+    expect(component.startingBalance).toBeNull();
+    expect(component.endingProjectedBalance).toBeNull();
+    expect(component.endingProjectedBalanceDate).toBeNull();
+    expect(component.hasZeroSchedule).toBe(false);
+    expect(text).toContain('No forecast periods returned for this range.');
+    expect(text).not.toContain('Starting balance');
+    expect(text).not.toContain('Ending projected balance');
+    expect(text).not.toContain(
+      'Each projected balance is the running balance after that period.',
+    );
+  });
+
+  it('should render zero-activity periods with the zero-schedule message', async () => {
     getForecast.mockReturnValue(
       of({
         ...sampleForecast,
@@ -169,6 +219,23 @@ describe('Forecast', () => {
     expect(text).toContain('2026-10');
     expect(text).toContain('2026-11');
     expect(text).toContain('1,000.00');
+    expect(text).toContain(
+      'No scheduled income or recurring expenses fall within this range, so the projected balance remains unchanged.',
+    );
+    expect(compiled.querySelector('.data-table')).not.toBeNull();
+  });
+
+  it('should not show the zero-schedule message when any period has activity', async () => {
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const text = compiled.textContent ?? '';
+    expect(text).not.toContain(
+      'No scheduled income or recurring expenses fall within this range, so the projected balance remains unchanged.',
+    );
   });
 
   it('should show loading until the forecast arrives', async () => {
@@ -227,6 +294,7 @@ describe('Forecast', () => {
     expect(getForecast).not.toHaveBeenCalled();
     expect(text).toContain('From must be on or before To.');
     expect(component.forecast).toBeNull();
+    expect(component.startingBalance).toBeNull();
     expect(component.endingProjectedBalance).toBeNull();
     expect(text).not.toContain('3,500.00');
     expect(text).not.toContain('2026-10');
@@ -273,6 +341,7 @@ describe('Forecast', () => {
     );
     expect(text).toContain('2026-11');
     expect(text).toContain('4,100.00');
+    expect(text).toContain('At 30 November 2026');
     expect(text).not.toContain('3,500.00');
     expect(text).not.toContain('2026-12');
   });
@@ -300,6 +369,7 @@ describe('Forecast', () => {
     expect(text).toContain('Unable to load the forecast.');
     expect(text).not.toContain('Internal Server Error');
     expect(component.forecast).toBeNull();
+    expect(component.startingBalance).toBeNull();
     expect(component.endingProjectedBalance).toBeNull();
     expect(text).not.toContain('3,500.00');
     expect(compiled.querySelector('.data-table')).toBeNull();
@@ -323,5 +393,60 @@ describe('Forecast', () => {
       'day',
     );
     expect(component.groupBy).toBe('day');
+  });
+
+  it('should use the last valid date range when grouping changes after a rejected range', async () => {
+    const nextForecast: ForecastResponse = {
+      ...sampleForecast,
+      from_date: '2026-11-01',
+      to_date: '2026-11-30',
+      periods: [
+        {
+          period: '2026-11',
+          income: '2000.00',
+          expenses: '1250.00',
+          net_cash_flow: '750.00',
+          projected_balance: '4100.00',
+        },
+      ],
+    };
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    getForecast.mockClear();
+    getForecast.mockReturnValue(of(nextForecast));
+
+    const component = fixture.componentInstance;
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    component.fromDisplay = '01-11-2026';
+    component.toDisplay = '30-11-2026';
+    (
+      compiled.querySelector('.apply-button') as HTMLButtonElement
+    ).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    component.fromDisplay = '03-04-2027';
+    component.toDisplay = '31-12-2026';
+    (
+      compiled.querySelector('.apply-button') as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+    getForecast.mockClear();
+    getForecast.mockReturnValue(of(nextForecast));
+
+    component.onGroupByChange('day');
+    await fixture.whenStable();
+
+    expect(getForecast).toHaveBeenCalledTimes(1);
+    expect(getForecast).toHaveBeenCalledWith(
+      '2026-11-01',
+      '2026-11-30',
+      'day',
+    );
+    expect(component.from).toBe('2026-11-01');
+    expect(component.to).toBe('2026-11-30');
   });
 });

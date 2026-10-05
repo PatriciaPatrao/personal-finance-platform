@@ -9,6 +9,21 @@ import {
 } from './forecast-response';
 import { ForecastService } from './forecast.service';
 
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
 function formatDate(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -53,6 +68,31 @@ function parseEuropeanDate(value: string): string | null {
   return formatDate(date);
 }
 
+function formatLongDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  return `${day} ${MONTH_NAMES[month - 1]} ${year}`;
+}
+
+function parseMoneyMinorUnits(value: string): bigint {
+  const match = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(value.trim());
+  if (!match) {
+    throw new Error(`Invalid money amount: ${value}`);
+  }
+
+  const sign = match[1] === '-' ? -1n : 1n;
+  const whole = BigInt(match[2]);
+  const fraction = (match[3] ?? '00').padEnd(2, '0');
+  return sign * (whole * 100n + BigInt(fraction));
+}
+
+function formatMoneyMinorUnits(minorUnits: bigint): string {
+  const sign = minorUnits < 0n ? '-' : '';
+  const absolute = minorUnits < 0n ? -minorUnits : minorUnits;
+  const whole = absolute / 100n;
+  const fraction = (absolute % 100n).toString().padStart(2, '0');
+  return `${sign}${whole}.${fraction}`;
+}
+
 @Component({
   selector: 'app-forecast',
   imports: [CurrencyPipe, DateField],
@@ -79,6 +119,17 @@ export class Forecast implements OnInit {
     private changeDetector: ChangeDetectorRef,
   ) {}
 
+  get startingBalance(): string | null {
+    if (!this.forecast || this.forecast.periods.length === 0) {
+      return null;
+    }
+
+    const firstPeriod = this.forecast.periods[0];
+    const projected = parseMoneyMinorUnits(firstPeriod.projected_balance);
+    const netCashFlow = parseMoneyMinorUnits(firstPeriod.net_cash_flow);
+    return formatMoneyMinorUnits(projected - netCashFlow);
+  }
+
   get endingProjectedBalance(): string | null {
     if (!this.forecast || this.forecast.periods.length === 0) {
       return null;
@@ -87,6 +138,26 @@ export class Forecast implements OnInit {
     const lastPeriod =
       this.forecast.periods[this.forecast.periods.length - 1];
     return lastPeriod.projected_balance;
+  }
+
+  get endingProjectedBalanceDate(): string | null {
+    if (!this.forecast || this.forecast.periods.length === 0) {
+      return null;
+    }
+
+    return formatLongDate(this.forecast.to_date);
+  }
+
+  get hasZeroSchedule(): boolean {
+    if (!this.forecast || this.forecast.periods.length === 0) {
+      return false;
+    }
+
+    return this.forecast.periods.every(
+      (period) =>
+        parseMoneyMinorUnits(period.income) === 0n &&
+        parseMoneyMinorUnits(period.expenses) === 0n,
+    );
   }
 
   ngOnInit(): void {

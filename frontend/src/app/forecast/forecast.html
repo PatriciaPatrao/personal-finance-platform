@@ -22,17 +22,6 @@
         [value]="toDisplay"
         (valueChange)="toDisplay = $event"
       />
-      <label class="field group-by-field">
-        <span class="field-label">Grouping</span>
-        <select
-          name="groupBy"
-          [value]="groupBy"
-          (change)="onGroupByChange($any($event.target).value)"
-        >
-          <option value="month">Monthly</option>
-          <option value="day">Daily</option>
-        </select>
-      </label>
     </div>
 
     <button type="submit" class="apply-button">Apply</button>
@@ -54,24 +43,62 @@
     <section class="panel overview-panel" aria-labelledby="overview-heading">
       <h2 id="overview-heading">Forecast overview</h2>
       <p class="overview-copy">
-        Projected balance combines the current account balance with future
-        known income and recurring expenses.
+        The starting balance is the balance at the beginning of the range.
+        The ending projected balance is the balance after the final period.
       </p>
 
-      @if (endingProjectedBalance !== null) {
-        <article class="metric projected-balance-metric">
-          <h3>Projected balance</h3>
-          <p class="metric-value projected-balance-value">
-            {{ endingProjectedBalance | currency: 'EUR' }}
-          </p>
-        </article>
+      @if (startingBalance !== null && endingProjectedBalance !== null) {
+        <div class="metric-grid">
+          <article class="metric">
+            <h3>Starting balance</h3>
+            <p class="metric-value">
+              {{ startingBalance | currency: 'EUR' }}
+            </p>
+            <p class="metric-caption">At the start of the forecast</p>
+          </article>
+          <article class="metric projected-balance-metric">
+            <h3>Ending projected balance</h3>
+            <p class="metric-value projected-balance-value">
+              {{ endingProjectedBalance | currency: 'EUR' }}
+            </p>
+            @if (endingProjectedBalanceDate) {
+              <p class="metric-caption">
+                At {{ endingProjectedBalanceDate }}
+              </p>
+            }
+          </article>
+        </div>
       }
     </section>
 
     <section class="panel" aria-labelledby="periods-heading">
-      <h2 id="periods-heading">Forecast periods</h2>
+      <div class="panel-header">
+        <h2 id="periods-heading">Forecast periods</h2>
+        <label class="field group-by-field">
+          <span class="field-label">Grouping</span>
+          <select
+            name="groupBy"
+            [value]="groupBy"
+            (change)="onGroupByChange($any($event.target).value)"
+          >
+            <option value="month">Monthly</option>
+            <option value="day">Daily</option>
+          </select>
+        </label>
+      </div>
 
       @if (forecast.periods.length > 0) {
+        <p class="table-note">
+          Each projected balance is the running balance after that period.
+        </p>
+
+        @if (hasZeroSchedule) {
+          <p class="table-note">
+            No scheduled income or recurring expenses fall within this range,
+            so the projected balance remains unchanged.
+          </p>
+        }
+
         <table class="data-table">
           <thead>
             <tr>
