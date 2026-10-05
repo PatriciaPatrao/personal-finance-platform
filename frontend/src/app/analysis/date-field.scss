@@ -1,0 +1,140 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 12.5rem;
+  flex: 1 1 12.5rem;
+  position: relative;
+}
+
+.field-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.date-control {
+  position: relative;
+}
+
+.date-control input {
+  box-sizing: border-box;
+  width: 100%;
+  font: inherit;
+  padding: 0.45rem 2.2rem 0.45rem 0.55rem;
+  border: 1px solid #bdbdbd;
+  background: #fff;
+  color: #222;
+}
+
+.calendar-button {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  width: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #333;
+  cursor: pointer;
+}
+
+.calendar-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.calendar-button:hover,
+.calendar-button[aria-expanded='true'] {
+  color: #000;
+  background: #f3f3f3;
+}
+
+.calendar {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  width: 16.5rem;
+  padding: 0.75rem;
+  border: 1px solid #bdbdbd;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.month-label {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.month-button,
+.day {
+  font: inherit;
+  border: 0;
+  background: transparent;
+  color: #222;
+  cursor: pointer;
+}
+
+.month-button {
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.month-button:hover,
+.day:hover:not(:disabled) {
+  background: #f2f2f2;
+}
+
+.weekdays,
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.weekdays span {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 650;
+  color: #666;
+  padding: 0.25rem 0;
+}
+
+.day {
+  height: 2rem;
+  padding: 0;
+}
+
+.day.outside {
+  color: #9a9a9a;
+}
+
+.day.today:not(.selected) {
+  box-shadow: inset 0 0 0 1px #222;
+}
+
+.day.selected {
+  background: #222;
+  color: #fff;
+}
+
+.day:disabled {
+  color: #c4c4c4;
+  cursor: not-allowed;
+  background: transparent;
+}

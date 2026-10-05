@@ -9,6 +9,7 @@ import {
   CashFlowGroupBy,
   ExpensesByCategory,
 } from './analysis-summary';
+import { DateField } from './date-field';
 
 function formatDate(date: Date): string {
   const year = date.getFullYear();
@@ -55,7 +56,7 @@ function parseEuropeanDate(value: string): string | null {
 
 @Component({
   selector: 'app-analysis',
-  imports: [CurrencyPipe],
+  imports: [CurrencyPipe, DateField],
   templateUrl: './analysis.html',
   styleUrl: './analysis.scss',
 })

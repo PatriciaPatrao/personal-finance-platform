@@ -8,33 +8,20 @@
 
   <form class="filters" (submit)="$event.preventDefault(); apply()">
     <div class="filter-fields">
-      <label class="field">
-        <span class="field-label">From</span>
-        <input
-          type="text"
-          name="from"
-          inputmode="numeric"
-          placeholder="DD-MM-YYYY"
-          maxlength="10"
-          autocomplete="off"
-          [value]="fromDisplay"
-          (input)="fromDisplay = $any($event.target).value"
-        />
-      </label>
-
-      <label class="field">
-        <span class="field-label">To</span>
-        <input
-          type="text"
-          name="to"
-          inputmode="numeric"
-          placeholder="DD-MM-YYYY"
-          maxlength="10"
-          autocomplete="off"
-          [value]="toDisplay"
-          (input)="toDisplay = $any($event.target).value"
-        />
-      </label>
+      <app-date-field
+        label="From"
+        name="from"
+        [value]="fromDisplay"
+        [maxIsoDate]="maxTo"
+        (valueChange)="fromDisplay = $event"
+      />
+      <app-date-field
+        label="To"
+        name="to"
+        [value]="toDisplay"
+        [maxIsoDate]="maxTo"
+        (valueChange)="toDisplay = $event"
+      />
     </div>
 
     <button type="submit" class="apply-button">Apply</button>

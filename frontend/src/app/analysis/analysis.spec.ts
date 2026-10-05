@@ -227,7 +227,9 @@ describe('Analysis', () => {
     component.fromDisplay = '10-10-2026';
     component.toDisplay = '01-10-2026';
     const compiled = fixture.nativeElement as HTMLElement;
-    compiled.querySelector('button')?.click();
+    (
+      compiled.querySelector('.apply-button') as HTMLButtonElement
+    ).click();
     fixture.detectChanges();
 
     expect(getSummary).not.toHaveBeenCalled();
@@ -256,13 +258,51 @@ describe('Analysis', () => {
     component.fromDisplay = `${start[2]}-${start[1]}-${start[0]}`;
     component.toDisplay = future;
     const compiled = fixture.nativeElement as HTMLElement;
-    compiled.querySelector('button')?.click();
+    (
+      compiled.querySelector('.apply-button') as HTMLButtonElement
+    ).click();
     fixture.detectChanges();
 
     expect(getSummary).not.toHaveBeenCalled();
     expect(getExpenses).not.toHaveBeenCalled();
     expect(getCashFlow).not.toHaveBeenCalled();
     expect(compiled.textContent).toContain('To must not be in the future.');
+  });
+
+  it('should fill From from the calendar without losing typed dates', async () => {
+    const fixture = TestBed.createComponent(Analysis);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const component = fixture.componentInstance;
+    component.fromDisplay = '15-09-2026';
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelector(
+        'button[aria-label="Open calendar for From"]',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    const monthLabel =
+      compiled.querySelector('.month-label')?.textContent?.trim() ?? '';
+    expect(monthLabel).toBe('September 2026');
+
+    (
+      compiled.querySelector(
+        '[data-date="2026-09-01"]',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    const fromInput = compiled.querySelector(
+      'input[name="from"]',
+    ) as HTMLInputElement;
+    expect(component.fromDisplay).toBe('01-09-2026');
+    expect(fromInput.value).toBe('01-09-2026');
+    expect(compiled.querySelector('#from-calendar') === null).toBe(true);
   });
 
   it('should request analysis for the selected dates when Apply is clicked', async () => {
@@ -277,7 +317,9 @@ describe('Analysis', () => {
     component.fromDisplay = '01-09-2026';
     component.toDisplay = '30-09-2026';
     const compiled = fixture.nativeElement as HTMLElement;
-    compiled.querySelector('button')?.click();
+    (
+      compiled.querySelector('.apply-button') as HTMLButtonElement
+    ).click();
     await fixture.whenStable();
 
     expect(getSummary).toHaveBeenCalledWith('2026-09-01', '2026-09-30');
