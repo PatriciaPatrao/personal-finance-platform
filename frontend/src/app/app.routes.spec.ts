@@ -1,13 +1,63 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
+import { of } from 'rxjs';
+
+import { AnalysisService } from './analysis/analysis.service';
 import { App } from './app';
 import { routes } from './app.routes';
+import { ForecastService } from './forecast/forecast.service';
 
 describe('App routing', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter(routes)],
+      providers: [
+        provideRouter(routes),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: AnalysisService,
+          useValue: {
+            getSummary: () =>
+              of({
+                from_date: '2026-10-01',
+                to_date: '2026-10-05',
+                total_income: '0.00',
+                total_expenses: '0.00',
+                net_cash_flow: '0.00',
+              }),
+            getExpenses: () =>
+              of({
+                from_date: '2026-10-01',
+                to_date: '2026-10-05',
+                total_expenses: '0.00',
+                categories: [],
+              }),
+            getCashFlow: () =>
+              of({
+                from_date: '2026-10-01',
+                to_date: '2026-10-05',
+                group_by: 'month',
+                periods: [],
+              }),
+          },
+        },
+        {
+          provide: ForecastService,
+          useValue: {
+            getForecast: () =>
+              of({
+                from_date: '2026-10-05',
+                to_date: '2026-12-31',
+                currency: 'EUR',
+                group_by: 'month',
+                periods: [],
+              }),
+          },
+        },
+      ],
     }).compileComponents();
   });
 

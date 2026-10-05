@@ -271,11 +271,10 @@ describe('Analysis', () => {
 
   it('should fill From from the calendar without losing typed dates', async () => {
     const fixture = TestBed.createComponent(Analysis);
-    fixture.detectChanges();
-    await fixture.whenStable();
-
     const component = fixture.componentInstance;
     component.fromDisplay = '15-09-2026';
+    fixture.detectChanges();
+    await fixture.whenStable();
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
@@ -286,38 +285,23 @@ describe('Analysis', () => {
     ).click();
     fixture.detectChanges();
 
-    let summary = 'unchecked';
-    try {
-      const monthLabel =
-        compiled.querySelector('.month-label')?.textContent?.trim() ?? '';
-      expect(monthLabel).toBe('September 2026');
+    const monthLabel =
+      compiled.querySelector('.month-label')?.textContent?.trim() ?? '';
+    expect(monthLabel).toBe('September 2026');
 
-      (
-        compiled.querySelector(
-          '[data-date="2026-09-01"]',
-        ) as HTMLButtonElement
-      ).click();
-      fixture.detectChanges();
+    (
+      compiled.querySelector(
+        '[data-date="2026-09-01"]',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
 
-      const fromInput = compiled.querySelector(
-        'input[name="from"]',
-      ) as HTMLInputElement;
-      expect(component.fromDisplay).toBe('01-09-2026');
-      expect(fromInput.value).toBe('01-09-2026');
-      expect(compiled.querySelector('#from-calendar') === null).toBe(true);
-      summary = 'ok';
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      summary = message.slice(0, 180);
-    }
-    const xhr = new XMLHttpRequest();
-    xhr.open(
-      'GET',
-      `http://127.0.0.1:9876/debug?m=${encodeURIComponent(summary)}`,
-      false,
-    );
-    xhr.send();
-    expect(summary).toBe('ok');
+    const fromInput = compiled.querySelector(
+      'input[name="from"]',
+    ) as HTMLInputElement;
+    expect(component.fromDisplay).toBe('01-09-2026');
+    expect(fromInput.value).toBe('01-09-2026');
+    expect(compiled.querySelector('#from-calendar') === null).toBe(true);
   });
 
   it('should request analysis for the selected dates when Apply is clicked', async () => {

@@ -54,9 +54,18 @@
   background: #f3f3f3;
 }
 
+.calendar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
 .calendar {
   position: absolute;
-  z-index: 20;
+  z-index: 11;
   top: calc(100% + 0.35rem);
   left: 0;
   width: 16.5rem;

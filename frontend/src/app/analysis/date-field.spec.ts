@@ -3,32 +3,37 @@ import { TestBed } from '@angular/core/testing';
 import { DateField } from './date-field';
 
 describe('DateField', () => {
-  function createField(): {
-    fixture: ReturnType<typeof TestBed.createComponent<DateField>>;
-    component: DateField;
-    values: string[];
-  } {
-    const fixture = TestBed.createComponent(DateField);
-    const component = fixture.componentInstance;
-    const values: string[] = [];
-    component.label = 'From';
-    component.name = 'from';
-    component.value = '15-09-2026';
-    component.maxIsoDate = '2026-09-20';
-    component.valueChange.subscribe((value: string) => values.push(value));
-    fixture.detectChanges();
-    return { fixture, component, values };
-  }
-
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [DateField],
     }).compileComponents();
   });
 
-  it('should keep typed dates and still open a calendar', () => {
-    const { fixture, component, values } = createField();
-    const compiled = fixture.nativeElement as HTMLElement;
+  function setup(value = '15-09-2026'): {
+    fixture: ReturnType<typeof TestBed.createComponent<DateField>>;
+    component: DateField;
+    values: string[];
+    compiled: HTMLElement;
+  } {
+    const fixture = TestBed.createComponent(DateField);
+    const component = fixture.componentInstance;
+    const values: string[] = [];
+    component.label = 'From';
+    component.name = 'from';
+    component.value = value;
+    component.maxIsoDate = '2026-09-20';
+    component.valueChange.subscribe((next: string) => values.push(next));
+    fixture.detectChanges();
+    return {
+      fixture,
+      component,
+      values,
+      compiled: fixture.nativeElement as HTMLElement,
+    };
+  }
+
+  it('should keep a typed date and open the calendar on that month', () => {
+    const { fixture, component, values, compiled } = setup();
     const input = compiled.querySelector('input') as HTMLInputElement;
 
     expect(input.placeholder).toBe('DD-MM-YYYY');
@@ -38,9 +43,7 @@ describe('DateField', () => {
     input.dispatchEvent(new Event('input'));
     expect(values).toEqual(['01-09-2026']);
 
-    (
-      compiled.querySelector('.calendar-button') as HTMLButtonElement
-    ).click();
+    (compiled.querySelector('.calendar-button') as HTMLButtonElement).click();
     fixture.detectChanges();
 
     expect(component.open).toBe(true);
@@ -50,18 +53,13 @@ describe('DateField', () => {
   });
 
   it('should write the chosen day and close the calendar', () => {
-    const { fixture, component, values } = createField();
-    const compiled = fixture.nativeElement as HTMLElement;
+    const { fixture, component, values, compiled } = setup();
 
-    (
-      compiled.querySelector('.calendar-button') as HTMLButtonElement
-    ).click();
+    (compiled.querySelector('.calendar-button') as HTMLButtonElement).click();
     fixture.detectChanges();
-
-    const day = compiled.querySelector(
-      '[data-date="2026-09-01"]',
-    ) as HTMLButtonElement;
-    day.click();
+    (
+      compiled.querySelector('[data-date="2026-09-01"]') as HTMLButtonElement
+    ).click();
     fixture.detectChanges();
 
     expect(values).toEqual(['01-09-2026']);
@@ -69,12 +67,9 @@ describe('DateField', () => {
   });
 
   it('should move between months and disable dates after the maximum', () => {
-    const { fixture, component } = createField();
-    const compiled = fixture.nativeElement as HTMLElement;
+    const { fixture, component, compiled } = setup();
 
-    (
-      compiled.querySelector('.calendar-button') as HTMLButtonElement
-    ).click();
+    (compiled.querySelector('.calendar-button') as HTMLButtonElement).click();
     fixture.detectChanges();
 
     const blocked = compiled.querySelector(

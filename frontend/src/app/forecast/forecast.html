@@ -1,2 +1,106 @@
-<h1>Forecast</h1>
-<p>The Forecast area will be implemented later.</p>
+<section class="forecast-page">
+  <header class="page-header">
+    <h1>Forecast</h1>
+    <p class="page-intro">
+      Project future balances from current account balances and known future
+      income and recurring expenses. This is a projection based on scheduled
+      data, not a prediction from historical spending.
+    </p>
+  </header>
+
+  <form class="filters" (submit)="$event.preventDefault(); apply()">
+    <div class="filter-fields">
+      <app-date-field
+        label="From"
+        name="from"
+        [value]="fromDisplay"
+        (valueChange)="fromDisplay = $event"
+      />
+      <app-date-field
+        label="To"
+        name="to"
+        [value]="toDisplay"
+        (valueChange)="toDisplay = $event"
+      />
+      <label class="field group-by-field">
+        <span class="field-label">Grouping</span>
+        <select
+          name="groupBy"
+          [value]="groupBy"
+          (change)="onGroupByChange($any($event.target).value)"
+        >
+          <option value="month">Monthly</option>
+          <option value="day">Daily</option>
+        </select>
+      </label>
+    </div>
+
+    <button type="submit" class="apply-button">Apply</button>
+  </form>
+
+  @if (validationMessage) {
+    <p class="status status-validation" role="alert">{{ validationMessage }}</p>
+  }
+
+  @if (loading) {
+    <p class="status status-loading" aria-live="polite">Loading forecast...</p>
+  }
+
+  @if (errorMessage) {
+    <p class="status status-error" role="alert">{{ errorMessage }}</p>
+  }
+
+  @if (!loading && !errorMessage && forecast) {
+    <section class="panel overview-panel" aria-labelledby="overview-heading">
+      <h2 id="overview-heading">Forecast overview</h2>
+      <p class="overview-copy">
+        Projected balance combines the current account balance with future
+        known income and recurring expenses.
+      </p>
+
+      @if (endingProjectedBalance !== null) {
+        <article class="metric projected-balance-metric">
+          <h3>Projected balance</h3>
+          <p class="metric-value projected-balance-value">
+            {{ endingProjectedBalance | currency: 'EUR' }}
+          </p>
+        </article>
+      }
+    </section>
+
+    <section class="panel" aria-labelledby="periods-heading">
+      <h2 id="periods-heading">Forecast periods</h2>
+
+      @if (forecast.periods.length > 0) {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Period</th>
+              <th scope="col">Income</th>
+              <th scope="col">Expenses</th>
+              <th scope="col">Net Cash Flow</th>
+              <th scope="col">Projected Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (period of forecast.periods; track trackPeriod($index, period)) {
+              <tr>
+                <td>{{ period.period }}</td>
+                <td>{{ period.income | currency: 'EUR' }}</td>
+                <td>{{ period.expenses | currency: 'EUR' }}</td>
+                <td>{{ period.net_cash_flow | currency: 'EUR' }}</td>
+                <td class="projected-balance-cell">
+                  {{ period.projected_balance | currency: 'EUR' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      } @else {
+        <p class="empty-state">
+          No forecast periods returned for this range.
+        </p>
+      }
+    </section>
+  }
+</section>

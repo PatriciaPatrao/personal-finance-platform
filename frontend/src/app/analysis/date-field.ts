@@ -80,6 +80,7 @@ export class DateField {
   open = false;
   viewYear = new Date().getFullYear();
   viewMonth = new Date().getMonth();
+  calendarDays: CalendarDay[] = [];
   readonly weekdays = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
   constructor(private host: ElementRef<HTMLElement>) {}
@@ -96,7 +97,7 @@ export class DateField {
     return `${MONTH_NAMES[this.viewMonth]} ${this.viewYear}`;
   }
 
-  get days(): CalendarDay[] {
+  private buildDays(): CalendarDay[] {
     const firstOfMonth = new Date(this.viewYear, this.viewMonth, 1);
     const startOffset = (firstOfMonth.getDay() + 6) % 7;
     const gridStart = new Date(
@@ -104,7 +105,9 @@ export class DateField {
       this.viewMonth,
       1 - startOffset,
     );
-    const selected = parseEuropeanDate(this.value);
+    const input = this.host.nativeElement.querySelector('input');
+    const typed = input instanceof HTMLInputElement ? input.value : this.value;
+    const selected = parseEuropeanDate(typed) ?? parseEuropeanDate(this.value);
     const selectedIso = selected ? formatIso(selected) : null;
     const todayIso = formatIso(new Date());
     const days: CalendarDay[] = [];
@@ -130,6 +133,10 @@ export class DateField {
     return days;
   }
 
+  private refreshDays(): void {
+    this.calendarDays = this.buildDays();
+  }
+
   onInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     this.valueChange.emit(input.value);
@@ -141,6 +148,7 @@ export class DateField {
     this.open = !this.open;
     if (this.open) {
       this.syncViewToValue();
+      this.refreshDays();
     }
   }
 
@@ -148,18 +156,20 @@ export class DateField {
     if (this.viewMonth === 0) {
       this.viewMonth = 11;
       this.viewYear -= 1;
-      return;
+    } else {
+      this.viewMonth -= 1;
     }
-    this.viewMonth -= 1;
+    this.refreshDays();
   }
 
   nextMonth(): void {
     if (this.viewMonth === 11) {
       this.viewMonth = 0;
       this.viewYear += 1;
-      return;
+    } else {
+      this.viewMonth += 1;
     }
-    this.viewMonth += 1;
+    this.refreshDays();
   }
 
   selectDay(day: CalendarDay): void {
@@ -174,28 +184,18 @@ export class DateField {
     this.open = false;
   }
 
-  @HostListener('document:mousedown', ['$event'])
-  closeOnOutsideClick(event: MouseEvent): void {
-    if (!this.open) {
-      return;
-    }
-
-    const target = event.target;
-    if (!(target instanceof Node)) {
-      return;
-    }
-    if (!this.host.nativeElement.contains(target)) {
-      this.open = false;
-    }
-  }
-
   @HostListener('document:keydown.escape')
   closeOnEscape(): void {
     this.open = false;
   }
 
   private syncViewToValue(): void {
-    const parsed = parseEuropeanDate(this.value) ?? new Date();
+    const input = this.host.nativeElement.querySelector('input');
+    const typed = input instanceof HTMLInputElement ? input.value : '';
+    const parsed =
+      parseEuropeanDate(typed) ??
+      parseEuropeanDate(this.value) ??
+      new Date();
     this.viewYear = parsed.getFullYear();
     this.viewMonth = parsed.getMonth();
   }

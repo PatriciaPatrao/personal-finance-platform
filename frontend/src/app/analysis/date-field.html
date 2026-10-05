@@ -26,6 +26,12 @@
   </button>
 
   @if (open) {
+    <button
+      type="button"
+      class="calendar-backdrop"
+      aria-label="Close calendar"
+      (click)="open = false"
+    ></button>
     <div class="calendar" role="dialog" [id]="calendarId" [attr.aria-label]="'Choose ' + label">
       <div class="calendar-header">
         <button
@@ -52,7 +58,7 @@
         }
       </div>
       <div class="days">
-        @for (day of days; track day.iso) {
+        @for (day of calendarDays; track day.iso) {
           <button
             type="button"
             class="day"
