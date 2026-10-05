@@ -81,8 +81,6 @@ export class DateField {
   viewYear = new Date().getFullYear();
   viewMonth = new Date().getMonth();
   readonly weekdays = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
-  private outsideCloseArmed = false;
-  private armTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private host: ElementRef<HTMLElement>) {}
 
@@ -141,14 +139,8 @@ export class DateField {
     event.preventDefault();
     event.stopPropagation();
     this.open = !this.open;
-    this.clearArmTimer();
     if (this.open) {
       this.syncViewToValue();
-      this.outsideCloseArmed = false;
-      this.armTimer = setTimeout(() => {
-        this.outsideCloseArmed = true;
-        this.armTimer = null;
-      });
     }
   }
 
@@ -182,9 +174,9 @@ export class DateField {
     this.open = false;
   }
 
-  @HostListener('document:click', ['$event'])
+  @HostListener('document:mousedown', ['$event'])
   closeOnOutsideClick(event: MouseEvent): void {
-    if (!this.open || !this.outsideCloseArmed) {
+    if (!this.open) {
       return;
     }
 
@@ -200,13 +192,6 @@ export class DateField {
   @HostListener('document:keydown.escape')
   closeOnEscape(): void {
     this.open = false;
-  }
-
-  private clearArmTimer(): void {
-    if (this.armTimer !== null) {
-      clearTimeout(this.armTimer);
-      this.armTimer = null;
-    }
   }
 
   private syncViewToValue(): void {
