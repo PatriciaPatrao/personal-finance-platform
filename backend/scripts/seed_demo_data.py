@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Seed deterministic demo transactions for local development.
+"""Seed deterministic demo data for local development.
 
-Creates one demo bank account and historical Transaction rows for
-2026-01-01 through 2026-09-30. Safe to run repeatedly: if the demo
-account already has transactions, the script exits without inserting.
+Creates one demo bank account, historical Transaction rows for
+2026-01-01 through 2026-09-30, and Forecast demo Income plus
+RecurringExpense rows. Safe to run repeatedly: existing historical
+transactions are left unchanged, and missing Forecast demo rows
+are inserted without duplicates.
 """
 
 from __future__ import annotations
@@ -24,15 +26,36 @@ if str(BACKEND_ROOT) not in sys.path:
 from app.db.session import SessionLocal
 from app.models.account import Account
 from app.models.account import AccountType
+from app.models.income import Income
+from app.models.income import IncomeFrequency
+from app.models.recurring_expense import RecurringExpense
+from app.models.recurring_expense import RecurringFrequency
 from app.models.transaction import Transaction
 from app.models.transaction import TransactionType
+from app.schemas.income import IncomeCreate
+from app.schemas.recurring_expense import RecurringExpenseCreate
+from app.services.income import IncomeService
+from app.services.occurrence import next_after
+from app.services.recurring_expense import RecurringExpenseService
 
 
 DEMO_ACCOUNT_NAME = "Demo Main Account"
 DEMO_CURRENCY = "EUR"
 PERIOD_START = date(2026, 1, 1)
 PERIOD_END = date(2026, 9, 30)
+DEMO_FORECAST_START = date(2026, 1, 1)
+DEMO_OCTOBER_OCCURRENCE = date(2026, 10, 31)
+DEMO_FORECAST_BALANCE = Decimal("5000.00")
+DEMO_INCOME_AMOUNT = Decimal("2000.00")
 _ZERO = Decimal("0.00")
+
+SEED_RECURRING_EXPENSES: list[
+    tuple[str, Decimal, str]
+] = [
+    ("Rent", Decimal("800.00"), "Housing"),
+    ("Utilities", Decimal("150.00"), "Utilities"),
+    ("Household / Groceries", Decimal("300.00"), "Food"),
+]
 
 # Explicit seed rows: (occurred_on, type, category, description, amount).
 # Amounts are exact; monthly expense totals match the validation table.
@@ -981,23 +1004,147 @@ def _account_totals(
     return count, income, expenses
 
 
+def _demo_next_occurrence(today: date | None = None) -> date:
+    """Return the first monthly occurrence on or after today."""
+    if today is None:
+        today = date.today()
+    occurrence = DEMO_OCTOBER_OCCURRENCE
+    frequency = IncomeFrequency.MONTHLY
+    while occurrence < today:
+        occurrence = next_after(occurrence, frequency)
+    return occurrence
+
+
+def _find_demo_income(session, account_id: int) -> Income | None:
+    """Return the demo salary row if it already exists."""
+    statement = select(Income).where(
+        Income.account_id == account_id,
+        Income.amount == DEMO_INCOME_AMOUNT,
+        Income.frequency == IncomeFrequency.MONTHLY,
+        Income.start_date == DEMO_FORECAST_START,
+        Income.end_date.is_(None),
+    )
+    return session.scalars(statement).first()
+
+
+def _find_demo_recurring_expense(
+    session,
+    account_id: int,
+    description: str,
+) -> RecurringExpense | None:
+    """Return one demo recurring expense by description."""
+    statement = select(RecurringExpense).where(
+        RecurringExpense.account_id == account_id,
+        RecurringExpense.description == description,
+    )
+    return session.scalars(statement).first()
+
+
+def _count_demo_incomes(session, account_id: int) -> int:
+    """Count demo salary rows on the account."""
+    statement = (
+        select(func.count())
+        .select_from(Income)
+        .where(
+            Income.account_id == account_id,
+            Income.amount == DEMO_INCOME_AMOUNT,
+            Income.frequency == IncomeFrequency.MONTHLY,
+            Income.start_date == DEMO_FORECAST_START,
+            Income.end_date.is_(None),
+        )
+    )
+    return int(session.scalar(statement) or 0)
+
+
+def _count_demo_recurring_expenses(
+    session,
+    account_id: int,
+) -> int:
+    """Count demo recurring expenses on the account."""
+    descriptions = [
+        description for description, _, _ in SEED_RECURRING_EXPENSES
+    ]
+    statement = (
+        select(func.count())
+        .select_from(RecurringExpense)
+        .where(
+            RecurringExpense.account_id == account_id,
+            RecurringExpense.description.in_(descriptions),
+        )
+    )
+    return int(session.scalar(statement) or 0)
+
+
+def _ensure_forecast_demo_data(
+    session,
+    account_id: int,
+) -> tuple[int, int]:
+    """Create missing Forecast demo rows and return insert counts."""
+    next_occurrence = _demo_next_occurrence()
+    income_created = 0
+    expense_created = 0
+    income_service = IncomeService(session)
+    expense_service = RecurringExpenseService(session)
+    if _find_demo_income(session, account_id) is None:
+        income_service.create(
+            IncomeCreate(
+                account_id=account_id,
+                amount=DEMO_INCOME_AMOUNT,
+                frequency=IncomeFrequency.MONTHLY,
+                start_date=DEMO_FORECAST_START,
+                next_occurrence=next_occurrence,
+                end_date=None,
+                active=True,
+            ),
+        )
+        income_created = 1
+    for description, amount, category in SEED_RECURRING_EXPENSES:
+        existing = _find_demo_recurring_expense(
+            session,
+            account_id,
+            description,
+        )
+        if existing is not None:
+            continue
+        expense_service.create(
+            RecurringExpenseCreate(
+                account_id=account_id,
+                description=description,
+                amount=amount,
+                category=category,
+                frequency=RecurringFrequency.MONTHLY,
+                start_date=DEMO_FORECAST_START,
+                next_occurrence=next_occurrence,
+                end_date=None,
+                active=True,
+            ),
+        )
+        expense_created += 1
+    return income_created, expense_created
+
+
 def _print_summary(
     *,
-    created: bool,
+    created_transactions: bool,
     transaction_count: int,
     income: Decimal,
     expenses: Decimal,
+    current_balance: Decimal,
+    forecast_income_created: int,
+    forecast_expenses_created: int,
+    forecast_income_count: int,
+    forecast_expense_count: int,
 ) -> None:
     """Print a concise seed result for the console."""
     net = _as_money(income - expenses)
-    if created:
+    if created_transactions:
         print("Demo seed completed.")
         print(f"Account: {DEMO_ACCOUNT_NAME}")
         print(f"Transactions created: {transaction_count}")
     else:
         print(
-            "Existing demo dataset detected; "
-            "no duplicate data was inserted.",
+            "Existing historical demo dataset detected; "
+            "transactions were left unchanged.",
         )
         print(f"Account: {DEMO_ACCOUNT_NAME}")
         print(f"Transactions present: {transaction_count}")
@@ -1008,6 +1155,29 @@ def _print_summary(
     print(f"Income: {_format_money(income)}")
     print(f"Expenses: {_format_money(expenses)}")
     print(f"Net cash flow: {_format_money(net)}")
+    print(
+        "Current balance: "
+        f"{_format_money(current_balance)}",
+    )
+    added = (
+        forecast_income_created + forecast_expenses_created
+    )
+    if added:
+        print(
+            "Forecast demo records created: "
+            f"{forecast_income_created} income, "
+            f"{forecast_expenses_created} recurring expenses.",
+        )
+    else:
+        print(
+            "Forecast demo records already present; "
+            "no duplicates were inserted.",
+        )
+    print(
+        "Forecast demo totals: "
+        f"{forecast_income_count} income, "
+        f"{forecast_expense_count} recurring expenses.",
+    )
 
 
 def _validate_seed_dataset() -> None:
@@ -1059,7 +1229,7 @@ def _validate_seed_dataset() -> None:
 
 
 def seed_demo_data() -> int:
-    """Insert the demo dataset once, then exit without duplicating."""
+    """Insert historical and Forecast demo data without duplicates."""
     _validate_seed_dataset()
     session = SessionLocal()
     try:
@@ -1071,58 +1241,74 @@ def seed_demo_data() -> int:
                 "Resolve the duplicates before seeding.",
             )
             return 1
+        created_transactions = False
         if len(matches) == 1:
             account = matches[0]
             existing = _count_transactions(session, account.id)
-            if existing > 0:
-                count, income, expenses = _account_totals(
-                    session,
-                    account.id,
-                )
-                _print_summary(
-                    created=False,
-                    transaction_count=count,
-                    income=income,
-                    expenses=expenses,
-                )
-                return 0
+            if existing == 0:
+                created_transactions = True
         else:
             account = Account(
                 name=DEMO_ACCOUNT_NAME,
                 account_type=AccountType.BANK,
                 currency=DEMO_CURRENCY,
-                current_balance=_ZERO,
+                current_balance=DEMO_FORECAST_BALANCE,
             )
             session.add(account)
             session.flush()
+            created_transactions = True
 
-        for (
-            occurred_on,
-            txn_type,
-            category,
-            description,
-            amount,
-        ) in SEED_TRANSACTIONS:
-            session.add(
-                Transaction(
-                    account_id=account.id,
-                    description=description,
-                    amount=amount,
-                    transaction_type=txn_type,
-                    occurred_on=occurred_on,
-                    category=category,
-                ),
-            )
+        if created_transactions:
+            for (
+                occurred_on,
+                txn_type,
+                category,
+                description,
+                amount,
+            ) in SEED_TRANSACTIONS:
+                session.add(
+                    Transaction(
+                        account_id=account.id,
+                        description=description,
+                        amount=amount,
+                        transaction_type=txn_type,
+                        occurred_on=occurred_on,
+                        category=category,
+                    ),
+                )
+
+        if _as_money(account.current_balance) == _ZERO:
+            account.current_balance = DEMO_FORECAST_BALANCE
+
+        (
+            forecast_income_created,
+            forecast_expenses_created,
+        ) = _ensure_forecast_demo_data(
+            session,
+            account.id,
+        )
         session.commit()
+        session.refresh(account)
         count, income, expenses = _account_totals(
             session,
             account.id,
         )
         _print_summary(
-            created=True,
+            created_transactions=created_transactions,
             transaction_count=count,
             income=income,
             expenses=expenses,
+            current_balance=_as_money(account.current_balance),
+            forecast_income_created=forecast_income_created,
+            forecast_expenses_created=forecast_expenses_created,
+            forecast_income_count=_count_demo_incomes(
+                session,
+                account.id,
+            ),
+            forecast_expense_count=_count_demo_recurring_expenses(
+                session,
+                account.id,
+            ),
         )
         return 0
     except Exception:
