@@ -30,6 +30,7 @@ function currentMonthRange(today: Date = new Date()): {
 export class Analysis implements OnInit {
   from = currentMonthRange().from;
   to = currentMonthRange().to;
+  maxTo = formatDate(new Date());
   summary: AnalysisSummary | null = null;
   loading = true;
   errorMessage: string | null = null;
@@ -47,6 +48,11 @@ export class Analysis implements OnInit {
   apply(): void {
     if (this.from > this.to) {
       this.validationMessage = 'From must be on or before To.';
+      return;
+    }
+
+    if (this.to > this.maxTo) {
+      this.validationMessage = 'To must not be in the future.';
       return;
     }
 

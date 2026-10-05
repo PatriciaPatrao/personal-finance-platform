@@ -140,6 +140,30 @@ describe('Analysis', () => {
     expect(compiled.textContent).toContain('From must be on or before To.');
   });
 
+  it('should not request the summary when Apply has to in the future', async () => {
+    const fixture = TestBed.createComponent(Analysis);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    getSummary.mockClear();
+
+    const component = fixture.componentInstance;
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+    const future = `${year}-${month}-${day}`;
+
+    component.from = currentMonthRange().from;
+    component.to = future;
+    const compiled = fixture.nativeElement as HTMLElement;
+    compiled.querySelector('button')?.click();
+    fixture.detectChanges();
+
+    expect(getSummary).not.toHaveBeenCalled();
+    expect(compiled.textContent).toContain('To must not be in the future.');
+  });
+
   it('should request the summary for the selected dates when Apply is clicked', async () => {
     const fixture = TestBed.createComponent(Analysis);
     fixture.detectChanges();
