@@ -20,7 +20,7 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 
 ## Current capabilities
 
-**Accounts.** Create and read accounts. Types are bank, cash, credit card, and investment. Each account stores a currency (EUR by default) and a `current_balance`. Recording a transaction does not change that balance. The Angular screen at `/personal_finance/accounts` lists stored accounts and creates new ones. `/personal_finance/accounts/:id` shows a read-only account detail. There is no update or delete path.
+**Accounts.** Create and read accounts. Types are bank, cash, credit card, and investment. Each account stores a currency (EUR by default) and a signed `current_balance`. Negative balances are allowed. That balance is stored; it is not calculated from transactions, and recording a transaction does not change it. The Angular screen at `/personal_finance/accounts` lists stored accounts and creates new ones. The create form offers EUR, USD, and GBP only. That list is a UI constraint: the API accepts any 3-character currency code. `/personal_finance/accounts/:id` shows a read-only account detail. There is no update or delete path, no FX conversion, and no combined total across different currencies.
 
 **Transactions.** Create, read, update, and delete income and expense transactions. Each transaction belongs to an account and may have a category and description. The Angular screen at `/personal_finance/transactions` performs that CRUD. Filters (date range, type, category) run in the client. Category is an optional string. Recording or changing a transaction does not update `Account.current_balance`.
 
@@ -34,7 +34,7 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 - expenses grouped by category, including each category’s share of the total. A missing category is reported as Uncategorized
 - cash flow grouped by day or month. The Analysis screen defaults to month
 
-**Forecast.** Read-only projection for a date range, grouped by day or month. The Forecast screen defaults to month. It sums every account’s stored balance, then applies active income and recurring-expense occurrences. Each schedule belongs to an account, and the projection does not assign an occurrence to that account. Dates are generated from `next_occurrence` through an optional inclusive end date. Dates before today are omitted, including when `from` is earlier than today. The response currency is EUR, with no conversion when account currencies differ. Forecast does not write balances.
+**Forecast.** Read-only projection for a date range, grouped by day or month. The Forecast screen defaults to month. It sums every account’s stored balance, then applies active income and recurring-expense occurrences. That sum treats every account the same way. It may need to change if bank, cash, credit card, and investment balances later mean different things. Each schedule belongs to an account, and the projection does not assign an occurrence to that account. Dates are generated from `next_occurrence` through an optional inclusive end date. Dates before today are omitted, including when `from` is earlier than today. The response currency is EUR, with no conversion when account currencies differ. Forecast does not write balances.
 
 **Financial summary.** `GET /financial-summary` returns the same transaction totals as analysis summary, for a date range that may extend into the future. The Analysis page uses the analysis routes.
 

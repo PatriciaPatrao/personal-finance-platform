@@ -72,7 +72,9 @@ Implemented by `Forecast`. It queries `GET /forecast` with `from`, `to`, and `gr
 
 ### Accounts
 
-Implemented by `Accounts` and `AccountDetail`. The list page loads `GET /accounts` through `AccountService.listAccounts()`, lists every stored account in API order, and shows each account’s name, type, currency, and stored `current_balance`. It creates accounts through `AccountService.createAccount()` with name, type, currency, and optional opening balance. The detail page at `/personal_finance/accounts/:id` loads one account through `AccountService.getAccount(id)` and shows the stored fields read-only. Balances are not summed across accounts and are not derived from transactions. There is no update or delete path. `AccountService` is also used by the Dashboard and by the Transactions account picker. Salary and recurring-expense writes remain API-only.
+Implemented by `Accounts` and `AccountDetail`. The list page loads `GET /accounts` through `AccountService.listAccounts()`, lists every stored account in API order, and shows each account’s name, type, currency, and stored `current_balance`. It creates accounts through `AccountService.createAccount()` with name, type, currency, and optional opening balance. The create form offers EUR, USD, and GBP. That list is a UI constraint, not a domain rule: the API accepts any 3-character currency code and does not convert between them. The detail page at `/personal_finance/accounts/:id` loads one account through `AccountService.getAccount(id)` and shows the stored fields read-only, each balance in that account’s own currency. The Accounts screens do not sum balances across accounts and do not derive them from transactions. There is no update or delete path. `AccountService` is also used by the Dashboard and by the Transactions account picker. Salary and recurring-expense writes remain API-only.
+
+`current_balance` is a stored signed amount. Negative values are allowed for every account type. That rule is intentionally simple for the MVP. It is not calculated from transactions, and transaction writes do not modify it. Type-specific meaning is future product work, not current behaviour: bank overdrafts, cash (where a negative amount may not make sense), credit-card debt, and investment valuation. Do not add those rules until that work is specified. Forecast still starts from the sum of every stored balance; that simplification may also need to change if those types stop meaning the same kind of position.
 
 ### Transactions
 
@@ -111,7 +113,7 @@ Occurrences are generated in memory (`generate_occurrences`) when a forecast is 
 
 **Forecast must not depend on historical analysis logic.** Forecast services and repositories do not import Analysis. Analysis does not import Forecast. Similar period-label helpers exist in both services; they are duplicated, not shared as a financial calculation.
 
-Forecast response currency is the string `EUR`. The service does not convert currencies or skip mixed-currency accounts.
+Forecast response currency is the string `EUR`. The service does not convert currencies or skip mixed-currency accounts. It adds every `current_balance` as the same kind of starting position. Revisit that sum if account types later represent overdraft, cash, credit-card debt, or investment value differently.
 
 ## 6. Dashboard responsibility
 
@@ -130,7 +132,7 @@ Those signal rules live in the dashboard feature, not in a backend domain servic
 
 | Fact | Source of truth |
 | --- | --- |
-| Actual current account balance | `Account.current_balance` (stored column). Not derived from transactions. |
+| Actual current account balance | `Account.current_balance` (stored signed column). Negative values are allowed. Not derived from transactions. Not type-specific yet. |
 | Historical financial events | `Transaction` rows (`occurred_on`, type, amount, optional category). |
 | Scheduled future inflows | Active `Income` rows (salary). |
 | Scheduled future outflows | Active `RecurringExpense` rows (fixed amount). |
@@ -193,7 +195,8 @@ Occurrence dates for Forecast are computed on request. There is no job that mate
 These are **future considerations**. They are not current architecture.
 
 - **Account selection.** Aggregates and forecasts currently include every account (or every active schedule). Filtering by account is not an API concern yet.
-- **Multi-currency.** Accounts store a currency code. Dashboard withholds a combined balance when currencies differ. Forecast still sums balances and labels the result EUR. Full FX conversion is out of scope.
+- **Multi-currency.** The Accounts create form offers EUR, USD, and GBP. That is a UI constraint. The API accepts any 3-character code. There is no FX conversion. Dashboard and Accounts withhold a combined figure when currencies differ. Forecast still sums balances and labels the result EUR. Revisit this if broader multi-currency support becomes a product requirement.
+- **Account-type balance rules.** `current_balance` is one signed stored value for every type. Negative amounts are allowed. Bank overdrafts, cash, credit-card debt, and investment valuation are not modeled separately. Forecast’s starting sum assumes they are comparable.
 - **Background jobs.** Not present. Recurring occurrences are expanded when Forecast is requested.
 - **Observability.** Health JSON only. No tracing, metrics, or log platform is wired in.
 - **Richer financial insights.** Signals are a small, rule-based set on the Dashboard. Deeper resilience analysis is product direction, not an implemented module.

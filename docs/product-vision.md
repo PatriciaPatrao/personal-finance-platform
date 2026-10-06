@@ -48,7 +48,9 @@ Occurrences are generated when a forecast is requested, starting at each schedul
 
 ### Accounts
 
-Accounts are places money is held: bank, cash, credit card, or investment. Each has a name, currency (default EUR), and current balance. The Angular Accounts screen at `/personal_finance/accounts` lists those stored accounts and creates new ones. `/personal_finance/accounts/:id` shows a read-only view of one stored account. Accounts cannot be edited or deleted in the UI.
+Accounts are places money is held: bank, cash, credit card, or investment. Each has a name, a currency, and a stored signed current balance. Negative balances are allowed for every type. That figure is the account’s position. It is not calculated from transaction history, and recording a transaction does not change it. The Angular screen at `/personal_finance/accounts` lists those accounts and creates new ones. The create form offers EUR, USD, and GBP. That short list is a UI constraint for this MVP; the API accepts any 3-character currency code. There is no FX conversion, and the Accounts screens do not add balances that use different currencies. `/personal_finance/accounts/:id` shows a read-only view of one stored account. Accounts cannot be edited or deleted in the UI.
+
+Whether a negative balance means an overdraft, impossible cash, credit-card debt, or an investment loss is not decided yet. Those type-specific rules are future product work. Forecast currently starts from the sum of every stored balance, which assumes the types are comparable. That assumption should be revisited with those rules.
 
 ### Transactions
 
