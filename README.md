@@ -2,7 +2,7 @@
 
 A household financial health application. It shows the current position of recorded accounts, explains historical cash flow from transactions, and projects future balances from scheduled income and recurring expenses.
 
-The product is a modular monolith: an Angular client talks to a FastAPI API, and domain modules persist data in PostgreSQL. It is not a general expense tracker with a dashboard bolted on. Dashboard, Analysis, and Forecast are separate concerns.
+The product is a modular monolith: an Angular client talks to a FastAPI API, and domain modules persist data in PostgreSQL. It is not a general expense tracker with a dashboard bolted on. Dashboard, Analysis, Forecast, and Transactions are separate concerns.
 
 ## Problem
 
@@ -22,7 +22,7 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 
 **Accounts.** Create and read accounts. Types are bank, cash, credit card, and investment. Each account stores a currency (EUR by default) and a `current_balance`. Recording a transaction does not change that balance.
 
-**Transactions.** Create, read, update, and delete income and expense transactions. Each transaction belongs to an account and may have a category and description.
+**Transactions.** Create, read, update, and delete income and expense transactions. Each transaction belongs to an account and may have a category and description. The Angular screen at `/personal_finance/transactions` performs that CRUD. Filters (date range, type, category) run in the client. Category is an optional string. Recording or changing a transaction does not update `Account.current_balance`.
 
 **Income.** Create, read, and update expected salary schedules. Each schedule belongs to an account. Frequency is weekly, monthly, or yearly, with a start date, a next occurrence, an optional end date, and an active flag. The income model is salary only. The start date is stored and checked against the next occurrence and end date. Forecast does not use it to generate dates.
 
@@ -40,13 +40,13 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 
 **Dashboard signals.** From the loaded summary and forecast, the client can report positive or negative cash flow, missing scheduled income, and whether the projected balance rises or falls over the forecast window.
 
-There is no authentication. The Angular UI only reads the API. Account, transaction, income, and recurring-expense writes are available on the API.
+There is no authentication. The Angular UI writes transactions through the API. Account, income, and recurring-expense writes remain API-only.
 
 ## Architecture
 
 ```text
-Angular (Dashboard, Analysis, Forecast)
-        │  HTTP, read-only from the browser
+Angular (Dashboard, Analysis, Forecast, Transactions)
+        │  HTTP
         ▼
 FastAPI
         │
@@ -100,7 +100,7 @@ The development client calls `http://127.0.0.1:8000` (`frontend/src/environments
 
 ## Application routes
 
-The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for Dashboard, Analysis, and Forecast.
+The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for Dashboard, Analysis, Forecast, and Transactions.
 
 | Route | Screen |
 | --- | --- |
@@ -108,6 +108,7 @@ The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for
 | `/personal_finance` | Dashboard: combined balance when every account uses the same currency, financial signals, links to Analysis and Forecast |
 | `/personal_finance/analysis` | Historical summary, expenses by category, and cash flow. Default range is the current month through today. Dates are entered as DD-MM-YYYY. |
 | `/personal_finance/forecast` | Projected income, expenses, net cash flow, and running balance. Default range starts today and ends on the last day of the calendar month two months ahead. Grouping is monthly or daily. |
+| `/personal_finance/transactions` | Recorded income and expense events: list, client-side filters, create, edit, and delete. Dates are entered as DD-MM-YYYY. |
 
 If accounts use more than one currency, the Dashboard does not show a single combined balance.
 
@@ -210,7 +211,7 @@ There is no separate visual design file in this repository.
 
 ## Planned direction
 
-The intended product is household financial resilience: where money stands, what history shows, and what scheduled commitments imply next. Dashboard, Analysis, and Forecast are the current expression of that split.
+The intended product is household financial resilience: where money stands, what history shows, and what scheduled commitments imply next. Dashboard, Analysis, Forecast, and Transactions are the current expression of that split.
 
 Two limits are already marked in the domain models and are not built:
 

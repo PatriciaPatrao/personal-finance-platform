@@ -39,13 +39,14 @@ The modules already isolate **calculation**: Analysis does not call Forecast, an
 
 ## 3. Frontend structure
 
-The shell is `PersonalFinanceLayout` at `/personal_finance`. Navigation is Dashboard, Analysis, and Forecast. `/` redirects to `/personal_finance`.
+The shell is `PersonalFinanceLayout` at `/personal_finance`. Navigation is Dashboard, Analysis, Forecast, and Transactions. `/` redirects to `/personal_finance`.
 
 | Route | Responsibility |
 | --- | --- |
 | `/personal_finance` | Dashboard: current position, signals, links |
 | `/personal_finance/analysis` | Historical analysis of transactions |
 | `/personal_finance/forecast` | Projection from balances and schedules |
+| `/personal_finance/transactions` | Recorded income and expense events |
 
 Routes are lazy-loaded standalone components (`frontend/src/app/app.routes.ts`).
 
@@ -67,9 +68,11 @@ Implemented by `Analysis`. It queries `/analysis/summary`, `/analysis/expenses`,
 
 Implemented by `Forecast`. It queries `GET /forecast` with `from`, `to`, and `group_by` (`day` or `month`). Default range starts today and ends on the last day of the month two months ahead.
 
-### Future Transactions and Accounts screens
+### Transactions
 
-There is **no** Transactions route and **no** Accounts management route. `AccountService` only lists accounts for the Dashboard. Creating or editing accounts, transactions, salary, and recurring expenses is API-only today.
+Implemented by `Transactions`. It loads `GET /transactions` and `GET /accounts`, lists historical income and expense events, and creates, updates, and deletes them through the existing write routes. Filters (inclusive date range, type, category) run in the client because the list endpoint has no query parameters. Category is an optional string. The page does not update `Account.current_balance`, does not call Analysis or Forecast, and does not paginate.
+
+There is still **no** Accounts management screen. `AccountService` lists accounts for the Dashboard and for the Transactions account picker. Creating or editing accounts, salary, and recurring expenses remains API-only.
 
 ## 4. Backend domain boundaries
 
@@ -151,15 +154,15 @@ Relevant decisions that the current API implements:
 
 pytest plus FastAPI `TestClient` (`httpx`). Tests use the same `DATABASE_URL` as the app, with connection `search_path` set to a PostgreSQL schema named `test` (`backend/tests/conftest.py`). That schema must already exist and contain migrated tables. The suite does not create the schema. Each test deletes rows in `accounts`, `transactions`, `recurring_expenses`, and `incomes`.
 
-Coverage is HTTP-level and domain-level: health, accounts, transactions, account–transaction relationship, incomes, recurring expenses, financial summary, analysis, forecast, occurrence helpers, and database session wiring.
+Coverage is HTTP-level and domain-level: health, CORS preflight, accounts, transactions, account–transaction relationship, incomes, recurring expenses, financial summary, analysis, forecast, occurrence helpers, and database session wiring.
 
 ### Frontend
 
-Angular CLI `ng test` runs Vitest. Specs cover routes, the dashboard component, financial signals, analysis component and service, date field, forecast component and service, and account service. Tests are unit/component tests with HTTP mocked where services call the API. There is no end-to-end browser suite in this repository.
+Angular CLI `ng test` runs Vitest. Specs cover routes, the dashboard component, financial signals, analysis component and service, date field, forecast component and service, account service, and the transactions component and service. Tests are unit/component tests with HTTP mocked where services call the API. There is no end-to-end browser suite in this repository.
 
 ## 10. Seed data
 
-`backend/scripts/seed_demo_data.py` loads a **deterministic local dataset** so Dashboard, Analysis, and Forecast have something to show. It is optional and is safe to run more than once: existing historical transactions for the demo account are left in place; missing forecast seed rows are inserted without duplicates.
+`backend/scripts/seed_demo_data.py` loads a **deterministic local dataset** so Dashboard, Analysis, Forecast, and Transactions have something to show. It is optional and is safe to run more than once: existing historical transactions for the demo account are left in place; missing forecast seed rows are inserted without duplicates.
 
 It creates or reuses one bank account named **Demo Main Account** (EUR). A new account, or an existing demo account with balance zero, is given `current_balance` 5000.00. Historical transactions cover 2026-01-01 through 2026-09-30. Forecast seed is one active monthly salary of 2000.00 and three active monthly expenses (Rent, Utilities, Household / Groceries).
 

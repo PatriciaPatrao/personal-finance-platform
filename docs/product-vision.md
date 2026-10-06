@@ -52,7 +52,7 @@ Accounts are places money is held: bank, cash, credit card, or investment. Each 
 
 ### Transactions
 
-Transactions are recorded movements of money: income or expense, amount, date, optional description and category. They are the source of truth for historical analysis.
+Transactions are recorded movements of money: income or expense, amount, date, optional description and category. They are the source of truth for historical analysis. The Angular Transactions screen records, edits, and deletes those events. Category remains an optional string. Account balances are not derived from the transaction list.
 
 ### Scheduled income
 
@@ -64,11 +64,11 @@ Recurring expenses are expected future commitments on an account, with a **fixed
 
 ### Dashboard-oriented financial overview
 
-The Angular app’s primary surfaces are **Dashboard**, **Analysis**, and **Forecast**.
+The Angular app’s primary surfaces are **Dashboard**, **Analysis**, **Forecast**, and **Transactions**.
 
 The dashboard is an orientation home: current position, a small set of **explainable financial signals**, and links into analysis and forecast. Signals are rule-based text (for example positive vs negative cash flow this month, no scheduled income in the forecast window, projected balance rising or falling). There is no numeric financial-health score.
 
-Accounts, transactions, scheduled salary, and recurring expenses are maintained through the API. The current UI does not include screens to edit those records.
+Accounts, scheduled salary, and recurring expenses are maintained through the API. The current UI does not include screens to edit those records.
 
 ## Product boundaries
 
@@ -77,7 +77,7 @@ Accounts, transactions, scheduled salary, and recurring expenses are maintained 
 | Dashboard | What should I know or pay attention to? |
 | Analysis | What happened? |
 | Forecast | What may happen based on what is scheduled? |
-| Transactions / Accounts | What is my financial data and where does it live? |
+| Transactions | Where do my recorded financial events live? |
 
 Forecast and historical analysis stay separate on purpose. Mixing them would hide whether a number is observed or assumed.
 
