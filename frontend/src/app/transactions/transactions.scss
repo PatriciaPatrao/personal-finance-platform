@@ -49,7 +49,8 @@
   color: #333;
 }
 
-.field select {
+.field select,
+.field input {
   font: inherit;
   padding: 0.45rem 0.55rem;
   border: 1px solid #bdbdbd;
@@ -90,6 +91,59 @@
   border-color: #e2bcbc;
 }
 
+.status-success {
+  color: #1a5c38;
+  background: #eef6f1;
+  border-color: #b7d7c4;
+}
+
+.new-transaction-button,
+.save-button,
+.cancel-button,
+.edit-button {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.55rem 1.15rem;
+  border: 1px solid #222;
+  background: #fff;
+  color: #222;
+  cursor: pointer;
+}
+
+.new-transaction-button,
+.save-button {
+  background: #222;
+  color: #fff;
+}
+
+.save-button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.transaction-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid #d8d8d8;
+  background: #fafafa;
+}
+
+.transaction-form h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+.form-fields,
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -111,8 +165,8 @@
   letter-spacing: 0.03em;
 }
 
-.data-table th:last-child,
-.data-table td:last-child {
+.data-table th:nth-child(6),
+.data-table td:nth-child(6) {
   text-align: right;
 }
 
@@ -136,7 +190,10 @@
     align-items: stretch;
   }
 
-  .apply-button {
+  .apply-button,
+  .save-button,
+  .cancel-button,
+  .new-transaction-button {
     width: 100%;
   }
 

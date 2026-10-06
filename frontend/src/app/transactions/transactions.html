@@ -56,6 +56,101 @@
     <p class="status status-validation" role="alert">{{ validationMessage }}</p>
   }
 
+  @if (successMessage) {
+    <p class="status status-success" role="status">{{ successMessage }}</p>
+  }
+
+  @if (!loading && !errorMessage) {
+    @if (formMode === null) {
+      <button type="button" class="new-transaction-button" (click)="startCreate()">
+        New transaction
+      </button>
+    } @else {
+      <form class="transaction-form" (submit)="$event.preventDefault(); saveTransaction()">
+        <h2>{{ formTitle }}</h2>
+        <div class="form-fields">
+          <label class="field">
+            <span class="field-label">Account</span>
+            <select
+              name="account"
+              [value]="formAccountId"
+              (change)="onFormAccountChange($any($event.target).value)"
+            >
+              <option value="">Select an account</option>
+              @for (account of accountChoices; track account.id) {
+                <option [value]="account.id">{{ account.name }}</option>
+              }
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">Description</span>
+            <input
+              name="description"
+              type="text"
+              maxlength="255"
+              [value]="formDescription"
+              (input)="formDescription = $any($event.target).value"
+            />
+          </label>
+          <label class="field">
+            <span class="field-label">Amount</span>
+            <input
+              name="amount"
+              type="text"
+              inputmode="decimal"
+              [value]="formAmount"
+              (input)="formAmount = $any($event.target).value"
+            />
+          </label>
+          <label class="field">
+            <span class="field-label">Type</span>
+            <select
+              name="transactionType"
+              [value]="formType"
+              (change)="onFormTypeChange($any($event.target).value)"
+            >
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+            </select>
+          </label>
+          <app-date-field
+            label="Date"
+            name="occurredOn"
+            [value]="formDateDisplay"
+            (valueChange)="formDateDisplay = $event"
+          />
+          <label class="field">
+            <span class="field-label">Category</span>
+            <input
+              name="category"
+              type="text"
+              maxlength="100"
+              [value]="formCategory"
+              (input)="formCategory = $any($event.target).value"
+            />
+          </label>
+        </div>
+
+        @if (formError) {
+          <p class="status status-error" role="alert">{{ formError }}</p>
+        }
+
+        <div class="form-actions">
+          <button
+            type="submit"
+            class="save-button"
+            [disabled]="saving || accountsLoadFailed || accounts.length === 0"
+          >
+            {{ saving ? 'Saving...' : 'Save' }}
+          </button>
+          <button type="button" class="cancel-button" (click)="cancelForm()">
+            Cancel
+          </button>
+        </div>
+      </form>
+    }
+  }
+
   @if (loading) {
     <p class="status status-loading" aria-live="polite">
       Loading transactions...
@@ -81,6 +176,7 @@
             <th scope="col">Category</th>
             <th scope="col">Type</th>
             <th scope="col">Amount</th>
+            <th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -104,6 +200,15 @@
                 "
               >
                 {{ transaction.amount | currency: 'EUR' }}
+              </td>
+              <td>
+                <button
+                  type="button"
+                  class="edit-button"
+                  (click)="startEdit(transaction)"
+                >
+                  Edit
+                </button>
               </td>
             </tr>
           }
