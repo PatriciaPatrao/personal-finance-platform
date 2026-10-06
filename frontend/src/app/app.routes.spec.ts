@@ -9,6 +9,7 @@ import { AnalysisService } from './analysis/analysis.service';
 import { App } from './app';
 import { routes } from './app.routes';
 import { ForecastService } from './forecast/forecast.service';
+import { TransactionService } from './transactions/transactions.service';
 
 describe('App routing', () => {
   beforeEach(async () => {
@@ -80,6 +81,12 @@ describe('App routing', () => {
                   },
                 ],
               }),
+          },
+        },
+        {
+          provide: TransactionService,
+          useValue: {
+            listTransactions: () => of([]),
           },
         },
       ],

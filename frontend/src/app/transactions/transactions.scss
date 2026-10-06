@@ -18,3 +18,130 @@
   max-width: 42rem;
   line-height: 1.45;
 }
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+  padding: 1rem 1.15rem;
+  border: 1px solid #d8d8d8;
+  background: #fafafa;
+}
+
+.filter-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  flex: 1 1 auto;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 10rem;
+}
+
+.field-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.field select {
+  font: inherit;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #bdbdbd;
+  background: #fff;
+  color: #222;
+}
+
+.apply-button {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.55rem 1.15rem;
+  border: 1px solid #222;
+  background: #222;
+  color: #fff;
+  cursor: pointer;
+}
+
+.apply-button:hover {
+  background: #000;
+}
+
+.status {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid transparent;
+}
+
+.status-loading {
+  color: #444;
+  background: #f5f5f5;
+  border-color: #e0e0e0;
+}
+
+.status-validation,
+.status-error {
+  color: #7a1f1f;
+  background: #f8ecec;
+  border-color: #e2bcbc;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.65rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.data-table th {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.data-table th:last-child,
+.data-table td:last-child {
+  text-align: right;
+}
+
+.amount-income {
+  color: #1a5c38;
+  font-weight: 650;
+}
+
+.amount-expense {
+  color: #7a1f1f;
+  font-weight: 650;
+}
+
+.empty-state {
+  margin: 0;
+  color: #555;
+}
+
+@media (max-width: 720px) {
+  .filters {
+    align-items: stretch;
+  }
+
+  .apply-button {
+    width: 100%;
+  }
+
+  .data-table {
+    display: block;
+    overflow-x: auto;
+  }
+}
