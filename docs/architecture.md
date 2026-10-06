@@ -18,7 +18,7 @@ Repositories / SQLAlchemy
 PostgreSQL
 ```
 
-The Angular client is a standalone Angular 21 application. It talks to one FastAPI process over HTTP. The browser is configured for **GET** calls only (CORS on the API allows origin `http://localhost:4200` and method `GET`). Write endpoints exist on the API for accounts, transactions, scheduled income, and recurring expenses; the current UI does not call them.
+The Angular client is a standalone Angular 21 application. It talks to one FastAPI process over HTTP. CORS on the API allows origin `http://localhost:4200` and methods `GET`, `POST`, `PUT`, `DELETE`, and `OPTIONS`.
 
 FastAPI request handlers live under `backend/app/api/`. They construct a service for the current SQLAlchemy session, call application logic, and return Pydantic schemas. Services live under `backend/app/services/`. Repositories under `backend/app/repositories/` issue queries. Models under `backend/app/models/` map tables. PostgreSQL is reached through `DATABASE_URL` and the psycopg2 driver.
 
@@ -141,7 +141,7 @@ Relevant decisions that the current API implements:
 - **Historical Analysis cannot use a future end date.** Analysis query schemas reject `to` after today. `to` equal to today is allowed.
 - **Forecast includes empty periods.** For `group_by=day` or `month`, the response includes every period in the range, with zeros when nothing is scheduled. Analysis cash-flow does the same for historical buckets. `group_by` is required on both cash-flow and forecast requests.
 - **No persistence for calculated Forecast data.** Periods, projected balances, and generated occurrence dates are response-only.
-- **CORS GET from the Angular origin.** The running UI cannot call POST/PUT/DELETE even though those routes exist.
+- **CORS from the Angular origin.** The API allows `GET`, `POST`, `PUT`, `DELETE`, and `OPTIONS` from `http://localhost:4200`. Other origins are rejected.
 
 `GET /financial-summary` shares the transaction-total calculation with analysis summary but only validates `from <= to`. It does **not** apply the historical `to` constraint.
 
@@ -173,7 +173,7 @@ Infrastructure that exists:
 - Alembic (`backend/alembic`), with `ALEMBIC_SCHEMA` (default `public`) for the version table and `search_path`
 - Pydantic settings: `DATABASE_URL` from `backend/.env`
 - Uvicorn as the process that serves FastAPI
-- CORS for `http://localhost:4200`, GET only
+- CORS for `http://localhost:4200` with `GET`, `POST`, `PUT`, `DELETE`, and `OPTIONS`
 - Process liveness: `GET /` and `GET /health`
 - Angular development API base `http://127.0.0.1:8000`; production environment file still holds a placeholder URL
 
