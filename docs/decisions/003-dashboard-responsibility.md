@@ -27,7 +27,7 @@ Dashboard does not duplicate Analysis or Forecast calculations, does not own fin
 ## Consequences
 
 - Domain boundaries stay in Accounts, Analysis, and Forecast. The home screen cannot become a second definition of cash flow or projection.
-- Signals in `financial-signals.ts` only interpret responses already returned by Analysis and Forecast: the sign of this month’s net cash flow, whether any forecast period has scheduled income, and whether projected balance rises or falls. Each signal is explainable text. They are not a score and they do not recompute those domains.
+- Signals in `financial-signals.ts` only interpret responses already returned by Analysis and Forecast: the sign of this month’s net cash flow, whether any forecast period has scheduled income, and whether projected balance rises or falls. A zero net cash flow, or an ending projected balance equal to the starting balance, produces no directional signal. With an empty list, the screen says that nothing currently requires attention. Each signal is explainable text. They are not a score and they do not recompute those domains.
 - Combined current position is presentation of stored balances. The screen labels it as current position, not a forecast.
 - Discovery on the Dashboard is limited to Analysis and Forecast. Accounts, transactions, salary, and recurring expenses have no UI routes; writes remain API-only.
 - A later dashboard endpoint would be justified only if these contracts cannot express a real screen need. That need is not present today.

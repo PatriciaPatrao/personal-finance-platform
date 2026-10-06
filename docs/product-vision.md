@@ -28,23 +28,23 @@ That total is **current position, not a forecast**. Account `current_balance` is
 
 ### Historical financial analysis
 
-**Analysis** answers what happened in a chosen date range. It reads **persisted transactions** only:
+**Analysis** answers what happened in a chosen date range. It reads **persisted transactions** only, across every account:
 
 - period income, expenses, and net cash flow
-- expenses grouped by category
+- expenses grouped by category, with a missing category shown as Uncategorized
 - cash flow over time, grouped by day or month
 
-Scheduled salary and recurring expenses are out of this view. Past spending is not used to predict the future.
+Those totals are not converted between currencies. The Analysis screen labels them EUR. Scheduled salary and recurring expenses are out of this view. Past spending is not used to predict the future.
 
 ### Future scheduled cash-flow projection
 
 **Forecast** answers what may happen based on what is scheduled. It is a **read-only projection** from:
 
-- current account balances
+- the sum of current account balances
 - active scheduled salary
 - active recurring expenses with a fixed expected amount
 
-Occurrences are generated when a forecast is requested. The projection is **not** a model of historical spending and **does not** write transactions.
+Occurrences are generated when a forecast is requested, starting at each schedule’s next occurrence. A stored start date is not the generation start. Dates before today are omitted, including when the requested range begins earlier. Each schedule belongs to an account; the projection still uses one combined balance and does not post an occurrence to that account. The projection is **not** a model of historical spending and **does not** write transactions.
 
 ### Accounts
 
@@ -56,11 +56,11 @@ Transactions are recorded movements of money: income or expense, amount, date, o
 
 ### Scheduled income
 
-Scheduled income in this MVP is **salary only**, with a frequency (weekly, monthly, yearly), start, next occurrence, optional end date, and active flag. Other income categories are not modeled.
+Scheduled income in this MVP is **salary only**. Each record belongs to an account and has a frequency (weekly, monthly, yearly), start date, next occurrence, optional end date, and active flag. Forecast generates dates from the next occurrence. Other income categories are not modeled.
 
 ### Recurring expenses
 
-Recurring expenses are expected future commitments with a **fixed** amount, optional category, the same frequency options as salary, and an active flag. Amounts that vary by occurrence (for example utilities) are not modeled.
+Recurring expenses are expected future commitments on an account, with a **fixed** amount, optional category, the same frequency and date fields as salary, and an active flag. Amounts that vary by occurrence (for example utilities) are not modeled.
 
 ### Dashboard-oriented financial overview
 

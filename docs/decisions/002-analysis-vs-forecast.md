@@ -16,9 +16,9 @@ Demo seed data follows the same split: `current_balance` is set independently of
 
 Keep Analysis and Forecast as separate read models.
 
-**Analysis** is historical and transaction-based. It answers “what happened?” `AnalysisService` and `AnalysisRepository` aggregate persisted transactions in `[from, to]`: period income, expenses, net cash flow, expenses by category, and cash flow by day or month. Analysis query schemas reject a `to` date after today. Scheduled income and recurring expenses are not inputs. Analysis does not import Forecast.
+**Analysis** is historical and transaction-based. It answers “what happened?” `AnalysisService` and `AnalysisRepository` aggregate persisted transactions in `[from, to]`, across every account: period income, expenses, net cash flow, expenses by category, and cash flow by day or month. A null category is returned as `Uncategorized`. Analysis query schemas reject a `to` date after today. Amounts are not converted between currencies. Scheduled income and recurring expenses are not inputs. Analysis does not import Forecast.
 
-**Forecast** is future-oriented. It answers “what may happen based on what is scheduled?” `ForecastService` starts from the sum of every `Account.current_balance`, then applies occurrences of active Income and active Recurring Expenses. Occurrences are generated in memory when `GET /forecast` is requested. Forecast does not read transactions, does not write transactions or balances, and does not import Analysis.
+**Forecast** is future-oriented. It answers “what may happen based on what is scheduled?” `ForecastService` starts from the sum of every `Account.current_balance`, then applies occurrences of active Income and active Recurring Expenses. Occurrences are generated in memory when `GET /forecast` is requested, from `next_occurrence` through an optional inclusive `end_date`. Dates before today are omitted. `start_date` is validated on write and is not used to generate dates. `account_id` on a schedule does not assign the occurrence to that account. Forecast does not read transactions, does not write transactions or balances, and does not import Analysis.
 
 Historical transactions are not extrapolated into future Forecast values. Past spending is not a forecast input.
 
@@ -26,7 +26,7 @@ Historical transactions are not extrapolated into future Forecast values. Past s
 
 - A number is either observed (transactions) or assumed from an explicit schedule. The two are not blended.
 - Changing how categories or historical totals are computed does not change a projection, and changing a salary or recurring expense does not change Analysis.
-- Empty forecast periods stay zero when nothing is scheduled, even if similar months in history had spending.
+- Empty forecast periods stay zero when nothing is scheduled, even if similar months in history had spending. A requested `from` before today still does not include occurrences before today.
 - Forecast currency is the string `EUR`. The service sums every account balance and does not convert or skip mixed currencies.
 - Period-label helpers are duplicated in the two services. Both use `add_months` from `app.services.occurrence` as a calendar helper. That shared helper is not a shared financial calculation.
 - `GET /financial-summary` returns the same transaction totals as analysis summary but does not reject a future `to` date. The Analysis page and Dashboard call `/analysis/summary`, which does enforce the historical bound.

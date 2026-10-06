@@ -24,17 +24,17 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 
 **Transactions.** Create, read, update, and delete income and expense transactions. Each transaction belongs to an account and may have a category and description.
 
-**Income.** Create, read, and update expected salary schedules. Frequency is weekly, monthly, or yearly, with a next occurrence, an optional end date, and an active flag. The income model is salary only.
+**Income.** Create, read, and update expected salary schedules. Each schedule belongs to an account. Frequency is weekly, monthly, or yearly, with a start date, a next occurrence, an optional end date, and an active flag. The income model is salary only. The start date is stored and checked against the next occurrence and end date. Forecast does not use it to generate dates.
 
-**Recurring expenses.** Create, read, and update fixed scheduled commitments with the same frequency, occurrence, and active-flag shape, plus a description and optional category. Each schedule has one fixed amount.
+**Recurring expenses.** Create, read, and update fixed scheduled commitments on an account, with the same frequency, start date, occurrence, and active-flag shape, plus a description and optional category. Each schedule has one fixed amount.
 
-**Analysis.** Read-only historical queries over transactions for a date range that cannot end in the future:
+**Analysis.** Read-only historical queries over every account’s transactions for a date range that cannot end in the future. Amounts are not converted between currencies. The Analysis screen labels them EUR. The API response has no currency field.
 
 - income, expenses, and net cash flow
-- expenses grouped by category, including each category’s share of the total
-- cash flow grouped by day or month
+- expenses grouped by category, including each category’s share of the total. A missing category is reported as Uncategorized
+- cash flow grouped by day or month. The Analysis screen defaults to month
 
-**Forecast.** Read-only projection for a date range, grouped by day or month. It sums every account’s stored balance, then applies active income and recurring-expense occurrences. The response currency is EUR. Forecast does not write balances.
+**Forecast.** Read-only projection for a date range, grouped by day or month. The Forecast screen defaults to month. It sums every account’s stored balance, then applies active income and recurring-expense occurrences. Each schedule belongs to an account, and the projection does not assign an occurrence to that account. Dates are generated from `next_occurrence` through an optional inclusive end date. Dates before today are omitted, including when `from` is earlier than today. The response currency is EUR, with no conversion when account currencies differ. Forecast does not write balances.
 
 **Financial summary.** `GET /financial-summary` returns the same transaction totals as analysis summary, for a date range that may extend into the future. The Analysis page uses the analysis routes.
 
@@ -127,7 +127,7 @@ Create `backend/.env`:
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE
 ```
 
-Apply migrations (default schema is `public`; Alembic reads `DATABASE_URL` from the environment):
+Apply migrations (default schema is `public`). Alembic loads `DATABASE_URL` through the same settings as the API: `backend/.env`, overridden by the process environment when that variable is set:
 
 ```powershell
 alembic upgrade head
@@ -200,10 +200,13 @@ The script stops if more than one account is already named Demo Main Account.
 
 ## Documentation
 
-- [frontend/README.md](frontend/README.md) — Angular CLI serve, build, and test commands
+- [docs/product-vision.md](docs/product-vision.md) — product boundaries and what is intentionally omitted
+- [docs/architecture.md](docs/architecture.md) — structure of the current application
+- [docs/decisions/](docs/decisions/) — modular monolith, Analysis versus Forecast, and Dashboard responsibility
+- [frontend/README.md](frontend/README.md) — Angular CLI serve, build, and unit-test commands
 - `http://127.0.0.1:8000/docs` — generated OpenAPI for the running API
 
-There is no separate design document in this repository.
+There is no separate visual design file in this repository.
 
 ## Planned direction
 

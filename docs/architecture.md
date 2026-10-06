@@ -77,8 +77,8 @@ There is **no** Transactions route and **no** Accounts management route. `Accoun
 | --- | --- | --- |
 | Accounts | Places money is held (bank, cash, credit card, investment). Own `current_balance` and currency (default EUR). | `accounts` |
 | Transactions | Recorded income or expense events on an account. Source of historical analysis. | `transactions` |
-| Income | Expected **salary** schedules (weekly / monthly / yearly), with next occurrence, optional end, active flag. | `incomes` |
-| Recurring expenses | Expected future commitments with **one fixed amount**, optional category, same frequency shape as income. | `recurring_expenses` |
+| Income | Expected **salary** schedules on an account (weekly / monthly / yearly), with start date, next occurrence, optional end, and active flag. | `incomes` |
+| Recurring expenses | Expected future commitments on an account with **one fixed amount**, optional category, and the same date and frequency shape as income. | `recurring_expenses` |
 | Analysis | Read-only aggregates over transactions in a historical range. | None of its own |
 | Forecast | Read-only projection from balances and active schedules. | None of its own |
 
@@ -92,7 +92,7 @@ Transaction writes validate that the account exists. They do **not** update `Acc
 
 **Analysis is historical and uses Transactions.**
 
-It reads persisted `transactions` in `[from, to]`. It reports period income, expenses, net cash flow, expenses by category, and cash flow grouped by day or month. Scheduled income and recurring expenses are out of this path.
+It reads persisted `transactions` in `[from, to]`, across every account. It reports period income, expenses, net cash flow, expenses by category, and cash flow grouped by day or month. A null expense category is returned as `Uncategorized`, with that category’s share of total expenses. The Analysis screen defaults cash-flow grouping to month and labels amounts EUR. The analysis API does not return a currency and does not convert mixed account currencies. Scheduled income and recurring expenses are out of this path.
 
 **Forecast is future-oriented and uses:**
 
@@ -100,7 +100,7 @@ It reads persisted `transactions` in `[from, to]`. It reports period income, exp
 - active scheduled Income
 - active Recurring Expenses
 
-Occurrences are generated in memory (`occurrence` helpers) when a forecast is requested. Forecast does not write transactions, balances, or period rows.
+Occurrences are generated in memory (`generate_occurrences`) when a forecast is requested. Generation starts at `next_occurrence`, stops after an optional inclusive `end_date`, and omits dates before today (`as_of`, defaulting to `date.today()`). `start_date` is stored and validated on the schedule (`start_date` on or before `next_occurrence`, and on or before `end_date` when that is set). It is not an input to occurrence generation. `account_id` is stored on each schedule and is not used to allocate that occurrence to the account; every active schedule is applied to the single summed balance. The Forecast screen defaults grouping to month. Forecast does not write transactions, balances, or period rows.
 
 **Forecast must not depend on historical analysis logic.** Forecast services and repositories do not import Analysis. Analysis does not import Forecast. Similar period-label helpers exist in both services; they are duplicated, not shared as a financial calculation.
 
@@ -115,7 +115,7 @@ It may consume existing data contracts (accounts, analysis summary, forecast) an
 Today it:
 
 - sums `current_balance` in the client when currencies match, and withholds a combined figure when they differ
-- derives explainable text signals in `frontend/src/app/personal-finance/financial-signals.ts` (this-month cash-flow sign from analysis summary; missing scheduled income and projected balance direction from forecast periods)
+- derives explainable text signals in `frontend/src/app/personal-finance/financial-signals.ts` (this-month cash-flow sign from analysis summary; missing scheduled income and projected balance direction from forecast periods). A zero net cash flow, or a projected ending balance equal to the starting balance, adds no directional signal. When the list is empty, the screen says that nothing currently requires attention.
 
 Those signal rules live in the dashboard feature, not in a backend domain service. They interpret API responses; they do not replace Analysis or Forecast.
 
@@ -139,7 +139,7 @@ Relevant decisions that the current API implements:
 - **Read-only Analysis and Forecast.** `GET /analysis/summary`, `/analysis/expenses`, `/analysis/cash-flow`, and `GET /forecast` do not mutate data.
 - **Explicit date ranges.** Query parameters are named `from` and `to`. `from` must be on or before `to`.
 - **Historical Analysis cannot use a future end date.** Analysis query schemas reject `to` after today. `to` equal to today is allowed.
-- **Forecast includes empty periods.** For `group_by=day` or `month`, the response includes every period in the range, with zeros when nothing is scheduled. Analysis cash-flow does the same for historical buckets.
+- **Forecast includes empty periods.** For `group_by=day` or `month`, the response includes every period in the range, with zeros when nothing is scheduled. Analysis cash-flow does the same for historical buckets. `group_by` is required on both cash-flow and forecast requests.
 - **No persistence for calculated Forecast data.** Periods, projected balances, and generated occurrence dates are response-only.
 - **CORS GET from the Angular origin.** The running UI cannot call POST/PUT/DELETE even though those routes exist.
 
