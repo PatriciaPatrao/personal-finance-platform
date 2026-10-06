@@ -48,7 +48,7 @@ Occurrences are generated when a forecast is requested, starting at each schedul
 
 ### Accounts
 
-Accounts are places money is held: bank, cash, credit card, or investment. Each has a name, currency (default EUR), and current balance. The Angular Accounts screen at `/personal_finance/accounts` lists those stored accounts and creates new ones. Opening a detail view is not in the UI yet.
+Accounts are places money is held: bank, cash, credit card, or investment. Each has a name, currency (default EUR), and current balance. The Angular Accounts screen at `/personal_finance/accounts` lists those stored accounts and creates new ones. `/personal_finance/accounts/:id` shows a read-only view of one stored account. Accounts cannot be edited or deleted in the UI.
 
 ### Transactions
 

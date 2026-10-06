@@ -132,7 +132,14 @@
       <tbody>
         @for (account of accounts; track account.id) {
           <tr>
-            <td>{{ account.name }}</td>
+            <td>
+              <a
+                class="account-link"
+                [routerLink]="['/personal_finance/accounts', account.id]"
+              >
+                {{ account.name }}
+              </a>
+            </td>
             <td>{{ displayType(account.account_type) }}</td>
             <td>{{ account.currency }}</td>
             <td class="amount">

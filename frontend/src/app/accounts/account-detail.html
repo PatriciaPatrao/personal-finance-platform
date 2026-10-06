@@ -1,0 +1,44 @@
+<section class="account-detail-page">
+  <p class="back-link">
+    <a routerLink="/personal_finance/accounts">Back to accounts</a>
+  </p>
+
+  @if (loading) {
+    <p class="status status-loading" aria-live="polite">Loading account...</p>
+  }
+
+  @if (errorMessage) {
+    <p class="status status-error" role="alert">{{ errorMessage }}</p>
+  }
+
+  @if (!loading && errorMessage === null && account; as loaded) {
+    <header class="page-header">
+      <h1>{{ loaded.name }}</h1>
+      <p class="page-intro">
+        Current balance is the stored account position and is not calculated
+        from transaction history.
+      </p>
+    </header>
+
+    <dl class="detail-list">
+      <div class="detail-row">
+        <dt>Type</dt>
+        <dd>{{ displayType(loaded) }}</dd>
+      </div>
+      <div class="detail-row">
+        <dt>Currency</dt>
+        <dd>{{ loaded.currency }}</dd>
+      </div>
+      <div class="detail-row">
+        <dt>Current balance</dt>
+        <dd class="amount">
+          {{ loaded.current_balance | currency: loaded.currency }}
+        </dd>
+      </div>
+      <div class="detail-row">
+        <dt>Created</dt>
+        <dd>{{ displayCreatedAt(loaded) }}</dd>
+      </div>
+    </dl>
+  }
+</section>

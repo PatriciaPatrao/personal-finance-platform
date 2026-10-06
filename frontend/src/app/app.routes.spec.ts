@@ -42,6 +42,15 @@ describe('App routing', () => {
                 current_balance: '5000.00',
                 created_at: '2026-01-01T00:00:00',
               }),
+            getAccount: () =>
+              of({
+                id: 1,
+                name: 'Demo Main Account',
+                account_type: 'bank',
+                currency: 'EUR',
+                current_balance: '5000.00',
+                created_at: '2026-01-01T00:00:00',
+              }),
           },
         },
         {
@@ -149,6 +158,25 @@ describe('App routing', () => {
     );
   });
 
+  it('renders the account detail page at /personal_finance/accounts/:id', async () => {
+    const { compiled, router } = await renderAt('/personal_finance/accounts/1');
+    expect(router.url).toBe('/personal_finance/accounts/1');
+    expect(compiled.querySelector('main h1')?.textContent).toContain(
+      'Demo Main Account',
+    );
+  });
+
+  it('returns from account detail to the Accounts list', async () => {
+    const { compiled, router } = await renderAt('/personal_finance/accounts/1');
+    const backLink = compiled.querySelector(
+      'a[href="/personal_finance/accounts"]',
+    ) as HTMLAnchorElement | null;
+
+    expect(backLink).toBeTruthy();
+    await router.navigateByUrl('/personal_finance/accounts');
+    expect(router.url).toBe('/personal_finance/accounts');
+  });
+
   it('renders the Analysis page at /personal_finance/analysis', async () => {
     const { compiled } = await renderAt('/personal_finance/analysis');
     expect(compiled.querySelector('main h1')?.textContent).toContain('Analysis');
@@ -184,6 +212,11 @@ describe('App routing', () => {
 
   it('marks Accounts as the active tab on /personal_finance/accounts', async () => {
     const { compiled } = await renderAt('/personal_finance/accounts');
+    expect(activeNavHref(compiled)).toBe('/personal_finance/accounts');
+  });
+
+  it('marks Accounts as the active tab on account detail', async () => {
+    const { compiled } = await renderAt('/personal_finance/accounts/1');
     expect(activeNavHref(compiled)).toBe('/personal_finance/accounts');
   });
 

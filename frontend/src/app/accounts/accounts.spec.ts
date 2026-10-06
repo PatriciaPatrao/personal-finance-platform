@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 
 import { Account } from './account';
@@ -44,6 +45,7 @@ describe('Accounts', () => {
     await TestBed.configureTestingModule({
       imports: [Accounts],
       providers: [
+        provideRouter([]),
         {
           provide: AccountService,
           useValue: { listAccounts, createAccount },
@@ -128,6 +130,18 @@ describe('Accounts', () => {
     const rows = compiled.querySelectorAll('.data-table tbody tr');
     expect(rows[0]?.textContent).toContain('Cash Wallet');
     expect(rows[1]?.textContent).toContain('Demo Main Account');
+  });
+
+  it('should link each account name to its detail route', async () => {
+    const { compiled } = await render();
+    const firstLink = compiled.querySelector(
+      '.data-table tbody tr:first-child .account-link',
+    ) as HTMLAnchorElement | null;
+
+    expect(firstLink?.textContent?.trim()).toBe('Cash Wallet');
+    expect(firstLink?.getAttribute('href')).toBe(
+      '/personal_finance/accounts/2',
+    );
   });
 
   it('should render credit card as a human-readable type label', async () => {

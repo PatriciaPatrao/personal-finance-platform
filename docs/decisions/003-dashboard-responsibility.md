@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The Angular shell at `/personal_finance` has routes for Dashboard, Accounts, Analysis, Forecast, and Transactions. Analysis and Forecast already own their calculations on the API (`/analysis/*` and `GET /forecast`). Transactions is its own screen for recorded events; it is not a dashboard calculation. Accounts already expose stored balances on `GET /accounts`, and `/personal_finance/accounts` lists and creates them. Account detail is not in the UI yet.
+The Angular shell at `/personal_finance` has routes for Dashboard, Accounts, Analysis, Forecast, and Transactions. Analysis and Forecast already own their calculations on the API (`/analysis/*` and `GET /forecast`). Transactions is its own screen for recorded events; it is not a dashboard calculation. Accounts already expose stored balances on `GET /accounts`. `/personal_finance/accounts` lists and creates them, and `/personal_finance/accounts/:id` shows a read-only detail. Account update and delete are not in the UI.
 
 There is no dashboard route on the API. There is no numeric financial-health score in the client or the API.
 

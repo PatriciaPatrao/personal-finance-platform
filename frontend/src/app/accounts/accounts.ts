@@ -1,15 +1,14 @@
 import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
-import { Account, AccountCreate, AccountType } from './account';
+import {
+  Account,
+  AccountCreate,
+  AccountType,
+  accountTypeLabel,
+} from './account';
 import { AccountService } from './account.service';
-
-const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
-  bank: 'Bank',
-  cash: 'Cash',
-  credit_card: 'Credit card',
-  investment: 'Investment',
-};
 
 const ACCOUNT_TYPES: AccountType[] = [
   'bank',
@@ -41,7 +40,7 @@ function parseOpeningBalance(value: string): number | null {
 
 @Component({
   selector: 'app-accounts',
-  imports: [CurrencyPipe],
+  imports: [CurrencyPipe, RouterLink],
   templateUrl: './accounts.html',
   styleUrl: './accounts.scss',
 })
@@ -83,7 +82,7 @@ export class Accounts implements OnInit {
   }
 
   displayType(accountType: AccountType): string {
-    return ACCOUNT_TYPE_LABELS[accountType];
+    return accountTypeLabel(accountType);
   }
 
   startCreate(): void {

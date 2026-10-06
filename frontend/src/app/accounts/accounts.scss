@@ -147,6 +147,16 @@
   text-align: right;
 }
 
+.account-link {
+  color: #222;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.account-link:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 720px) {
   .data-table {
     display: block;
