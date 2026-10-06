@@ -133,6 +133,13 @@ describe('App routing', () => {
     );
   });
 
+  it('renders the Accounts page at /personal_finance/accounts', async () => {
+    const { compiled } = await renderAt('/personal_finance/accounts');
+    expect(compiled.querySelector('main h1')?.textContent).toContain(
+      'Accounts',
+    );
+  });
+
   it('renders the Analysis page at /personal_finance/analysis', async () => {
     const { compiled } = await renderAt('/personal_finance/analysis');
     expect(compiled.querySelector('main h1')?.textContent).toContain('Analysis');
@@ -154,6 +161,7 @@ describe('App routing', () => {
     const { compiled } = await renderAt('/personal_finance');
     expect(navHrefs(compiled)).toEqual([
       '/personal_finance',
+      '/personal_finance/accounts',
       '/personal_finance/analysis',
       '/personal_finance/forecast',
       '/personal_finance/transactions',
@@ -163,6 +171,11 @@ describe('App routing', () => {
   it('marks Dashboard as the active tab on /personal_finance', async () => {
     const { compiled } = await renderAt('/personal_finance');
     expect(activeNavHref(compiled)).toBe('/personal_finance');
+  });
+
+  it('marks Accounts as the active tab on /personal_finance/accounts', async () => {
+    const { compiled } = await renderAt('/personal_finance/accounts');
+    expect(activeNavHref(compiled)).toBe('/personal_finance/accounts');
   });
 
   it('marks Analysis as the active tab on /personal_finance/analysis', async () => {

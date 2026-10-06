@@ -12,3 +12,10 @@ export interface Account {
   current_balance: string;
   created_at: string;
 }
+
+export interface AccountCreate {
+  name: string;
+  account_type: AccountType;
+  currency?: string;
+  current_balance?: string;
+}

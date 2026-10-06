@@ -21,6 +21,11 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'accounts',
+        loadComponent: () =>
+          import('./accounts/accounts').then((m) => m.Accounts),
+      },
+      {
         path: 'analysis',
         loadComponent: () =>
           import('./analysis/analysis').then((m) => m.Analysis),
