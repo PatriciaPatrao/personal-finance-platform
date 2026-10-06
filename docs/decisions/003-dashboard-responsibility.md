@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The Angular shell at `/personal_finance` has routes for Dashboard, Accounts, Analysis, Forecast, and Transactions. Analysis and Forecast already own their calculations on the API (`/analysis/*` and `GET /forecast`). Transactions is its own screen for recorded events; it is not a dashboard calculation. Accounts already expose stored balances on `GET /accounts`, and `/personal_finance/accounts` lists them. Account creation and detail are not in the UI yet.
+The Angular shell at `/personal_finance` has routes for Dashboard, Accounts, Analysis, Forecast, and Transactions. Analysis and Forecast already own their calculations on the API (`/analysis/*` and `GET /forecast`). Transactions is its own screen for recorded events; it is not a dashboard calculation. Accounts already expose stored balances on `GET /accounts`, and `/personal_finance/accounts` lists and creates them. Account detail is not in the UI yet.
 
 There is no dashboard route on the API. There is no numeric financial-health score in the client or the API.
 
@@ -29,7 +29,7 @@ Dashboard does not duplicate Analysis or Forecast calculations, does not own fin
 - Domain boundaries stay in Accounts, Analysis, and Forecast. The home screen cannot become a second definition of cash flow or projection.
 - Signals in `financial-signals.ts` only interpret responses already returned by Analysis and Forecast: the sign of this month’s net cash flow, whether any forecast period has scheduled income, and whether projected balance rises or falls. A zero net cash flow, or an ending projected balance equal to the starting balance, produces no directional signal. With an empty list, the screen says that nothing currently requires attention. Each signal is explainable text. They are not a score and they do not recompute those domains.
 - Combined current position is presentation of stored balances. The screen labels it as current position, not a forecast.
-- Discovery on the Dashboard is limited to Analysis and Forecast. Transactions and Accounts have their own routes. The Accounts screen lists stored balances; it does not own a combined multi-currency total, and account creation remains API-only. Salary and recurring expenses still have no UI routes; those writes remain API-only.
+- Discovery on the Dashboard is limited to Analysis and Forecast. Transactions and Accounts have their own routes. The Accounts screen lists and creates stored balances; it does not own a combined multi-currency total. Salary and recurring expenses still have no UI routes; those writes remain API-only.
 - A later dashboard endpoint would be justified only if these contracts cannot express a real screen need. That need is not present today.
 
 ## Alternatives considered

@@ -25,7 +25,7 @@ describe('AccountService', () => {
     name: 'Demo Main Account',
     account_type: 'bank',
     currency: 'EUR',
-    current_balance: '5000.00',
+    current_balance: 5000,
   };
 
   beforeEach(() => {

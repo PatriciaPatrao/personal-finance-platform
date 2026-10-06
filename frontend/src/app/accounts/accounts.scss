@@ -37,27 +37,89 @@
   border-color: #e2bcbc;
 }
 
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1rem;
+.status-success {
+  color: #1a5c38;
+  background: #eef6f1;
+  border-color: #b7d7c4;
 }
 
-.empty-state p {
+.empty-state {
   margin: 0;
   color: #555;
 }
 
-.create-account-button {
+.create-account-button,
+.save-button,
+.cancel-button {
   font: inherit;
   font-weight: 600;
   padding: 0.55rem 1.15rem;
   border: 1px solid #222;
+  background: #fff;
+  color: #222;
+  cursor: pointer;
+}
+
+.create-account-button,
+.save-button {
   background: #222;
   color: #fff;
-  cursor: not-allowed;
-  opacity: 0.55;
+}
+
+.save-button:disabled,
+.cancel-button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid #d8d8d8;
+  background: #fafafa;
+}
+
+.account-form h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+.form-fields,
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 10rem;
+  flex: 1 1 10rem;
+}
+
+.field-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.field input,
+.field select {
+  font: inherit;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #bbb;
+  background: #fff;
+}
+
+.field-error {
+  font-size: 0.8rem;
+  color: #7a1f1f;
 }
 
 .data-table {
@@ -91,7 +153,9 @@
     overflow-x: auto;
   }
 
-  .create-account-button {
+  .create-account-button,
+  .save-button,
+  .cancel-button {
     width: 100%;
   }
 }

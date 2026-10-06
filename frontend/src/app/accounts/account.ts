@@ -17,5 +17,5 @@ export interface AccountCreate {
   name: string;
   account_type: AccountType;
   currency?: string;
-  current_balance?: string;
+  current_balance?: number;
 }

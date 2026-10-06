@@ -44,7 +44,7 @@ The shell is `PersonalFinanceLayout` at `/personal_finance`. Navigation is Dashb
 | Route | Responsibility |
 | --- | --- |
 | `/personal_finance` | Dashboard: current position, signals, links |
-| `/personal_finance/accounts` | Stored accounts list (create and detail not in the UI yet) |
+| `/personal_finance/accounts` | Stored accounts list and create form (detail not in the UI yet) |
 | `/personal_finance/analysis` | Historical analysis of transactions |
 | `/personal_finance/forecast` | Projection from balances and schedules |
 | `/personal_finance/transactions` | Recorded income and expense events |
@@ -71,7 +71,7 @@ Implemented by `Forecast`. It queries `GET /forecast` with `from`, `to`, and `gr
 
 ### Accounts
 
-Implemented by `Accounts`. It loads `GET /accounts` through `AccountService.listAccounts()`, lists every stored account in API order, and shows each account’s name, type, currency, and stored `current_balance`. Balances are not summed across accounts and are not derived from transactions. Account creation and detail views are not in the UI yet. `AccountService` is also used by the Dashboard and by the Transactions account picker. Salary and recurring-expense writes remain API-only.
+Implemented by `Accounts`. It loads `GET /accounts` through `AccountService.listAccounts()`, lists every stored account in API order, and shows each account’s name, type, currency, and stored `current_balance`. It creates accounts through `AccountService.createAccount()` with name, type, currency, and optional opening balance. Balances are not summed across accounts and are not derived from transactions. Account detail views are not in the UI yet. There is no update or delete path. `AccountService` is also used by the Dashboard and by the Transactions account picker. Salary and recurring-expense writes remain API-only.
 
 ### Transactions
 

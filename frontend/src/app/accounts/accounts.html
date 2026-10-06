@@ -7,6 +7,104 @@
     </p>
   </header>
 
+  @if (successMessage) {
+    <p class="status status-success" role="status">{{ successMessage }}</p>
+  }
+
+  @if (!loading && errorMessage === null) {
+    @if (!formOpen) {
+      <button
+        type="button"
+        class="create-account-button"
+        (click)="startCreate()"
+      >
+        Create account
+      </button>
+    } @else {
+      <form class="account-form" (submit)="$event.preventDefault(); saveAccount()">
+        <h2>New account</h2>
+        <div class="form-fields">
+          <label class="field">
+            <span class="field-label">Name</span>
+            <input
+              name="name"
+              type="text"
+              maxlength="100"
+              [value]="formName"
+              (input)="formName = $any($event.target).value"
+            />
+            @if (formNameError) {
+              <span class="field-error">{{ formNameError }}</span>
+            }
+          </label>
+          <label class="field">
+            <span class="field-label">Type</span>
+            <select
+              name="accountType"
+              [value]="formAccountType"
+              (change)="onFormTypeChange($any($event.target).value)"
+            >
+              <option value="">Select a type</option>
+              @for (type of accountTypes; track type) {
+                <option [value]="type">{{ displayType(type) }}</option>
+              }
+            </select>
+            @if (formTypeError) {
+              <span class="field-error">{{ formTypeError }}</span>
+            }
+          </label>
+          <label class="field">
+            <span class="field-label">Currency</span>
+            <select
+              name="currency"
+              [value]="formCurrency"
+              (change)="onFormCurrencyChange($any($event.target).value)"
+            >
+              @for (currency of currencyOptions; track currency) {
+                <option [value]="currency">{{ currency }}</option>
+              }
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">Opening balance</span>
+            <input
+              name="currentBalance"
+              type="text"
+              inputmode="decimal"
+              [value]="formBalance"
+              (input)="formBalance = $any($event.target).value"
+            />
+            @if (formBalanceError) {
+              <span class="field-error">{{ formBalanceError }}</span>
+            }
+          </label>
+        </div>
+
+        @if (formError) {
+          <p class="status status-error" role="alert">{{ formError }}</p>
+        }
+
+        <div class="form-actions">
+          <button
+            type="submit"
+            class="save-button"
+            [disabled]="!canSubmit"
+          >
+            {{ saving ? 'Creating...' : 'Create account' }}
+          </button>
+          <button
+            type="button"
+            class="cancel-button"
+            [disabled]="saving"
+            (click)="cancelForm()"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    }
+  }
+
   @if (loading) {
     <p class="status status-loading" aria-live="polite">Loading accounts...</p>
   }
@@ -15,13 +113,10 @@
     <p class="status status-error" role="alert">{{ errorMessage }}</p>
   }
 
-  @if (!loading && errorMessage === null && accounts.length === 0) {
-    <div class="empty-state">
-      <p>No accounts yet. Create an account to track a stored balance.</p>
-      <button type="button" class="create-account-button" disabled>
-        Create account
-      </button>
-    </div>
+  @if (!loading && errorMessage === null && accounts.length === 0 && !formOpen) {
+    <p class="empty-state">
+      No accounts yet. Create an account to track a stored balance.
+    </p>
   }
 
   @if (!loading && errorMessage === null && accounts.length > 0) {

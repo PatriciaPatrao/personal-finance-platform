@@ -33,6 +33,15 @@ describe('App routing', () => {
                   created_at: '2026-01-01T00:00:00',
                 },
               ]),
+            createAccount: () =>
+              of({
+                id: 1,
+                name: 'Demo Main Account',
+                account_type: 'bank',
+                currency: 'EUR',
+                current_balance: '5000.00',
+                created_at: '2026-01-01T00:00:00',
+              }),
           },
         },
         {

@@ -25,17 +25,28 @@ describe('Accounts', () => {
     },
   ];
 
+  const createdAccount: Account = {
+    id: 5,
+    name: 'Travel Card',
+    account_type: 'credit_card',
+    currency: 'EUR',
+    current_balance: '-150.00',
+    created_at: '2026-01-05T00:00:00',
+  };
+
   let listAccounts: ReturnType<typeof vi.fn>;
+  let createAccount: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     listAccounts = vi.fn().mockReturnValue(of(sampleAccounts));
+    createAccount = vi.fn().mockReturnValue(of(createdAccount));
 
     await TestBed.configureTestingModule({
       imports: [Accounts],
       providers: [
         {
           provide: AccountService,
-          useValue: { listAccounts },
+          useValue: { listAccounts, createAccount },
         },
       ],
     }).compileComponents();
@@ -55,6 +66,16 @@ describe('Accounts', () => {
       compiled: fixture.nativeElement as HTMLElement,
       component: fixture.componentInstance,
     };
+  }
+
+  function openCreateForm(
+    fixture: ReturnType<typeof TestBed.createComponent<Accounts>>,
+    compiled: HTMLElement,
+  ): void {
+    (
+      compiled.querySelector('.create-account-button') as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
   }
 
   it('should create the component', () => {
@@ -146,7 +167,7 @@ describe('Accounts', () => {
     expect(compiled.textContent).toMatch(/-€?\s?150\.00|€-150\.00/);
   });
 
-  it('should show an empty state with a disabled create action', async () => {
+  it('should show an empty state with an enabled create action', async () => {
     listAccounts.mockReturnValue(of([]));
 
     const { compiled } = await render();
@@ -157,7 +178,7 @@ describe('Accounts', () => {
     expect(compiled.querySelector('.data-table')).toBeNull();
     expect(compiled.textContent).toContain('No accounts yet');
     expect(createButton).toBeTruthy();
-    expect(createButton?.disabled).toBe(true);
+    expect(createButton?.disabled).toBe(false);
     expect(createButton?.textContent?.trim()).toBe('Create account');
   });
 
@@ -177,5 +198,167 @@ describe('Accounts', () => {
     expect(compiled.querySelector('.data-table')).toBeNull();
     expect(compiled.textContent).toContain('Unable to load accounts.');
     expect(compiled.textContent).not.toContain('Demo Main Account');
+  });
+
+  it('should open the create form with the expected initial state', async () => {
+    const { fixture, compiled, component } = await render();
+    openCreateForm(fixture, compiled);
+
+    expect(component.formOpen).toBe(true);
+    expect(component.formName).toBe('');
+    expect(component.formAccountType).toBe('');
+    expect(component.formCurrency).toBe('EUR');
+    expect(component.formBalance).toBe('0.00');
+    expect(compiled.querySelector('select[name="currency"]')?.textContent).toContain(
+      'EUR',
+    );
+    expect(
+      (compiled.querySelector('select[name="currency"]') as HTMLSelectElement)
+        .value,
+    ).toBe('EUR');
+    expect(component.canSubmit).toBe(false);
+  });
+
+  it('should reject an empty or whitespace-only name', async () => {
+    const { fixture, compiled, component } = await render();
+    openCreateForm(fixture, compiled);
+
+    component.formName = '   ';
+    component.formAccountType = 'bank';
+    component.formBalance = '0.00';
+
+    expect(component.canSubmit).toBe(false);
+    component.saveAccount();
+    fixture.changeDetectorRef.detectChanges();
+
+    expect(createAccount).not.toHaveBeenCalled();
+    expect(compiled.textContent).toContain('Enter an account name.');
+  });
+
+  it('should reject a missing account type', async () => {
+    const { fixture, compiled, component } = await render();
+    openCreateForm(fixture, compiled);
+
+    component.formName = 'Main Account';
+    component.formAccountType = '';
+    component.formBalance = '0.00';
+
+    expect(component.canSubmit).toBe(false);
+    component.saveAccount();
+    fixture.changeDetectorRef.detectChanges();
+
+    expect(createAccount).not.toHaveBeenCalled();
+    expect(compiled.textContent).toContain('Select an account type.');
+  });
+
+  it('should default the currency to EUR', async () => {
+    const { fixture, compiled, component } = await render();
+    openCreateForm(fixture, compiled);
+
+    expect(component.formCurrency).toBe('EUR');
+    expect(
+      (compiled.querySelector('select[name="currency"]') as HTMLSelectElement)
+        .value,
+    ).toBe('EUR');
+  });
+
+  it('should accept a negative balance and post backend enum values with a number', async () => {
+    const { fixture, compiled, component } = await render();
+    openCreateForm(fixture, compiled);
+
+    component.formName = 'Travel Card';
+    component.formAccountType = 'credit_card';
+    component.formCurrency = 'EUR';
+    component.formBalance = '-150';
+
+    expect(component.canSubmit).toBe(true);
+    component.saveAccount();
+
+    expect(createAccount).toHaveBeenCalledTimes(1);
+    expect(createAccount).toHaveBeenCalledWith({
+      name: 'Travel Card',
+      account_type: 'credit_card',
+      currency: 'EUR',
+      current_balance: -150,
+    });
+  });
+
+  it('should reject a balance with more than two decimal places', async () => {
+    const { fixture, compiled, component } = await render();
+    openCreateForm(fixture, compiled);
+
+    component.formName = 'Main Account';
+    component.formAccountType = 'bank';
+    component.formBalance = '1.234';
+
+    expect(component.canSubmit).toBe(false);
+    component.saveAccount();
+    fixture.changeDetectorRef.detectChanges();
+
+    expect(createAccount).not.toHaveBeenCalled();
+    expect(compiled.textContent).toContain(
+      'Enter a balance with at most two decimal places.',
+    );
+  });
+
+  it('should refresh the list after a successful create', async () => {
+    const { fixture, compiled, component } = await render();
+    openCreateForm(fixture, compiled);
+
+    listAccounts.mockReturnValue(of([createdAccount, ...sampleAccounts]));
+
+    component.formName = 'Travel Card';
+    component.formAccountType = 'credit_card';
+    component.formBalance = '-150';
+    component.saveAccount();
+    await fixture.whenStable();
+    fixture.changeDetectorRef.detectChanges();
+
+    expect(component.formOpen).toBe(false);
+    expect(listAccounts).toHaveBeenCalledTimes(2);
+    expect(compiled.textContent).toContain('Account created.');
+    expect(compiled.textContent).toContain('Travel Card');
+    expect(compiled.querySelector('.account-form')).toBeNull();
+  });
+
+  it('should show a friendly error when create fails', async () => {
+    createAccount.mockReturnValue(throwError(() => new Error('500 boom')));
+
+    const { fixture, compiled, component } = await render();
+    openCreateForm(fixture, compiled);
+
+    component.formName = 'Travel Card';
+    component.formAccountType = 'credit_card';
+    component.formBalance = '-150';
+    component.saveAccount();
+    fixture.changeDetectorRef.detectChanges();
+
+    expect(compiled.textContent).toContain('Unable to create account.');
+    expect(compiled.textContent).not.toContain('500 boom');
+    expect(component.formOpen).toBe(true);
+  });
+
+  it('should not submit again while a create request is in progress', async () => {
+    const pending = new Subject<Account>();
+    createAccount.mockReturnValue(pending.asObservable());
+
+    const { fixture, compiled, component } = await render();
+    openCreateForm(fixture, compiled);
+
+    component.formName = 'Travel Card';
+    component.formAccountType = 'credit_card';
+    component.formBalance = '-150';
+    component.saveAccount();
+    fixture.changeDetectorRef.detectChanges();
+
+    expect(component.saving).toBe(true);
+    expect(component.canSubmit).toBe(false);
+    expect(compiled.textContent).toContain('Creating...');
+
+    component.saveAccount();
+    expect(createAccount).toHaveBeenCalledTimes(1);
+
+    pending.next(createdAccount);
+    pending.complete();
   });
 });
