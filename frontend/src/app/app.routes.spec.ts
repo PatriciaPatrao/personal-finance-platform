@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 
+import { AccountService } from './accounts/account.service';
 import { AnalysisService } from './analysis/analysis.service';
 import { App } from './app';
 import { routes } from './app.routes';
@@ -17,6 +18,22 @@ describe('App routing', () => {
         provideRouter(routes),
         provideHttpClient(),
         provideHttpClientTesting(),
+        {
+          provide: AccountService,
+          useValue: {
+            listAccounts: () =>
+              of([
+                {
+                  id: 1,
+                  name: 'Demo Main Account',
+                  account_type: 'bank',
+                  currency: 'EUR',
+                  current_balance: '5000.00',
+                  created_at: '2026-01-01T00:00:00',
+                },
+              ]),
+          },
+        },
         {
           provide: AnalysisService,
           useValue: {
@@ -53,7 +70,15 @@ describe('App routing', () => {
                 to_date: '2026-12-31',
                 currency: 'EUR',
                 group_by: 'month',
-                periods: [],
+                periods: [
+                  {
+                    period: '2026-10',
+                    income: '2000.00',
+                    expenses: '1250.00',
+                    net_cash_flow: '750.00',
+                    projected_balance: '5750.00',
+                  },
+                ],
               }),
           },
         },
@@ -90,14 +115,14 @@ describe('App routing', () => {
     const { compiled, router } = await renderAt('/');
     expect(router.url).toBe('/personal_finance');
     expect(compiled.querySelector('main h1')?.textContent).toContain(
-      'Personal Finance',
+      'Dashboard',
     );
   });
 
   it('renders the Personal Finance dashboard at /personal_finance', async () => {
     const { compiled } = await renderAt('/personal_finance');
     expect(compiled.querySelector('main h1')?.textContent).toContain(
-      'Personal Finance',
+      'Dashboard',
     );
   });
 

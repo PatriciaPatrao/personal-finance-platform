@@ -1,2 +1,110 @@
-<h1>Personal Finance</h1>
-<p>This is the main financial dashboard.</p>
+<section class="dashboard-page">
+  <header class="page-header">
+    <h1>Dashboard</h1>
+    <p class="page-intro">
+      Your financial orientation home. See your current position, notice
+      anything that needs attention, and open the tools that help you
+      investigate further.
+    </p>
+  </header>
+
+  @if (loading) {
+    <p class="status status-loading" aria-live="polite">Loading dashboard...</p>
+  }
+
+  @if (!loading) {
+    <section class="hero" aria-labelledby="position-heading">
+      <h2 id="position-heading">Current financial position</h2>
+
+      @if (accountsError) {
+        <p class="status status-error" role="alert">
+          Unable to load your current balance.
+        </p>
+      } @else if (currentPosition; as position) {
+        @if (position.kind === 'empty') {
+          <p class="empty-state">
+            No accounts yet. Add an account to see your current financial
+            position.
+          </p>
+        } @else if (position.kind === 'mixed_currency') {
+          <p class="empty-state">
+            Your accounts use more than one currency, so a single current
+            balance cannot be shown.
+          </p>
+        } @else if (position.kind === 'ready') {
+          <p class="hero-balance">
+            {{ position.amount | currency: position.currency }}
+          </p>
+          <p class="hero-caption">Across your accounts</p>
+          <p class="hero-note">Current position, not a forecast.</p>
+        }
+      }
+    </section>
+
+    <section class="panel signals-panel" aria-labelledby="signals-heading">
+      <h2 id="signals-heading">Financial signals</h2>
+      <p class="panel-intro">Is there anything I should pay attention to?</p>
+
+      @if (analysisRangeLabel || forecastRangeLabel) {
+        <p class="range-note">
+          @if (analysisRangeLabel) {
+            <span>Current month: {{ analysisRangeLabel }}</span>
+          }
+          @if (analysisRangeLabel && forecastRangeLabel) {
+            <span aria-hidden="true"> · </span>
+          }
+          @if (forecastRangeLabel) {
+            <span>Forecast period: {{ forecastRangeLabel }}</span>
+          }
+        </p>
+      }
+
+      @if (signalsError) {
+        <p class="status status-error" role="alert">
+          Unable to load financial signals.
+        </p>
+      } @else if (signals.length === 0) {
+        <article class="signal signal-neutral">
+          <h3>No immediate signals</h3>
+          <p>Nothing currently requires your attention.</p>
+        </article>
+      } @else {
+        <ul class="signal-list">
+          @for (signal of signals; track signal.title) {
+            <li class="signal">
+              <h3>{{ signal.title }}</h3>
+              <p>{{ signal.detail }}</p>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
+
+  <section class="panel discovery-panel" aria-labelledby="discovery-heading">
+    <h2 id="discovery-heading">Explore</h2>
+    <div class="discovery-grid">
+      <a
+        class="discovery-card"
+        routerLink="/personal_finance/analysis"
+      >
+        <h3>Understand your finances</h3>
+        <p>
+          Explore historical spending, income and cash flow.
+        </p>
+        <span class="discovery-link">Analysis</span>
+      </a>
+      <a
+        class="discovery-card"
+        routerLink="/personal_finance/forecast"
+      >
+        <h3>Plan ahead</h3>
+        <p>
+          See how scheduled income and recurring expenses may affect your
+          future balance.
+        </p>
+        <span class="discovery-link">Forecast</span>
+      </a>
+    </div>
+  </section>
+</section>
