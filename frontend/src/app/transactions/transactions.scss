@@ -100,7 +100,9 @@
 .new-transaction-button,
 .save-button,
 .cancel-button,
-.edit-button {
+.edit-button,
+.delete-button,
+.confirm-delete-button {
   font: inherit;
   font-weight: 600;
   padding: 0.55rem 1.15rem;
@@ -116,9 +118,52 @@
   color: #fff;
 }
 
-.save-button:disabled {
+.save-button:disabled,
+.confirm-delete-button:disabled,
+.cancel-button:disabled {
   cursor: default;
   opacity: 0.7;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.delete-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid #e2bcbc;
+  background: #f8ecec;
+}
+
+.delete-confirm h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+.delete-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.delete-note {
+  margin: 0;
+  color: #555;
+}
+
+.confirm-delete-button {
+  background: #7a1f1f;
+  border-color: #7a1f1f;
+  color: #fff;
 }
 
 .transaction-form {
@@ -193,7 +238,8 @@
   .apply-button,
   .save-button,
   .cancel-button,
-  .new-transaction-button {
+  .new-transaction-button,
+  .confirm-delete-button {
     width: 100%;
   }
 

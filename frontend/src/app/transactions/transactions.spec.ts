@@ -68,19 +68,26 @@ describe('Transactions', () => {
   let listAccounts: ReturnType<typeof vi.fn>;
   let createTransaction: ReturnType<typeof vi.fn>;
   let updateTransaction: ReturnType<typeof vi.fn>;
+  let deleteTransaction: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     listTransactions = vi.fn().mockReturnValue(of(sampleTransactions));
     listAccounts = vi.fn().mockReturnValue(of(sampleAccounts));
     createTransaction = vi.fn();
     updateTransaction = vi.fn();
+    deleteTransaction = vi.fn();
 
     await TestBed.configureTestingModule({
       imports: [Transactions],
       providers: [
         {
           provide: TransactionService,
-          useValue: { listTransactions, createTransaction, updateTransaction },
+          useValue: {
+            listTransactions,
+            createTransaction,
+            updateTransaction,
+            deleteTransaction,
+          },
         },
         {
           provide: AccountService,
@@ -482,5 +489,129 @@ describe('Transactions', () => {
       (compiled.querySelector('.save-button') as HTMLButtonElement).disabled,
     ).toBe(true);
     expect(createTransaction).not.toHaveBeenCalled();
+  });
+
+  function openDelete(
+    compiled: HTMLElement,
+    fixture: ReturnType<typeof TestBed.createComponent<Transactions>>,
+  ): void {
+    (compiled.querySelector('.delete-button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+  }
+
+  it('should ask for confirmation before deleting a transaction', async () => {
+    const { fixture, compiled } = await render();
+    openDelete(compiled, fixture);
+
+    const text = compiled.textContent ?? '';
+    expect(text).toContain('Delete this transaction?');
+    expect(text).toContain('05-10-2026');
+    expect(text).toContain('Cash Wallet');
+    expect(text).toContain('Expense');
+    expect(text).toContain('€12.00');
+    expect(text).toContain('Account balances are not changed.');
+    expect(deleteTransaction).not.toHaveBeenCalled();
+    expect(compiled.querySelectorAll('tbody tr')).toHaveLength(3);
+  });
+
+  it('should leave the transaction in place when deletion is cancelled', async () => {
+    const { fixture, compiled } = await render();
+    openDelete(compiled, fixture);
+    (
+      compiled.querySelector('.delete-confirm .cancel-button') as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    expect(deleteTransaction).not.toHaveBeenCalled();
+    expect(compiled.querySelector('.delete-confirm')).toBeNull();
+    expect(compiled.querySelectorAll('tbody tr')).toHaveLength(3);
+  });
+
+  it('should delete the confirmed transaction and update the list', async () => {
+    deleteTransaction.mockReturnValue(of(undefined));
+
+    const { fixture, compiled } = await render();
+    openDelete(compiled, fixture);
+    (
+      compiled.querySelector('.confirm-delete-button') as HTMLButtonElement
+    ).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(deleteTransaction).toHaveBeenCalledWith(3);
+    const text = compiled.textContent ?? '';
+    expect(text).toContain('Transaction deleted.');
+    expect(text).not.toContain('Cash Wallet');
+    expect(compiled.querySelector('.delete-confirm')).toBeNull();
+    expect(compiled.querySelectorAll('tbody tr')).toHaveLength(2);
+  });
+
+  it('should show a deleting state until the request finishes', async () => {
+    const pending = new Subject<void>();
+    deleteTransaction.mockReturnValue(pending.asObservable());
+
+    const { fixture, compiled } = await render();
+    openDelete(compiled, fixture);
+    (
+      compiled.querySelector('.confirm-delete-button') as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain('Deleting...');
+    expect(compiled.querySelectorAll('tbody tr')).toHaveLength(3);
+
+    pending.next();
+    pending.complete();
+    fixture.changeDetectorRef.detectChanges();
+
+    expect(compiled.textContent).toContain('Transaction deleted.');
+    expect(compiled.querySelectorAll('tbody tr')).toHaveLength(2);
+  });
+
+  it('should keep the transaction when deletion fails', async () => {
+    deleteTransaction.mockReturnValue(
+      throwError(() => new Error('Internal Server Error')),
+    );
+
+    const { fixture, compiled } = await render();
+    openDelete(compiled, fixture);
+    (
+      compiled.querySelector('.confirm-delete-button') as HTMLButtonElement
+    ).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = compiled.textContent ?? '';
+    expect(text).toContain('Unable to delete the transaction.');
+    expect(text).not.toContain('Internal Server Error');
+    expect(compiled.querySelector('.delete-confirm')).toBeTruthy();
+    expect(compiled.querySelectorAll('tbody tr')).toHaveLength(3);
+  });
+
+  it('should drop a transaction that no longer exists', async () => {
+    deleteTransaction.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 404,
+            statusText: 'Not Found',
+            error: { detail: 'Transaction not found' },
+          }),
+      ),
+    );
+
+    const { fixture, compiled } = await render();
+    openDelete(compiled, fixture);
+    (
+      compiled.querySelector('.confirm-delete-button') as HTMLButtonElement
+    ).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = compiled.textContent ?? '';
+    expect(text).toContain('This transaction no longer exists.');
+    expect(text).not.toContain('Cash Wallet');
+    expect(compiled.querySelector('.delete-confirm')).toBeNull();
+    expect(compiled.querySelectorAll('tbody tr')).toHaveLength(2);
   });
 });

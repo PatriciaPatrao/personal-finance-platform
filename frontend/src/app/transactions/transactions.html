@@ -60,6 +60,47 @@
     <p class="status status-success" role="status">{{ successMessage }}</p>
   }
 
+  @if (deleteError && pendingDelete === null) {
+    <p class="status status-error" role="alert">{{ deleteError }}</p>
+  }
+
+  @if (pendingDelete) {
+    <section class="delete-confirm" role="alertdialog" aria-labelledby="delete-heading">
+      <h2 id="delete-heading">Delete this transaction?</h2>
+      <p class="delete-summary">
+        <span>{{ displayDate(pendingDelete.occurred_on) }}</span>
+        <span>{{ displayText(pendingDelete.description) }}</span>
+        <span>{{ accountName(pendingDelete.account_id) }}</span>
+        <span>{{ displayType(pendingDelete.transaction_type) }}</span>
+        <span>{{ pendingDelete.amount | currency: 'EUR' }}</span>
+      </p>
+      <p class="delete-note">
+        This removes the recorded event. Account balances are not changed.
+      </p>
+      @if (deleteError) {
+        <p class="status status-error" role="alert">{{ deleteError }}</p>
+      }
+      <div class="form-actions">
+        <button
+          type="button"
+          class="confirm-delete-button"
+          [disabled]="deleting"
+          (click)="confirmDelete()"
+        >
+          {{ deleting ? 'Deleting...' : 'Delete transaction' }}
+        </button>
+        <button
+          type="button"
+          class="cancel-button"
+          [disabled]="deleting"
+          (click)="cancelDelete()"
+        >
+          Cancel
+        </button>
+      </div>
+    </section>
+  }
+
   @if (!loading && !errorMessage) {
     @if (formMode === null) {
       <button type="button" class="new-transaction-button" (click)="startCreate()">
@@ -201,13 +242,20 @@
               >
                 {{ transaction.amount | currency: 'EUR' }}
               </td>
-              <td>
+              <td class="row-actions">
                 <button
                   type="button"
                   class="edit-button"
                   (click)="startEdit(transaction)"
                 >
                   Edit
+                </button>
+                <button
+                  type="button"
+                  class="delete-button"
+                  (click)="requestDelete(transaction)"
+                >
+                  Delete
                 </button>
               </td>
             </tr>

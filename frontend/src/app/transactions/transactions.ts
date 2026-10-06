@@ -83,9 +83,12 @@ function fieldLabel(field: string): string {
   }
 }
 
-function formatApiError(error: unknown): string {
+function formatApiError(
+  error: unknown,
+  fallback = 'Unable to save the transaction.',
+): string {
   if (!(error instanceof HttpErrorResponse)) {
-    return 'Unable to save the transaction.';
+    return fallback;
   }
 
   const detail = (error.error as { detail?: unknown } | null)?.detail;
@@ -115,7 +118,7 @@ function formatApiError(error: unknown): string {
     }
   }
 
-  return 'Unable to save the transaction.';
+  return fallback;
 }
 
 function formatDate(date: Date): string {
@@ -191,6 +194,10 @@ export class Transactions implements OnInit {
   formError: string | null = null;
   saving = false;
   successMessage: string | null = null;
+
+  pendingDelete: Transaction | null = null;
+  deleting = false;
+  deleteError: string | null = null;
 
   constructor(
     private transactionService: TransactionService,
@@ -344,6 +351,7 @@ export class Transactions implements OnInit {
     this.formCategory = '';
     this.formError = this.accountAvailabilityError();
     this.successMessage = null;
+    this.clearDeletePrompt();
     this.changeDetector.detectChanges();
   }
 
@@ -358,6 +366,7 @@ export class Transactions implements OnInit {
     this.formCategory = transaction.category ?? '';
     this.formError = this.accountAvailabilityError();
     this.successMessage = null;
+    this.clearDeletePrompt();
     this.changeDetector.detectChanges();
   }
 
@@ -420,6 +429,96 @@ export class Transactions implements OnInit {
         this.changeDetector.markForCheck();
       },
     });
+  }
+
+  requestDelete(transaction: Transaction): void {
+    if (this.deleting) {
+      return;
+    }
+
+    this.pendingDelete = transaction;
+    this.deleteError = null;
+    this.successMessage = null;
+    this.changeDetector.detectChanges();
+  }
+
+  cancelDelete(): void {
+    if (this.deleting) {
+      return;
+    }
+
+    this.clearDeletePrompt();
+    this.changeDetector.detectChanges();
+  }
+
+  confirmDelete(): void {
+    if (this.pendingDelete === null || this.deleting) {
+      return;
+    }
+
+    const transactionId = this.pendingDelete.id;
+    this.deleting = true;
+    this.deleteError = null;
+    this.successMessage = null;
+
+    this.transactionService.deleteTransaction(transactionId).subscribe({
+      next: () => {
+        this.finishDelete(transactionId, 'Transaction deleted.');
+      },
+      error: (error: unknown) => {
+        this.deleting = false;
+        if (error instanceof HttpErrorResponse && error.status === 404) {
+          this.finishDelete(
+            transactionId,
+            'This transaction no longer exists.',
+            true,
+          );
+          return;
+        }
+
+        this.deleteError = formatApiError(
+          error,
+          'Unable to delete the transaction.',
+        );
+        this.changeDetector.markForCheck();
+      },
+    });
+  }
+
+  private finishDelete(
+    transactionId: number,
+    message: string,
+    missing = false,
+  ): void {
+    this.removeTransaction(transactionId);
+    if (this.editingId === transactionId) {
+      this.formMode = null;
+      this.editingId = null;
+      this.formError = null;
+      this.saving = false;
+    }
+    this.pendingDelete = null;
+    this.deleting = false;
+    this.deleteError = missing ? message : null;
+    this.successMessage = missing ? null : message;
+    this.loaded = true;
+    this.errorMessage = null;
+    this.changeDetector.markForCheck();
+  }
+
+  private clearDeletePrompt(): void {
+    if (this.deleting) {
+      return;
+    }
+
+    this.pendingDelete = null;
+    this.deleteError = null;
+  }
+
+  private removeTransaction(transactionId: number): void {
+    this.allTransactions = this.allTransactions.filter(
+      (transaction) => transaction.id !== transactionId,
+    );
   }
 
   private matchesFilters(transaction: Transaction): boolean {
