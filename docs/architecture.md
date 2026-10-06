@@ -39,11 +39,12 @@ The modules already isolate **calculation**: Analysis does not call Forecast, an
 
 ## 3. Frontend structure
 
-The shell is `PersonalFinanceLayout` at `/personal_finance`. Navigation is Dashboard, Analysis, Forecast, and Transactions. `/` redirects to `/personal_finance`.
+The shell is `PersonalFinanceLayout` at `/personal_finance`. Navigation is Dashboard, Accounts, Analysis, Forecast, and Transactions. `/` redirects to `/personal_finance`.
 
 | Route | Responsibility |
 | --- | --- |
 | `/personal_finance` | Dashboard: current position, signals, links |
+| `/personal_finance/accounts` | Stored accounts list (create and detail not in the UI yet) |
 | `/personal_finance/analysis` | Historical analysis of transactions |
 | `/personal_finance/forecast` | Projection from balances and schedules |
 | `/personal_finance/transactions` | Recorded income and expense events |
@@ -68,11 +69,13 @@ Implemented by `Analysis`. It queries `/analysis/summary`, `/analysis/expenses`,
 
 Implemented by `Forecast`. It queries `GET /forecast` with `from`, `to`, and `group_by` (`day` or `month`). Default range starts today and ends on the last day of the month two months ahead.
 
+### Accounts
+
+Implemented by `Accounts`. It loads `GET /accounts` through `AccountService.listAccounts()`, lists every stored account in API order, and shows each account’s name, type, currency, and stored `current_balance`. Balances are not summed across accounts and are not derived from transactions. Account creation and detail views are not in the UI yet. `AccountService` is also used by the Dashboard and by the Transactions account picker. Salary and recurring-expense writes remain API-only.
+
 ### Transactions
 
 Implemented by `Transactions`. It loads `GET /transactions` and `GET /accounts`, lists historical income and expense events, and creates, updates, and deletes them through the existing write routes. Filters (inclusive date range, type, category) run in the client because the list endpoint has no query parameters. Category is an optional string. The page does not update `Account.current_balance`, does not call Analysis or Forecast, and does not paginate.
-
-There is still **no** Accounts management screen. `AccountService` lists accounts for the Dashboard and for the Transactions account picker. Creating or editing accounts, salary, and recurring expenses remains API-only.
 
 ## 4. Backend domain boundaries
 
@@ -158,7 +161,7 @@ Coverage is HTTP-level and domain-level: health, CORS preflight, accounts, trans
 
 ### Frontend
 
-Angular CLI `ng test` runs Vitest. Specs cover routes, the dashboard component, financial signals, analysis component and service, date field, forecast component and service, account service, and the transactions component and service. Tests are unit/component tests with HTTP mocked where services call the API. There is no end-to-end browser suite in this repository.
+Angular CLI `ng test` runs Vitest. Specs cover routes, the dashboard component, financial signals, analysis component and service, date field, forecast component and service, account service and accounts component, and the transactions component and service. Tests are unit/component tests with HTTP mocked where services call the API. There is no end-to-end browser suite in this repository.
 
 ## 10. Seed data
 

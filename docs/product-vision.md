@@ -48,7 +48,7 @@ Occurrences are generated when a forecast is requested, starting at each schedul
 
 ### Accounts
 
-Accounts are places money is held: bank, cash, credit card, or investment. Each has a name, currency (default EUR), and current balance.
+Accounts are places money is held: bank, cash, credit card, or investment. Each has a name, currency (default EUR), and current balance. The Angular Accounts screen at `/personal_finance/accounts` lists those stored accounts. Creating an account and opening a detail view are not in the UI yet.
 
 ### Transactions
 
@@ -64,11 +64,11 @@ Recurring expenses are expected future commitments on an account, with a **fixed
 
 ### Dashboard-oriented financial overview
 
-The Angular app’s primary surfaces are **Dashboard**, **Analysis**, **Forecast**, and **Transactions**.
+The Angular app’s primary surfaces are **Dashboard**, **Accounts**, **Analysis**, **Forecast**, and **Transactions**.
 
 The dashboard is an orientation home: current position, a small set of **explainable financial signals**, and links into analysis and forecast. Signals are rule-based text (for example positive vs negative cash flow this month, no scheduled income in the forecast window, projected balance rising or falling). There is no numeric financial-health score.
 
-Accounts, scheduled salary, and recurring expenses are maintained through the API. The current UI does not include screens to edit those records.
+Accounts can be listed in the UI. Account creation, scheduled salary, and recurring expenses are maintained through the API. The current UI does not include screens to create or edit those write paths.
 
 ## Product boundaries
 

@@ -6,4 +6,46 @@
       Recording a transaction does not change that balance.
     </p>
   </header>
+
+  @if (loading) {
+    <p class="status status-loading" aria-live="polite">Loading accounts...</p>
+  }
+
+  @if (errorMessage) {
+    <p class="status status-error" role="alert">{{ errorMessage }}</p>
+  }
+
+  @if (!loading && errorMessage === null && accounts.length === 0) {
+    <div class="empty-state">
+      <p>No accounts yet. Create an account to track a stored balance.</p>
+      <button type="button" class="create-account-button" disabled>
+        Create account
+      </button>
+    </div>
+  }
+
+  @if (!loading && errorMessage === null && accounts.length > 0) {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Type</th>
+          <th scope="col">Currency</th>
+          <th scope="col">Current balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (account of accounts; track account.id) {
+          <tr>
+            <td>{{ account.name }}</td>
+            <td>{{ displayType(account.account_type) }}</td>
+            <td>{{ account.currency }}</td>
+            <td class="amount">
+              {{ account.current_balance | currency: account.currency }}
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
 </section>

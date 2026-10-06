@@ -20,7 +20,7 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 
 ## Current capabilities
 
-**Accounts.** Create and read accounts. Types are bank, cash, credit card, and investment. Each account stores a currency (EUR by default) and a `current_balance`. Recording a transaction does not change that balance.
+**Accounts.** Create and read accounts through the API. Types are bank, cash, credit card, and investment. Each account stores a currency (EUR by default) and a `current_balance`. Recording a transaction does not change that balance. The Angular screen at `/personal_finance/accounts` lists stored accounts. Account creation and detail views are not in the UI yet.
 
 **Transactions.** Create, read, update, and delete income and expense transactions. Each transaction belongs to an account and may have a category and description. The Angular screen at `/personal_finance/transactions` performs that CRUD. Filters (date range, type, category) run in the client. Category is an optional string. Recording or changing a transaction does not update `Account.current_balance`.
 
@@ -40,12 +40,12 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 
 **Dashboard signals.** From the loaded summary and forecast, the client can report positive or negative cash flow, missing scheduled income, and whether the projected balance rises or falls over the forecast window.
 
-There is no authentication. The Angular UI writes transactions through the API. Account, income, and recurring-expense writes remain API-only.
+There is no authentication. The Angular UI writes transactions through the API. Account creation, income, and recurring-expense writes remain API-only.
 
 ## Architecture
 
 ```text
-Angular (Dashboard, Analysis, Forecast, Transactions)
+Angular (Dashboard, Accounts, Analysis, Forecast, Transactions)
         │  HTTP
         ▼
 FastAPI
@@ -100,12 +100,13 @@ The development client calls `http://127.0.0.1:8000` (`frontend/src/environments
 
 ## Application routes
 
-The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for Dashboard, Analysis, Forecast, and Transactions.
+The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for Dashboard, Accounts, Analysis, Forecast, and Transactions.
 
 | Route | Screen |
 | --- | --- |
 | `/` | Redirects to `/personal_finance` |
 | `/personal_finance` | Dashboard: combined balance when every account uses the same currency, financial signals, links to Analysis and Forecast |
+| `/personal_finance/accounts` | Stored accounts list: name, type, currency, and current balance. Creation and detail are not in the UI yet. |
 | `/personal_finance/analysis` | Historical summary, expenses by category, and cash flow. Default range is the current month through today. Dates are entered as DD-MM-YYYY. |
 | `/personal_finance/forecast` | Projected income, expenses, net cash flow, and running balance. Default range starts today and ends on the last day of the calendar month two months ahead. Grouping is monthly or daily. |
 | `/personal_finance/transactions` | Recorded income and expense events: list, client-side filters, create, edit, and delete. Dates are entered as DD-MM-YYYY. |

@@ -18,3 +18,80 @@
   max-width: 42rem;
   line-height: 1.45;
 }
+
+.status {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid transparent;
+}
+
+.status-loading {
+  color: #444;
+  background: #f5f5f5;
+  border-color: #e0e0e0;
+}
+
+.status-error {
+  color: #7a1f1f;
+  background: #f8ecec;
+  border-color: #e2bcbc;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.empty-state p {
+  margin: 0;
+  color: #555;
+}
+
+.create-account-button {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.55rem 1.15rem;
+  border: 1px solid #222;
+  background: #222;
+  color: #fff;
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.7rem 0.75rem;
+  border-bottom: 1px solid #e2e2e2;
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #555;
+}
+
+.data-table th:nth-child(4),
+.data-table td.amount {
+  text-align: right;
+}
+
+@media (max-width: 720px) {
+  .data-table {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .create-account-button {
+    width: 100%;
+  }
+}
