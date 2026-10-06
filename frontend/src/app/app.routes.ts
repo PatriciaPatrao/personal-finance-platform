@@ -30,6 +30,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./forecast/forecast').then((m) => m.Forecast),
       },
+      {
+        path: 'transactions',
+        loadComponent: () =>
+          import('./transactions/transactions').then((m) => m.Transactions),
+      },
     ],
   },
 ];

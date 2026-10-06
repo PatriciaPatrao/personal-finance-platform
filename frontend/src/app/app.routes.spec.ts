@@ -136,12 +136,20 @@ describe('App routing', () => {
     expect(compiled.querySelector('main h1')?.textContent).toContain('Forecast');
   });
 
+  it('renders the Transactions page at /personal_finance/transactions', async () => {
+    const { compiled } = await renderAt('/personal_finance/transactions');
+    expect(compiled.querySelector('main h1')?.textContent).toContain(
+      'Transactions',
+    );
+  });
+
   it('has Personal Finance navigation links', async () => {
     const { compiled } = await renderAt('/personal_finance');
     expect(navHrefs(compiled)).toEqual([
       '/personal_finance',
       '/personal_finance/analysis',
       '/personal_finance/forecast',
+      '/personal_finance/transactions',
     ]);
   });
 
@@ -158,5 +166,10 @@ describe('App routing', () => {
   it('marks Forecast as the active tab on /personal_finance/forecast', async () => {
     const { compiled } = await renderAt('/personal_finance/forecast');
     expect(activeNavHref(compiled)).toBe('/personal_finance/forecast');
+  });
+
+  it('marks Transactions as the active tab on /personal_finance/transactions', async () => {
+    const { compiled } = await renderAt('/personal_finance/transactions');
+    expect(activeNavHref(compiled)).toBe('/personal_finance/transactions');
   });
 });
