@@ -48,11 +48,32 @@ When no Account is associated, progress is unavailable. That absence must not be
 
 When a Goal has an associated Account:
 
-`progress = current_amount / target_amount`
+`current_amount = Account.current_balance`
 
 `current_amount` is the associated Account’s `current_balance` at the time of the reading. It is not stored on the Goal.
 
-Visual progress is capped at 100%. If the current amount reaches or exceeds the target amount, the Goal is considered completed, the UI shows it as completed, and progress stays visually capped at 100%.
+The raw progress ratio is:
+
+`current_amount / target_amount`
+
+#### Progress lower and upper bounds
+
+The API/domain representation of progress must be bounded to the interval [0, 1]:
+
+`progress = max(0, min(1, current_amount / target_amount))`
+
+Therefore:
+
+- if `current_amount` < 0 → `progress` = 0
+- if 0 ≤ `current_amount` < `target_amount` → `progress` is the normal ratio
+- if `current_amount` ≥ `target_amount` → `progress` = 1
+- `current_amount` itself remains the raw `Account.current_balance`
+- `completed` = `current_amount` ≥ `target_amount`
+- a negative Account balance does not change the meaning of `Account.current_balance`; only the derived Goal progress representation is floored at 0
+
+This bounded `progress` value, like `current_amount` and `completed`, is a presentation/domain-derived value. It is not persisted on FinancialGoal.
+
+If the current amount reaches or exceeds the target amount, the Goal is considered completed, the UI shows it as completed, and progress stays capped at 1 (100%).
 
 Completion is derived, not persisted. If the target amount changes later, completion and progress are recalculated from the current Account balance and the new target. There is no stored completion that would survive that change.
 
