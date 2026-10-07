@@ -70,3 +70,7 @@ class Account(Base):
     incomes: Mapped[list["Income"]] = relationship(
         back_populates="account",
     )
+    financial_goal: Mapped["FinancialGoal | None"] = relationship(
+        back_populates="account",
+        uselist=False,
+    )
