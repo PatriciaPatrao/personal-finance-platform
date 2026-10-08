@@ -9,6 +9,7 @@ import { AnalysisService } from './analysis/analysis.service';
 import { App } from './app';
 import { routes } from './app.routes';
 import { ForecastService } from './forecast/forecast.service';
+import { GoalService } from './goals/goal.service';
 import { TransactionService } from './transactions/transactions.service';
 
 describe('App routing', () => {
@@ -107,6 +108,12 @@ describe('App routing', () => {
             listTransactions: () => of([]),
           },
         },
+        {
+          provide: GoalService,
+          useValue: {
+            listGoals: () => of([]),
+          },
+        },
       ],
     }).compileComponents();
   });
@@ -194,11 +201,17 @@ describe('App routing', () => {
     );
   });
 
+  it('renders the Goals page at /personal_finance/goals', async () => {
+    const { compiled } = await renderAt('/personal_finance/goals');
+    expect(compiled.querySelector('main h1')?.textContent).toContain('Goals');
+  });
+
   it('has Personal Finance navigation links', async () => {
     const { compiled } = await renderAt('/personal_finance');
     expect(navHrefs(compiled)).toEqual([
       '/personal_finance',
       '/personal_finance/accounts',
+      '/personal_finance/goals',
       '/personal_finance/analysis',
       '/personal_finance/forecast',
       '/personal_finance/transactions',
@@ -233,5 +246,10 @@ describe('App routing', () => {
   it('marks Transactions as the active tab on /personal_finance/transactions', async () => {
     const { compiled } = await renderAt('/personal_finance/transactions');
     expect(activeNavHref(compiled)).toBe('/personal_finance/transactions');
+  });
+
+  it('marks Goals as the active tab on /personal_finance/goals', async () => {
+    const { compiled } = await renderAt('/personal_finance/goals');
+    expect(activeNavHref(compiled)).toBe('/personal_finance/goals');
   });
 });

@@ -40,13 +40,14 @@ The modules already isolate **calculation**: Analysis does not call Forecast, an
 
 ## 3. Frontend structure
 
-The shell is `PersonalFinanceLayout` at `/personal_finance`. Navigation is Dashboard, Accounts, Analysis, Forecast, and Transactions. `/` redirects to `/personal_finance`.
+The shell is `PersonalFinanceLayout` at `/personal_finance`. Navigation is Dashboard, Accounts, Goals, Analysis, Forecast, and Transactions. `/` redirects to `/personal_finance`.
 
 | Route | Responsibility |
 | --- | --- |
 | `/personal_finance` | Dashboard: current position, signals, links |
 | `/personal_finance/accounts` | Stored accounts list and create form |
 | `/personal_finance/accounts/:id` | Read-only stored account detail |
+| `/personal_finance/goals` | Financial objectives: list, create, and edit |
 | `/personal_finance/analysis` | Historical analysis of transactions |
 | `/personal_finance/forecast` | Projection from balances and schedules |
 | `/personal_finance/transactions` | Recorded income and expense events |
@@ -73,9 +74,13 @@ Implemented by `Forecast`. It queries `GET /forecast` with `from`, `to`, and `gr
 
 ### Accounts
 
-Implemented by `Accounts` and `AccountDetail`. The list page loads `GET /accounts` through `AccountService.listAccounts()`, lists every stored account in API order, and shows each account’s name, type, currency, and stored `current_balance`. It creates accounts through `AccountService.createAccount()` with name, type, currency, and optional opening balance. The create form offers EUR, USD, and GBP. That list is a UI constraint, not a domain rule: the API accepts any 3-character currency code and does not convert between them. The detail page at `/personal_finance/accounts/:id` loads one account through `AccountService.getAccount(id)` and shows the stored fields read-only, each balance in that account’s own currency. The Accounts screens do not sum balances across accounts and do not derive them from transactions. There is no update or delete path. `AccountService` is also used by the Dashboard and by the Transactions account picker. Salary and recurring-expense writes remain API-only.
+Implemented by `Accounts` and `AccountDetail`. The list page loads `GET /accounts` through `AccountService.listAccounts()`, lists every stored account in API order, and shows each account’s name, type, currency, and stored `current_balance`. It creates accounts through `AccountService.createAccount()` with name, type, currency, and optional opening balance. The create form offers EUR, USD, and GBP. That list is a UI constraint, not a domain rule: the API accepts any 3-character currency code and does not convert between them. The detail page at `/personal_finance/accounts/:id` loads one account through `AccountService.getAccount(id)` and shows the stored fields read-only, each balance in that account’s own currency. The Accounts screens do not sum balances across accounts and do not derive them from transactions. There is no update or delete path. `AccountService` is also used by the Dashboard, by the Transactions account picker, and by the Goals account picker. Salary and recurring-expense writes remain API-only.
 
 `current_balance` is a stored signed amount. Negative values are allowed for every account type. That rule is intentionally simple for the MVP. It is not calculated from transactions, and transaction writes do not modify it. Type-specific meaning is future product work, not current behaviour: bank overdrafts, cash (where a negative amount may not make sense), credit-card debt, and investment valuation. Do not add those rules until that work is specified. Forecast still starts from the sum of every stored balance; that simplification may also need to change if those types stop meaning the same kind of position.
+
+### Goals
+
+Implemented by `Goals` at `/personal_finance/goals`. It loads `GET /financial-goals` and `GET /accounts`, lists objectives, and creates and updates them through `POST` and `PUT`. There is no delete. The create form offers EUR, USD, and GBP and an optional target date (DD-MM-YYYY). Account is optional. Selecting an Account locks the Goal currency to that Account’s currency. Accounts that already have a Goal are omitted from the picker except the Goal being edited. The screen displays backend `current_amount`, `progress` (capped at 100%), and `completed`. An unlinked Goal shows that progress is unavailable. The page does not recompute those values, does not write `Account.current_balance`, and does not call Analysis, Forecast, or Transactions.
 
 ### Transactions
 
@@ -188,7 +193,7 @@ Coverage is HTTP-level and domain-level: health, CORS preflight, accounts, trans
 
 ### Frontend
 
-Angular CLI `ng test` runs Vitest. Specs cover routes, the dashboard component, financial signals, analysis component and service, date field, forecast component and service, account service, accounts list/create component, account detail component, and the transactions component and service. Tests are unit/component tests with HTTP mocked where services call the API. There is no end-to-end browser suite in this repository.
+Angular CLI `ng test` runs Vitest. Specs cover routes, the dashboard component, financial signals, analysis component and service, date field, forecast component and service, account service, accounts list/create component, account detail component, the goals component and service, and the transactions component and service. Tests are unit/component tests with HTTP mocked where services call the API. There is no end-to-end browser suite in this repository.
 
 ## 10. Seed data
 
@@ -225,7 +230,7 @@ These are **future considerations**. They are not current architecture.
 - **Observability.** Health JSON only. No tracing, metrics, or log platform is wired in.
 - **Richer financial insights.** Signals are a small, rule-based set on the Dashboard. Deeper resilience analysis is product direction, not an implemented module.
 - **GoalAllocation.** Not present. Until it exists, an Account may associate with at most one Goal so the full `current_balance` is not counted toward several objectives.
-- **Forecast → Goal projected completion.** Forecast does not read Goals. Projecting when a Goal may be met from schedules is future work.
+- **Forecast → Goal projected completion.** Forecast does not read Goals. Projecting when a Goal may be met from schedules, including any confidence or uncertainty around that projection, is future work.
 - **ML.** Not used. Predictive models are explicitly out of the current product.
 
 Related product limits already noted in models: scheduled income is salary-only; recurring expenses use one fixed amount per schedule.

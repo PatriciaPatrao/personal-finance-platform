@@ -1,0 +1,242 @@
+<section class="goals-page">
+  <header class="page-header">
+    <h1>Goals</h1>
+    <p class="page-intro">
+      Future financial objectives. Progress comes from a linked account balance
+      when one is associated. Goals do not store or move money.
+    </p>
+  </header>
+
+  @if (successMessage) {
+    <p class="status status-success" role="status">{{ successMessage }}</p>
+  }
+
+  @if (!loading && errorMessage === null) {
+    @if (formMode === null) {
+      <button
+        type="button"
+        class="create-goal-button"
+        (click)="startCreate()"
+      >
+        Create goal
+      </button>
+    } @else {
+      <form class="goal-form" (submit)="$event.preventDefault(); saveGoal()">
+        <h2>{{ formTitle }}</h2>
+        <div class="form-fields">
+          <label class="field">
+            <span class="field-label">Name</span>
+            <input
+              name="name"
+              type="text"
+              maxlength="100"
+              [value]="formName"
+              (input)="formName = $any($event.target).value"
+            />
+            @if (formNameError) {
+              <span class="field-error">{{ formNameError }}</span>
+            }
+          </label>
+
+          <label class="field">
+            <span class="field-label">Target amount</span>
+            <input
+              name="targetAmount"
+              type="text"
+              inputmode="decimal"
+              [value]="formTargetAmount"
+              (input)="formTargetAmount = $any($event.target).value"
+            />
+            @if (formTargetAmountError) {
+              <span class="field-error">{{ formTargetAmountError }}</span>
+            }
+          </label>
+
+          <label class="field">
+            <span class="field-label">Currency</span>
+            <select
+              name="currency"
+              [value]="formCurrency"
+              [disabled]="currencyLocked"
+              (change)="onFormCurrencyChange($any($event.target).value)"
+            >
+              @for (currency of currencyOptions; track currency) {
+                <option
+                  [value]="currency"
+                  [selected]="formCurrency === currency"
+                >
+                  {{ currency }}
+                </option>
+              }
+            </select>
+            @if (currencyLocked && selectedAccountCurrency()) {
+              <span class="field-hint">
+                Matches account currency ({{ selectedAccountCurrency() }}).
+              </span>
+            }
+          </label>
+
+          <div class="field">
+            <app-date-field
+              label="Target date (optional)"
+              name="targetDate"
+              [value]="formTargetDateDisplay"
+              (valueChange)="formTargetDateDisplay = $event"
+            />
+            @if (formTargetDateError) {
+              <span class="field-error">{{ formTargetDateError }}</span>
+            }
+          </div>
+
+          <label class="field">
+            <span class="field-label">Account (optional)</span>
+            <select
+              name="accountId"
+              [value]="formAccountId"
+              (change)="onFormAccountChange($any($event.target).value)"
+            >
+              <option value="" [selected]="formAccountId === ''">
+                No account
+              </option>
+              @for (account of selectableAccounts; track account.id) {
+                <option
+                  [value]="accountIdValue(account.id)"
+                  [selected]="formAccountId === accountIdValue(account.id)"
+                >
+                  {{ account.name }} ({{ account.currency }})
+                </option>
+              }
+            </select>
+            @if (accountsLoadFailed) {
+              <span class="field-hint">
+                Accounts could not be loaded. You can still create an unlinked
+                goal.
+              </span>
+            }
+          </label>
+        </div>
+
+        @if (formError) {
+          <p class="status status-error" role="alert">{{ formError }}</p>
+        }
+
+        <div class="form-actions">
+          <button
+            type="submit"
+            class="save-button"
+            [disabled]="!canSubmit"
+          >
+            @if (saving) {
+              Saving...
+            } @else if (formMode === 'edit') {
+              Save changes
+            } @else {
+              Create goal
+            }
+          </button>
+          <button
+            type="button"
+            class="cancel-button"
+            [disabled]="saving"
+            (click)="cancelForm()"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    }
+  }
+
+  @if (loading) {
+    <p class="status status-loading" aria-live="polite">Loading goals...</p>
+  }
+
+  @if (errorMessage) {
+    <p class="status status-error" role="alert">{{ errorMessage }}</p>
+  }
+
+  @if (
+    !loading &&
+    errorMessage === null &&
+    goals.length === 0 &&
+    formMode === null
+  ) {
+    <p class="empty-state">
+      No financial goals yet. Create a goal to track a future objective.
+    </p>
+  }
+
+  @if (!loading && errorMessage === null && goals.length > 0) {
+    <ul class="goal-list">
+      @for (goal of goals; track goal.id) {
+        <li
+          class="goal-card"
+          [class.goal-completed]="goal.completed === true"
+        >
+          <div class="goal-header">
+            <h2 class="goal-name">{{ goal.name }}</h2>
+            @if (goal.completed === true) {
+              <span class="completed-badge">Completed</span>
+            }
+          </div>
+
+          <dl class="goal-details">
+            <div>
+              <dt>Target</dt>
+              <dd>
+                {{ goal.target_amount | currency: goal.currency }}
+                <span class="currency-code">{{ goal.currency }}</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Target date</dt>
+              <dd>{{ displayTargetDate(goal.target_date) }}</dd>
+            </div>
+            <div>
+              <dt>Account</dt>
+              <dd>{{ accountName(goal.account_id) }}</dd>
+            </div>
+            <div>
+              <dt>Current amount</dt>
+              <dd>
+                @if (goal.current_amount === null) {
+                  —
+                } @else {
+                  {{ goal.current_amount | currency: goal.currency }}
+                }
+              </dd>
+            </div>
+          </dl>
+
+          <div class="goal-progress">
+            @if (!hasProgress(goal)) {
+              <p class="progress-unavailable">
+                Progress unavailable. No account associated.
+              </p>
+            } @else {
+              <div class="progress-row">
+                <progress
+                  class="progress-bar"
+                  max="100"
+                  [value]="progressPercent(goal)"
+                  [attr.aria-valuenow]="progressPercent(goal)"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                ></progress>
+                <span class="progress-label">{{ progressLabel(goal) }}</span>
+              </div>
+            }
+          </div>
+
+          <button
+            type="button"
+            class="edit-button"
+            (click)="startEdit(goal)"
+          >
+            Edit
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</section>

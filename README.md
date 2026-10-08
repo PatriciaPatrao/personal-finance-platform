@@ -2,7 +2,7 @@
 
 A household financial health application. It shows the current position of recorded accounts, explains historical cash flow from transactions, and projects future balances from scheduled income and recurring expenses.
 
-The product is a modular monolith: an Angular client talks to a FastAPI API, and domain modules persist data in PostgreSQL. It is not a general expense tracker with a dashboard bolted on. Dashboard, Analysis, Forecast, and Transactions are separate concerns.
+The product is a modular monolith: an Angular client talks to a FastAPI API, and domain modules persist data in PostgreSQL. It is not a general expense tracker with a dashboard bolted on. Dashboard, Analysis, Forecast, Transactions, and Goals are separate concerns.
 
 ## Problem
 
@@ -37,18 +37,18 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 
 **Forecast.** Read-only projection for a date range, grouped by day or month. The Forecast screen defaults to month. It sums every account’s stored balance, then applies active income and recurring-expense occurrences. That sum treats every account the same way. It may need to change if bank, cash, credit card, and investment balances later mean different things. Each schedule belongs to an account, and the projection does not assign an occurrence to that account. Dates are generated from `next_occurrence` through an optional inclusive end date. Dates before today are omitted, including when `from` is earlier than today. The response currency is EUR, with no conversion when account currencies differ. Forecast does not write balances.
 
-**Financial Goals.** Create, read, and update future financial objectives through the API. Each Goal has a name, a positive target amount, a currency (EUR by default), an optional target date, and an optional Account. A Goal does not store money. When linked, `current_amount` is `Account.current_balance`, `progress` is derived and bounded to `[0, 1]`, and `completed` is derived from whether the current amount meets the target. When unlinked, those three values are null. Goal writes do not change `Account.current_balance`. In this MVP an Account may have at most one Goal; that is a temporary limit, not the long-term domain. There is no DELETE route and no Angular Goals screen yet.
+**Financial Goals.** The Angular screen at `/personal_finance/goals` lists, creates, and edits future financial objectives. Each Goal has a name, a positive target amount, a currency (EUR by default; the form offers EUR, USD, and GBP), an optional target date, and an optional Account. A Goal does not store money. When linked, the screen shows the API’s `current_amount` (`Account.current_balance`), `progress` bounded to `[0, 1]`, and derived `completed`. When unlinked, those three values are null and the screen says progress is unavailable. Goal writes do not change `Account.current_balance`. In this MVP an Account may have at most one Goal; the form hides accounts that already have a Goal, and a backend rejection is shown if one is submitted. There is no DELETE route.
 
 **Financial summary.** `GET /financial-summary` returns the same transaction totals as analysis summary, for a date range that may extend into the future. The Analysis page uses the analysis routes.
 
 **Dashboard signals.** From the loaded summary and forecast, the client can report positive or negative cash flow, missing scheduled income, and whether the projected balance rises or falls over the forecast window.
 
-There is no authentication. The Angular UI writes transactions and creates accounts through the API. Income, recurring-expense, and Financial Goal writes remain API-only.
+There is no authentication. The Angular UI writes transactions, creates accounts, and creates and edits Financial Goals through the API. Income and recurring-expense writes remain API-only.
 
 ## Architecture
 
 ```text
-Angular (Dashboard, Accounts, Analysis, Forecast, Transactions)
+Angular (Dashboard, Accounts, Goals, Analysis, Forecast, Transactions)
         │  HTTP
         ▼
 FastAPI
@@ -104,7 +104,7 @@ The development client calls `http://127.0.0.1:8000` (`frontend/src/environments
 
 ## Application routes
 
-The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for Dashboard, Accounts, Analysis, Forecast, and Transactions.
+The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for Dashboard, Accounts, Goals, Analysis, Forecast, and Transactions.
 
 | Route | Screen |
 | --- | --- |
@@ -112,6 +112,7 @@ The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for
 | `/personal_finance` | Dashboard: combined balance when every account uses the same currency, financial signals, links to Analysis and Forecast |
 | `/personal_finance/accounts` | Stored accounts list and create form: name, type, currency, and opening/current balance |
 | `/personal_finance/accounts/:id` | Read-only account detail: stored balance, type, currency, and created date. No update or delete. |
+| `/personal_finance/goals` | Financial objectives: list, create, and edit. Optional account, derived progress, no delete. Dates are entered as DD-MM-YYYY. |
 | `/personal_finance/analysis` | Historical summary, expenses by category, and cash flow. Default range is the current month through today. Dates are entered as DD-MM-YYYY. |
 | `/personal_finance/forecast` | Projected income, expenses, net cash flow, and running balance. Default range starts today and ends on the last day of the calendar month two months ahead. Grouping is monthly or daily. |
 | `/personal_finance/transactions` | Recorded income and expense events: list, client-side filters, create, edit, and delete. Dates are entered as DD-MM-YYYY. |
@@ -217,11 +218,11 @@ There is no separate visual design file in this repository.
 
 ## Planned direction
 
-The intended product is household financial resilience: where money stands, what history shows, what scheduled commitments imply next, and what objectives the household is working toward. Dashboard, Analysis, Forecast, Transactions, and the Goals API are the current expression of that split. Resilience as a combined health concept remains future work.
+The intended product is household financial resilience: where money stands, what history shows, what scheduled commitments imply next, and what objectives the household is working toward. Dashboard, Analysis, Forecast, Transactions, and Goals are the current expression of that split. Resilience as a combined health concept remains future work.
 
 Limits already marked and not built:
 
 - Income records expected salary. Other income types are a separate future concern.
 - Recurring expenses store one fixed amount per schedule. Amounts that vary by occurrence are a later change.
 - An Account may link to at most one Goal in this MVP. GoalAllocation will later allow multiple Goals to share an Account without duplicating `Account.current_balance`.
-- Forecast does not project Goal completion. An Angular Goals UI is not present yet.
+- Forecast does not project Goal completion. GoalAllocation, multiple Goals per Account, and projection confidence are future work.

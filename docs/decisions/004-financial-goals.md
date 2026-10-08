@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The product answers current position (`Account.current_balance`), what already happened (Analysis over transactions), what may happen from scheduled salary and recurring expenses (Forecast), and what objective the household is working toward (Financial Goals). The Goals **backend** (model, persistence, and API) is implemented. This decision remains the domain source of truth for that capability. An Angular Goals UI, GoalAllocation, and Forecast projected Goal completion are not part of the MVP.
+The product answers current position (`Account.current_balance`), what already happened (Analysis over transactions), what may happen from scheduled salary and recurring expenses (Forecast), and what objective the household is working toward (Financial Goals). The Goals backend and the Angular Goals screen are implemented. This decision remains the domain source of truth for that capability. GoalAllocation and Forecast projected Goal completion are not part of the MVP.
 
 Accounts already own money. `Account.current_balance` is a stored signed amount. It is not derived from transactions, and nothing else in the product writes it when recording history or projecting the future. Currency defaults to EUR. The API accepts any 3-character currency code. The Accounts create form’s EUR, USD, and GBP list is a UI constraint, not a domain restriction. There is no FX conversion.
 

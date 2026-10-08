@@ -53,7 +53,7 @@ Occurrences are generated when a forecast is requested, starting at each schedul
 
 When a Goal is linked to an Account, progress is derived from that Account’s `current_balance` and bounded to `[0, 1]`. Completion is derived when the current amount reaches or exceeds the target. When no Account is linked, current amount, progress, and completion are unavailable (null), not zero.
 
-The Goals API supports create, list, get, and update. There is no delete. Goal operations never change `Account.current_balance`. In this MVP an Account may have at most one Goal; the long-term model allows many Goals per Account once GoalAllocation exists. There is no Angular Goals screen yet. Goals do not feed Analysis or Forecast, and Forecast does not project Goal completion.
+The Angular screen at `/personal_finance/goals` lists, creates, and edits Goals. There is no delete. Goal operations never change `Account.current_balance`. In this MVP an Account may have at most one Goal; the long-term model allows many Goals per Account once GoalAllocation exists. Goals do not feed Analysis or Forecast, and Forecast does not project Goal completion.
 
 ### Accounts
 
@@ -75,11 +75,11 @@ Recurring expenses are expected future commitments on an account, with a **fixed
 
 ### Dashboard-oriented financial overview
 
-The Angular app’s primary surfaces are **Dashboard**, **Accounts**, **Analysis**, **Forecast**, and **Transactions**.
+The Angular app’s primary surfaces are **Dashboard**, **Accounts**, **Goals**, **Analysis**, **Forecast**, and **Transactions**.
 
 The dashboard is an orientation home: current position, a small set of **explainable financial signals**, and links into analysis and forecast. Signals are rule-based text (for example positive vs negative cash flow this month, no scheduled income in the forecast window, projected balance rising or falling). There is no numeric financial-health score.
 
-Accounts can be listed and created in the UI. Scheduled salary, recurring expenses, and Financial Goals are maintained through the API. The current UI does not include screens for those write paths.
+Accounts and Financial Goals can be listed and written in the UI. Scheduled salary and recurring expenses are maintained through the API. The current UI does not include screens for those schedule write paths.
 
 ## Product boundaries
 
@@ -114,8 +114,7 @@ These are omitted on purpose, not missing by accident:
 - **Salary-only scheduled income.** Other recurring income types are a later concern.
 - **Fixed recurring-expense amounts.** Variable amounts per occurrence are a later concern.
 - **One Goal per Account in the MVP.** Multiple Goals sharing one Account require future GoalAllocation so the same balance is not counted twice.
-- **No Goals UI yet.** Goals are API-only in this MVP.
-- **No Forecast → Goal projected completion.**
+- **No Forecast → Goal projected completion.** Including confidence or uncertainty around a projected completion date.
 - **No GoalAllocation.**
 - **No financial resilience analysis module.** Resilience remains a future combined health concept, not a current score or screen.
 
@@ -124,8 +123,7 @@ These are omitted on purpose, not missing by accident:
 The following are **possible later capabilities**. They are **not** implemented and are **not** current requirements:
 
 - GoalAllocation (many Goals per Account without duplicating balance)
-- Goals UI
-- Forecast projected Goal completion
+- Forecast projected Goal completion, including confidence or uncertainty around that projection
 - scenarios
 - financial resilience analysis
 - richer visual analytics

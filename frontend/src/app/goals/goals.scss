@@ -1,0 +1,249 @@
+.goals-page {
+  max-width: 56rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.page-header h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.75rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.page-intro {
+  margin: 0;
+  color: #555;
+  max-width: 42rem;
+  line-height: 1.45;
+}
+
+.status {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid transparent;
+}
+
+.status-loading {
+  color: #444;
+  background: #f5f5f5;
+  border-color: #e0e0e0;
+}
+
+.status-error {
+  color: #7a1f1f;
+  background: #f8ecec;
+  border-color: #e2bcbc;
+}
+
+.status-success {
+  color: #1a5c38;
+  background: #eef6f1;
+  border-color: #b7d7c4;
+}
+
+.empty-state {
+  margin: 0;
+  color: #555;
+}
+
+.create-goal-button,
+.save-button,
+.cancel-button,
+.edit-button {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.55rem 1.15rem;
+  border: 1px solid #222;
+  background: #fff;
+  color: #222;
+  cursor: pointer;
+}
+
+.create-goal-button,
+.save-button {
+  background: #222;
+  color: #fff;
+}
+
+.save-button:disabled,
+.cancel-button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.goal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid #d8d8d8;
+  background: #fafafa;
+}
+
+.goal-form h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+.form-fields,
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 10rem;
+  flex: 1 1 10rem;
+}
+
+.field-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.field input,
+.field select {
+  font: inherit;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #bbb;
+  background: #fff;
+}
+
+.field select:disabled {
+  color: #444;
+  background: #f0f0f0;
+}
+
+.field-error {
+  font-size: 0.8rem;
+  color: #7a1f1f;
+}
+
+.field-hint {
+  font-size: 0.8rem;
+  color: #555;
+}
+
+.goal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.goal-card {
+  padding: 1rem 1.15rem;
+  border: 1px solid #d8d8d8;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.goal-card.goal-completed {
+  border-color: #b7d7c4;
+  background: #f7fbf8;
+}
+
+.goal-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.goal-name {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+.completed-badge {
+  font-size: 0.8rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #1a5c38;
+  background: #eef6f1;
+  border: 1px solid #b7d7c4;
+  padding: 0.2rem 0.5rem;
+}
+
+.goal-details {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.goal-details div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.goal-details dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #555;
+}
+
+.goal-details dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.currency-code {
+  margin-left: 0.35rem;
+  font-weight: 500;
+  color: #555;
+}
+
+.progress-unavailable {
+  margin: 0;
+  color: #555;
+}
+
+.progress-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.progress-bar {
+  flex: 1 1 12rem;
+  height: 0.85rem;
+  accent-color: #222;
+}
+
+.progress-label {
+  font-weight: 650;
+  min-width: 3rem;
+}
+
+.edit-button {
+  align-self: flex-start;
+}
+
+@media (max-width: 720px) {
+  .create-goal-button,
+  .save-button,
+  .cancel-button,
+  .edit-button {
+    width: 100%;
+  }
+}
