@@ -2,7 +2,7 @@
 
 This document describes the architecture that exists in this repository. The codebase is the source of truth.
 
-The application is a household financial health product: it shows **current position**, explains **historical cash flow**, and **projects scheduled future cash flow**. It is a modular monolith, not a set of independently deployed services.
+The application is a household financial health product: it shows **current position**, explains **historical cash flow**, **projects scheduled future cash flow**, and records **financial objectives** (Goals) separately from money held in Accounts. It is a modular monolith, not a set of independently deployed services.
 
 ## 1. Architecture overview
 
@@ -26,16 +26,17 @@ There is no authentication and no per-user tenancy. List and aggregate endpoints
 
 ## 2. Modular monolith rationale
 
-The backend is one FastAPI application, one process, and one PostgreSQL database. Domain areas are **modules inside that process** (`accounts`, `transactions`, `incomes`, `recurring_expenses`, `analysis`, `forecast`), not separately deployed services.
+The backend is one FastAPI application, one process, and one PostgreSQL database. Domain areas are **modules inside that process** (`accounts`, `transactions`, `incomes`, `recurring_expenses`, `financial_goals`, `analysis`, `forecast`), not separately deployed services.
 
 That shape matches the current coupling:
 
-- Accounts, transactions, incomes, and recurring expenses share foreign keys to `accounts`.
+- Accounts, transactions, incomes, recurring expenses, and financial goals share foreign keys to `accounts` where an association exists.
 - Analysis and Forecast are read models over those tables, not separate stores.
+- Financial Goals are a separate objective domain. They read `Account.current_balance` when linked and never write it.
 - A request uses one database session (`get_db`).
 - The product is still an MVP. Splitting the API into microservices would add network boundaries without a corresponding ownership split.
 
-The modules already isolate **calculation**: Analysis does not call Forecast, and Forecast does not call Analysis. Persistence stays in one schema.
+The modules already isolate **calculation**: Analysis does not call Forecast, and Forecast does not call Analysis. Goals do not feed Analysis or Forecast. Persistence stays in one schema.
 
 ## 3. Frontend structure
 
@@ -88,10 +89,31 @@ Implemented by `Transactions`. It loads `GET /transactions` and `GET /accounts`,
 | Transactions | Recorded income or expense events on an account. Source of historical analysis. | `transactions` |
 | Income | Expected **salary** schedules on an account (weekly / monthly / yearly), with start date, next occurrence, optional end, and active flag. | `incomes` |
 | Recurring expenses | Expected future commitments on an account with **one fixed amount**, optional category, and the same date and frequency shape as income. | `recurring_expenses` |
+| Financial Goals | Future financial objectives with a target amount, optional target date, and optional Account. Do not store money. | `financial_goals` |
 | Analysis | Read-only aggregates over transactions in a historical range. | None of its own |
 | Forecast | Read-only projection from balances and active schedules. | None of its own |
 
 Income and recurring-expense models document salary-only income and fixed recurring amounts as current limits.
+
+### Financial Goals
+
+Financial Goals answer “what financial objective am I saving for or trying to achieve?” Domain rules are recorded in [004-financial-goals.md](decisions/004-financial-goals.md).
+
+Persisted fields: `name`, `target_amount` (must be greater than zero), `currency` (default EUR), optional `target_date`, optional `account_id`, and `created_at`. The model does **not** persist `current_amount`, `progress`, `completed`, or `active`.
+
+When a Goal is linked to an Account:
+
+- `current_amount` is derived from `Account.current_balance`
+- `progress = max(0, min(1, current_amount / target_amount))`
+- `completed` is `current_amount >= target_amount`
+- `Goal.currency` must equal `Account.currency`
+- Goal create/update never modifies `Account.current_balance`
+
+When a Goal has no Account, `current_amount`, `progress`, and `completed` are null. Unavailable progress is not represented as 0%.
+
+**MVP cardinality:** `Account → 0..1 Goal`. That is an intentional temporary limit so multiple Goals cannot each claim the full account balance. The long-term intended model is `Account → 0..N Goals` through a future `GoalAllocation`. GoalAllocation and Forecast-based projected Goal completion are not implemented.
+
+API: `POST /financial-goals`, `GET /financial-goals`, `GET /financial-goals/{goal_id}`, `PUT /financial-goals/{goal_id}`. There is no DELETE. List order is newest first (`created_at` desc, `id` desc), matching Accounts.
 
 `GET /financial-summary` is a separate route that returns the same transaction totals as analysis summary. Analysis summary reuses `FinancialSummaryService`. The Analysis page and Dashboard use `/analysis/summary`, not `/financial-summary`. `/financial-summary` does not reject a `to` date in the future (see [API design principles](#8-api-design-principles)).
 
@@ -136,6 +158,8 @@ Those signal rules live in the dashboard feature, not in a backend domain servic
 | Historical financial events | `Transaction` rows (`occurred_on`, type, amount, optional category). |
 | Scheduled future inflows | Active `Income` rows (salary). |
 | Scheduled future outflows | Active `RecurringExpense` rows (fixed amount). |
+| Financial objective and target | `FinancialGoal` rows (`target_amount`, optional `target_date`, optional `account_id`). |
+| Goal current amount, progress, completion | Not persisted. Derived on each Goal API response from the linked Account when present. |
 | Calculated forecast periods | Not persisted. Produced on each `GET /forecast`. |
 | Historical analysis totals | Not persisted. Produced on each `/analysis/*` request. |
 
@@ -158,9 +182,9 @@ Relevant decisions that the current API implements:
 
 ### Backend
 
-pytest plus FastAPI `TestClient` (`httpx`). Tests use the same `DATABASE_URL` as the app, with connection `search_path` set to a PostgreSQL schema named `test` (`backend/tests/conftest.py`). That schema must already exist and contain migrated tables. The suite does not create the schema. Each test deletes rows in `accounts`, `transactions`, `recurring_expenses`, and `incomes`.
+pytest plus FastAPI `TestClient` (`httpx`). Tests use the same `DATABASE_URL` as the app, with connection `search_path` set to a PostgreSQL schema named `test` (`backend/tests/conftest.py`). That schema must already exist and contain migrated tables. The suite does not create the schema. Each test deletes rows in `accounts`, `transactions`, `recurring_expenses`, `incomes`, and `financial_goals`.
 
-Coverage is HTTP-level and domain-level: health, CORS preflight, accounts, transactions, account–transaction relationship, incomes, recurring expenses, financial summary, analysis, forecast, occurrence helpers, and database session wiring.
+Coverage is HTTP-level and domain-level: health, CORS preflight, accounts, transactions, account–transaction relationship, incomes, recurring expenses, financial goals, financial summary, analysis, forecast, occurrence helpers, and database session wiring.
 
 ### Frontend
 
@@ -200,6 +224,8 @@ These are **future considerations**. They are not current architecture.
 - **Background jobs.** Not present. Recurring occurrences are expanded when Forecast is requested.
 - **Observability.** Health JSON only. No tracing, metrics, or log platform is wired in.
 - **Richer financial insights.** Signals are a small, rule-based set on the Dashboard. Deeper resilience analysis is product direction, not an implemented module.
+- **GoalAllocation.** Not present. Until it exists, an Account may associate with at most one Goal so the full `current_balance` is not counted toward several objectives.
+- **Forecast → Goal projected completion.** Forecast does not read Goals. Projecting when a Goal may be met from schedules is future work.
 - **ML.** Not used. Predictive models are explicitly out of the current product.
 
 Related product limits already noted in models: scheduled income is salary-only; recurring expenses use one fixed amount per schedule.

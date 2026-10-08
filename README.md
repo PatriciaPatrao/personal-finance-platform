@@ -15,6 +15,7 @@ The application is a financial orientation tool:
 - **Current position** is the sum of stored account balances.
 - **Analysis** explains the past using transactions only.
 - **Forecast** looks ahead using current balances plus active income schedules and recurring expenses. It does not infer the future from historical spending.
+- **Goals** name future financial objectives and derived progress toward them. They do not own money.
 
 The Dashboard is a presentation layer. It loads those results, derives a small set of signals, and links to Analysis and Forecast.
 
@@ -36,11 +37,13 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 
 **Forecast.** Read-only projection for a date range, grouped by day or month. The Forecast screen defaults to month. It sums every account’s stored balance, then applies active income and recurring-expense occurrences. That sum treats every account the same way. It may need to change if bank, cash, credit card, and investment balances later mean different things. Each schedule belongs to an account, and the projection does not assign an occurrence to that account. Dates are generated from `next_occurrence` through an optional inclusive end date. Dates before today are omitted, including when `from` is earlier than today. The response currency is EUR, with no conversion when account currencies differ. Forecast does not write balances.
 
+**Financial Goals.** Create, read, and update future financial objectives through the API. Each Goal has a name, a positive target amount, a currency (EUR by default), an optional target date, and an optional Account. A Goal does not store money. When linked, `current_amount` is `Account.current_balance`, `progress` is derived and bounded to `[0, 1]`, and `completed` is derived from whether the current amount meets the target. When unlinked, those three values are null. Goal writes do not change `Account.current_balance`. In this MVP an Account may have at most one Goal; that is a temporary limit, not the long-term domain. There is no DELETE route and no Angular Goals screen yet.
+
 **Financial summary.** `GET /financial-summary` returns the same transaction totals as analysis summary, for a date range that may extend into the future. The Analysis page uses the analysis routes.
 
 **Dashboard signals.** From the loaded summary and forecast, the client can report positive or negative cash flow, missing scheduled income, and whether the projected balance rises or falls over the forecast window.
 
-There is no authentication. The Angular UI writes transactions and creates accounts through the API. Income and recurring-expense writes remain API-only.
+There is no authentication. The Angular UI writes transactions and creates accounts through the API. Income, recurring-expense, and Financial Goal writes remain API-only.
 
 ## Architecture
 
@@ -80,6 +83,7 @@ Layout under `backend/app/`: `api`, `services`, `repositories`, `schemas`, `mode
 | POST, GET, PUT, DELETE | `/transactions`, `/transactions/{id}` | Transactions |
 | POST, GET, PUT | `/incomes`, `/incomes/{id}` | Salary schedules |
 | POST, GET, PUT | `/recurring-expenses`, `/recurring-expenses/{id}` | Fixed recurring expenses |
+| POST, GET, PUT | `/financial-goals`, `/financial-goals/{id}` | Financial objectives; no DELETE |
 | GET | `/financial-summary` | Transaction totals for `from` and `to` |
 | GET | `/analysis/summary` | Historical totals; `to` cannot be in the future |
 | GET | `/analysis/expenses` | Historical expenses by category |
@@ -205,7 +209,7 @@ The script stops if more than one account is already named Demo Main Account.
 
 - [docs/product-vision.md](docs/product-vision.md) — product boundaries and what is intentionally omitted
 - [docs/architecture.md](docs/architecture.md) — structure of the current application
-- [docs/decisions/](docs/decisions/) — modular monolith, Analysis versus Forecast, and Dashboard responsibility
+- [docs/decisions/](docs/decisions/) — modular monolith, Analysis versus Forecast, Dashboard responsibility, and Financial Goals
 - [frontend/README.md](frontend/README.md) — Angular CLI serve, build, and unit-test commands
 - `http://127.0.0.1:8000/docs` — generated OpenAPI for the running API
 
@@ -213,11 +217,11 @@ There is no separate visual design file in this repository.
 
 ## Planned direction
 
-The intended product is household financial resilience: where money stands, what history shows, and what scheduled commitments imply next. Dashboard, Analysis, Forecast, and Transactions are the current expression of that split.
+The intended product is household financial resilience: where money stands, what history shows, what scheduled commitments imply next, and what objectives the household is working toward. Dashboard, Analysis, Forecast, Transactions, and the Goals API are the current expression of that split. Resilience as a combined health concept remains future work.
 
-Two limits are already marked in the domain models and are not built:
+Limits already marked and not built:
 
 - Income records expected salary. Other income types are a separate future concern.
 - Recurring expenses store one fixed amount per schedule. Amounts that vary by occurrence are a later change.
-
-No other roadmap is specified in the repository.
+- An Account may link to at most one Goal in this MVP. GoalAllocation will later allow multiple Goals to share an Account without duplicating `Account.current_balance`.
+- Forecast does not project Goal completion. An Angular Goals UI is not present yet.
