@@ -1,4 +1,4 @@
-import { CurrencyPipe } from '@angular/common';
+import { CurrencyPipe, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { catchError, forkJoin, of } from 'rxjs';
@@ -123,7 +123,7 @@ function parseEuropeanDate(value: string): string | null {
 
 @Component({
   selector: 'app-goals',
-  imports: [CurrencyPipe, DateField],
+  imports: [CurrencyPipe, DateField, NgTemplateOutlet],
   templateUrl: './goals.html',
   styleUrl: './goals.scss',
 })
@@ -163,10 +163,6 @@ export class Goals implements OnInit {
     }
 
     return this.buildPayload() !== null;
-  }
-
-  get formTitle(): string {
-    return this.formMode === 'edit' ? 'Edit goal' : 'New goal';
   }
 
   get currencyLocked(): boolean {
@@ -237,6 +233,10 @@ export class Goals implements OnInit {
 
   progressLabel(goal: FinancialGoal): string {
     return `${Math.round(this.progressPercent(goal))}%`;
+  }
+
+  isEditing(goal: FinancialGoal): boolean {
+    return this.formMode === 'edit' && this.editingId === goal.id;
   }
 
   startCreate(): void {

@@ -328,6 +328,84 @@ describe('Goals', () => {
     });
     expect(compiled.textContent).toContain('Goal updated.');
     expect(compiled.textContent).toContain('Holiday');
+    expect(compiled.querySelector('.goal-card form')).toBeNull();
+  });
+
+  it('should edit a goal inline and leave other goals displayed', async () => {
+    listGoals.mockReturnValue(of([linkedGoal, unlinkedGoal]));
+    const { fixture, compiled } = await render();
+
+    const cards = [...compiled.querySelectorAll('.goal-card')];
+    expect(cards).toHaveLength(2);
+    expect(compiled.querySelector('h2')?.textContent).not.toContain('Edit goal');
+
+    (cards[0].querySelector('.edit-button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const editing = compiled.querySelector('.goal-editing') as HTMLElement;
+    expect(editing).toBe(cards[0]);
+    expect(editing.querySelector('form')).toBeTruthy();
+    expect(editing.querySelector('.edit-button')).toBeNull();
+    expect(editing.textContent).toContain('Vacation');
+    expect(
+      (editing.querySelector('input[name="name"]') as HTMLInputElement).value,
+    ).toBe('Vacation');
+
+    const other = compiled.querySelectorAll('.goal-card')[1] as HTMLElement;
+    expect(other.classList.contains('goal-editing')).toBe(false);
+    expect(other.querySelector('form')).toBeNull();
+    expect(other.textContent).toContain('Idea');
+    expect(other.textContent).toContain('Progress unavailable');
+    expect(other.querySelector('.edit-button')).toBeTruthy();
+    expect(compiled.querySelectorAll('form')).toHaveLength(1);
+  });
+
+  it('should keep only one goal in the inline editor', async () => {
+    listGoals.mockReturnValue(of([linkedGoal, unlinkedGoal]));
+    const { fixture, compiled, component } = await render();
+
+    const editButtons = () =>
+      [...compiled.querySelectorAll('.edit-button')] as HTMLButtonElement[];
+
+    editButtons()[0].click();
+    fixture.detectChanges();
+    expect(component.editingId).toBe(11);
+
+    editButtons()[0].click();
+    fixture.detectChanges();
+
+    expect(component.editingId).toBe(10);
+    expect(compiled.querySelectorAll('.goal-editing')).toHaveLength(1);
+    expect(compiled.querySelectorAll('form')).toHaveLength(1);
+    expect(
+      (
+        compiled.querySelector(
+          '.goal-editing input[name="name"]',
+        ) as HTMLInputElement
+      ).value,
+    ).toBe('Idea');
+    expect(compiled.querySelectorAll('.goal-card')[0].textContent).toContain(
+      '50%',
+    );
+  });
+
+  it('should cancel inline editing without saving', async () => {
+    const { fixture, compiled, component } = await render();
+    (compiled.querySelector('.edit-button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    component.formName = 'Changed';
+    (
+      compiled.querySelector('.cancel-button') as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    expect(updateGoal).not.toHaveBeenCalled();
+    expect(component.formMode).toBeNull();
+    expect(compiled.querySelector('form')).toBeNull();
+    expect(compiled.querySelector('.edit-button')).toBeTruthy();
+    expect(compiled.textContent).toContain('Vacation');
+    expect(compiled.textContent).not.toContain('Changed');
   });
 
   it('should refresh progress after changing the target', async () => {

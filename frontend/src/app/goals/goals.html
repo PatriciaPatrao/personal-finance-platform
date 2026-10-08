@@ -11,140 +11,22 @@
     <p class="status status-success" role="status">{{ successMessage }}</p>
   }
 
-  @if (!loading && errorMessage === null) {
-    @if (formMode === null) {
-      <button
-        type="button"
-        class="create-goal-button"
-        (click)="startCreate()"
-      >
-        Create goal
-      </button>
-    } @else {
-      <form class="goal-form" (submit)="$event.preventDefault(); saveGoal()">
-        <h2>{{ formTitle }}</h2>
-        <div class="form-fields">
-          <label class="field">
-            <span class="field-label">Name</span>
-            <input
-              name="name"
-              type="text"
-              maxlength="100"
-              [value]="formName"
-              (input)="formName = $any($event.target).value"
-            />
-            @if (formNameError) {
-              <span class="field-error">{{ formNameError }}</span>
-            }
-          </label>
+  @if (!loading && errorMessage === null && formMode !== 'create') {
+    <button
+      type="button"
+      class="create-goal-button"
+      (click)="startCreate()"
+    >
+      Create goal
+    </button>
+  }
 
-          <label class="field">
-            <span class="field-label">Target amount</span>
-            <input
-              name="targetAmount"
-              type="text"
-              inputmode="decimal"
-              [value]="formTargetAmount"
-              (input)="formTargetAmount = $any($event.target).value"
-            />
-            @if (formTargetAmountError) {
-              <span class="field-error">{{ formTargetAmountError }}</span>
-            }
-          </label>
-
-          <label class="field">
-            <span class="field-label">Currency</span>
-            <select
-              name="currency"
-              [value]="formCurrency"
-              [disabled]="currencyLocked"
-              (change)="onFormCurrencyChange($any($event.target).value)"
-            >
-              @for (currency of currencyOptions; track currency) {
-                <option
-                  [value]="currency"
-                  [selected]="formCurrency === currency"
-                >
-                  {{ currency }}
-                </option>
-              }
-            </select>
-            @if (currencyLocked && selectedAccountCurrency()) {
-              <span class="field-hint">
-                Matches account currency ({{ selectedAccountCurrency() }}).
-              </span>
-            }
-          </label>
-
-          <div class="field">
-            <app-date-field
-              label="Target date (optional)"
-              name="targetDate"
-              [value]="formTargetDateDisplay"
-              (valueChange)="formTargetDateDisplay = $event"
-            />
-            @if (formTargetDateError) {
-              <span class="field-error">{{ formTargetDateError }}</span>
-            }
-          </div>
-
-          <label class="field">
-            <span class="field-label">Account (optional)</span>
-            <select
-              name="accountId"
-              [value]="formAccountId"
-              (change)="onFormAccountChange($any($event.target).value)"
-            >
-              <option value="" [selected]="formAccountId === ''">
-                No account
-              </option>
-              @for (account of selectableAccounts; track account.id) {
-                <option
-                  [value]="accountIdValue(account.id)"
-                  [selected]="formAccountId === accountIdValue(account.id)"
-                >
-                  {{ account.name }} ({{ account.currency }})
-                </option>
-              }
-            </select>
-            @if (accountsLoadFailed) {
-              <span class="field-hint">
-                Accounts could not be loaded. You can still create an unlinked
-                goal.
-              </span>
-            }
-          </label>
-        </div>
-
-        @if (formError) {
-          <p class="status status-error" role="alert">{{ formError }}</p>
-        }
-
-        <div class="form-actions">
-          <button
-            type="submit"
-            class="save-button"
-            [disabled]="!canSubmit"
-          >
-            @if (saving) {
-              Saving...
-            } @else if (formMode === 'edit') {
-              Save changes
-            } @else {
-              Create goal
-            }
-          </button>
-          <button
-            type="button"
-            class="cancel-button"
-            [disabled]="saving"
-            (click)="cancelForm()"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
-    }
+  @if (!loading && errorMessage === null && formMode === 'create') {
+    <form class="goal-form" (submit)="$event.preventDefault(); saveGoal()">
+      <h2>New goal</h2>
+      <ng-container *ngTemplateOutlet="goalFields" />
+      <ng-container *ngTemplateOutlet="goalActions" />
+    </form>
   }
 
   @if (loading) {
@@ -172,14 +54,24 @@
         <li
           class="goal-card"
           [class.goal-completed]="goal.completed === true"
+          [class.goal-editing]="isEditing(goal)"
         >
           <div class="goal-header">
             <h2 class="goal-name">{{ goal.name }}</h2>
-            @if (goal.completed === true) {
+            @if (goal.completed === true && !isEditing(goal)) {
               <span class="completed-badge">Completed</span>
             }
           </div>
 
+          @if (isEditing(goal)) {
+            <form
+              class="goal-form"
+              (submit)="$event.preventDefault(); saveGoal()"
+            >
+              <ng-container *ngTemplateOutlet="goalFields" />
+              <ng-container *ngTemplateOutlet="goalActions" />
+            </form>
+          } @else {
           <dl class="goal-details">
             <div>
               <dt>Target</dt>
@@ -235,8 +127,125 @@
           >
             Edit
           </button>
+          }
         </li>
       }
     </ul>
   }
 </section>
+
+<ng-template #goalFields>
+  <div class="form-fields">
+    <label class="field">
+      <span class="field-label">Name</span>
+      <input
+        name="name"
+        type="text"
+        maxlength="100"
+        [value]="formName"
+        (input)="formName = $any($event.target).value"
+      />
+      @if (formNameError) {
+        <span class="field-error">{{ formNameError }}</span>
+      }
+    </label>
+
+    <label class="field">
+      <span class="field-label">Target amount</span>
+      <input
+        name="targetAmount"
+        type="text"
+        inputmode="decimal"
+        [value]="formTargetAmount"
+        (input)="formTargetAmount = $any($event.target).value"
+      />
+      @if (formTargetAmountError) {
+        <span class="field-error">{{ formTargetAmountError }}</span>
+      }
+    </label>
+
+    <label class="field">
+      <span class="field-label">Currency</span>
+      <select
+        name="currency"
+        [value]="formCurrency"
+        [disabled]="currencyLocked"
+        (change)="onFormCurrencyChange($any($event.target).value)"
+      >
+        @for (currency of currencyOptions; track currency) {
+          <option [value]="currency" [selected]="formCurrency === currency">
+            {{ currency }}
+          </option>
+        }
+      </select>
+      @if (currencyLocked && selectedAccountCurrency()) {
+        <span class="field-hint">
+          Matches account currency ({{ selectedAccountCurrency() }}).
+        </span>
+      }
+    </label>
+
+    <div class="field">
+      <app-date-field
+        label="Target date (optional)"
+        name="targetDate"
+        [value]="formTargetDateDisplay"
+        (valueChange)="formTargetDateDisplay = $event"
+      />
+      @if (formTargetDateError) {
+        <span class="field-error">{{ formTargetDateError }}</span>
+      }
+    </div>
+
+    <label class="field">
+      <span class="field-label">Account (optional)</span>
+      <select
+        name="accountId"
+        [value]="formAccountId"
+        (change)="onFormAccountChange($any($event.target).value)"
+      >
+        <option value="" [selected]="formAccountId === ''">No account</option>
+        @for (account of selectableAccounts; track account.id) {
+          <option
+            [value]="accountIdValue(account.id)"
+            [selected]="formAccountId === accountIdValue(account.id)"
+          >
+            {{ account.name }} ({{ account.currency }})
+          </option>
+        }
+      </select>
+      @if (accountsLoadFailed) {
+        <span class="field-hint">
+          Accounts could not be loaded. You can still create an unlinked
+          goal.
+        </span>
+      }
+    </label>
+  </div>
+
+  @if (formError) {
+    <p class="status status-error" role="alert">{{ formError }}</p>
+  }
+</ng-template>
+
+<ng-template #goalActions>
+  <div class="form-actions">
+    <button type="submit" class="save-button" [disabled]="!canSubmit">
+      @if (saving) {
+        Saving...
+      } @else if (formMode === 'edit') {
+        Save
+      } @else {
+        Create goal
+      }
+    </button>
+    <button
+      type="button"
+      class="cancel-button"
+      [disabled]="saving"
+      (click)="cancelForm()"
+    >
+      Cancel
+    </button>
+  </div>
+</ng-template>
