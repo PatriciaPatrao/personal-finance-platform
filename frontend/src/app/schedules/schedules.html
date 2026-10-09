@@ -1,0 +1,613 @@
+<section class="schedules-page">
+  <header class="page-header">
+    <h1>Schedules</h1>
+    <p class="page-intro">
+      Expected future salary and fixed recurring expenses. These records
+      inform Forecast projections. They are not transactions already
+      recorded, and they do not change account balances. Choosing an
+      account links the commitment to that account; it does not produce a
+      separate projected account balance.
+    </p>
+  </header>
+
+  @if (successMessage) {
+    <p class="status status-success" role="status">{{ successMessage }}</p>
+  }
+
+  @if (loading) {
+    <p class="status status-loading" aria-live="polite">
+      Loading schedules...
+    </p>
+  }
+
+  @if (errorMessage) {
+    <p class="status status-error" role="alert">{{ errorMessage }}</p>
+  }
+
+  @if (
+    !loading &&
+    errorMessage === null &&
+    accountsLoadFailed
+  ) {
+    <p class="status status-error" role="alert">
+      Unable to load accounts. You can still review schedules, but create
+      and edit stay unavailable until accounts load.
+    </p>
+  }
+
+  @if (
+    !loading &&
+    errorMessage === null &&
+    !accountsLoadFailed &&
+    !hasAccounts
+  ) {
+    <p class="status status-error" role="alert">
+      Create an account before adding a salary or recurring expense.
+    </p>
+  }
+
+  @if (!loading && errorMessage === null) {
+    <section class="schedule-section" aria-labelledby="salary-heading">
+      <div class="section-header">
+        <h2 id="salary-heading">Salary</h2>
+        <div class="section-controls">
+          <label class="filter-field">
+            <span class="field-label">Show</span>
+            <select
+              name="incomeFilter"
+              [value]="incomeFilter"
+              (change)="onIncomeFilterChange($any($event.target).value)"
+            >
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+          @if (
+            formKind !== 'income' ||
+            formMode !== 'create'
+          ) {
+            <button
+              type="button"
+              class="create-schedule-button"
+              [disabled]="!hasAccounts || accountsLoadFailed || saving"
+              (click)="startCreateIncome()"
+            >
+              Create salary
+            </button>
+          }
+        </div>
+      </div>
+
+      @if (formKind === 'income' && formMode === 'create') {
+        <form
+          class="schedule-form"
+          (submit)="$event.preventDefault(); saveSchedule()"
+        >
+          <h3>New salary schedule</h3>
+          <ng-container *ngTemplateOutlet="incomeFields" />
+          <ng-container *ngTemplateOutlet="scheduleActions" />
+        </form>
+      }
+
+      @if (filteredIncomes.length === 0) {
+        <p class="empty-state">
+          @if (incomes.length === 0) {
+            No salary schedules yet. Create a salary schedule to project
+            expected income in Forecast.
+          } @else {
+            No salary schedules match this filter.
+          }
+        </p>
+      } @else {
+        <ul class="schedule-list">
+          @for (income of filteredIncomes; track income.id) {
+            <li
+              class="schedule-card"
+              [class.schedule-inactive]="!income.active"
+              [class.schedule-editing]="isEditingIncome(income)"
+            >
+              @if (isEditingIncome(income)) {
+                <form
+                  class="schedule-form"
+                  (submit)="$event.preventDefault(); saveSchedule()"
+                >
+                  <h3>Edit salary schedule</h3>
+                  <ng-container *ngTemplateOutlet="incomeFields" />
+                  <ng-container *ngTemplateOutlet="scheduleActions" />
+                </form>
+              } @else {
+                <div class="schedule-header">
+                  <h3 class="schedule-title">Salary</h3>
+                  <span
+                    class="status-badge"
+                    [class.status-badge-active]="income.active"
+                    [class.status-badge-inactive]="!income.active"
+                  >
+                    {{ income.active ? 'Active' : 'Inactive' }}
+                  </span>
+                </div>
+                <dl class="schedule-details">
+                  <div>
+                    <dt>Account</dt>
+                    <dd>{{ accountName(income.account_id) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Amount</dt>
+                    <dd>
+                      {{
+                        income.amount
+                          | currency: accountCurrency(income.account_id)
+                      }}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Frequency</dt>
+                    <dd>{{ frequencyLabel(income.frequency) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Start date</dt>
+                    <dd>{{ displayDate(income.start_date) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Next occurrence</dt>
+                    <dd>{{ displayDate(income.next_occurrence) }}</dd>
+                  </div>
+                  <div>
+                    <dt>End date</dt>
+                    <dd>{{ displayDate(income.end_date) }}</dd>
+                  </div>
+                </dl>
+                <div class="card-actions">
+                  <button
+                    type="button"
+                    class="edit-button"
+                    [disabled]="
+                      !hasAccounts || accountsLoadFailed || saving
+                    "
+                    (click)="startEditIncome(income)"
+                  >
+                    Edit
+                  </button>
+                  @if (income.active) {
+                    <button
+                      type="button"
+                      class="secondary-button"
+                      [disabled]="saving"
+                      (click)="deactivateIncome(income)"
+                    >
+                      Deactivate
+                    </button>
+                  }
+                </div>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section
+      class="schedule-section"
+      aria-labelledby="recurring-expenses-heading"
+    >
+      <div class="section-header">
+        <h2 id="recurring-expenses-heading">Recurring expenses</h2>
+        <div class="section-controls">
+          <label class="filter-field">
+            <span class="field-label">Show</span>
+            <select
+              name="expenseFilter"
+              [value]="expenseFilter"
+              (change)="onExpenseFilterChange($any($event.target).value)"
+            >
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+          @if (
+            formKind !== 'expense' ||
+            formMode !== 'create'
+          ) {
+            <button
+              type="button"
+              class="create-schedule-button"
+              [disabled]="!hasAccounts || accountsLoadFailed || saving"
+              (click)="startCreateExpense()"
+            >
+              Create recurring expense
+            </button>
+          }
+        </div>
+      </div>
+
+      @if (formKind === 'expense' && formMode === 'create') {
+        <form
+          class="schedule-form"
+          (submit)="$event.preventDefault(); saveSchedule()"
+        >
+          <h3>New recurring expense</h3>
+          <ng-container *ngTemplateOutlet="expenseFields" />
+          <ng-container *ngTemplateOutlet="scheduleActions" />
+        </form>
+      }
+
+      @if (filteredExpenses.length === 0) {
+        <p class="empty-state">
+          @if (expenses.length === 0) {
+            No recurring expenses yet. Create a fixed recurring expense to
+            project expected commitments in Forecast.
+          } @else {
+            No recurring expenses match this filter.
+          }
+        </p>
+      } @else {
+        <ul class="schedule-list">
+          @for (expense of filteredExpenses; track expense.id) {
+            <li
+              class="schedule-card"
+              [class.schedule-inactive]="!expense.active"
+              [class.schedule-editing]="isEditingExpense(expense)"
+            >
+              @if (isEditingExpense(expense)) {
+                <form
+                  class="schedule-form"
+                  (submit)="$event.preventDefault(); saveSchedule()"
+                >
+                  <h3>Edit recurring expense</h3>
+                  <ng-container *ngTemplateOutlet="expenseFields" />
+                  <ng-container *ngTemplateOutlet="scheduleActions" />
+                </form>
+              } @else {
+                <div class="schedule-header">
+                  <h3 class="schedule-title">{{ expense.description }}</h3>
+                  <span
+                    class="status-badge"
+                    [class.status-badge-active]="expense.active"
+                    [class.status-badge-inactive]="!expense.active"
+                  >
+                    {{ expense.active ? 'Active' : 'Inactive' }}
+                  </span>
+                </div>
+                <dl class="schedule-details">
+                  <div>
+                    <dt>Account</dt>
+                    <dd>{{ accountName(expense.account_id) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Amount</dt>
+                    <dd>
+                      {{
+                        expense.amount
+                          | currency: accountCurrency(expense.account_id)
+                      }}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Category</dt>
+                    <dd>{{ expense.category || '—' }}</dd>
+                  </div>
+                  <div>
+                    <dt>Frequency</dt>
+                    <dd>{{ frequencyLabel(expense.frequency) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Start date</dt>
+                    <dd>{{ displayDate(expense.start_date) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Next occurrence</dt>
+                    <dd>{{ displayDate(expense.next_occurrence) }}</dd>
+                  </div>
+                  <div>
+                    <dt>End date</dt>
+                    <dd>{{ displayDate(expense.end_date) }}</dd>
+                  </div>
+                </dl>
+                <div class="card-actions">
+                  <button
+                    type="button"
+                    class="edit-button"
+                    [disabled]="
+                      !hasAccounts || accountsLoadFailed || saving
+                    "
+                    (click)="startEditExpense(expense)"
+                  >
+                    Edit
+                  </button>
+                  @if (expense.active) {
+                    <button
+                      type="button"
+                      class="secondary-button"
+                      [disabled]="saving"
+                      (click)="deactivateExpense(expense)"
+                    >
+                      Deactivate
+                    </button>
+                  }
+                </div>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
+</section>
+
+<ng-template #incomeFields>
+  <div class="form-fields">
+    <label class="field">
+      <span class="field-label">Account</span>
+      <select
+        name="incomeAccount"
+        [value]="formAccountId"
+        (change)="onFormAccountChange($any($event.target).value)"
+      >
+        <option value="" [selected]="formAccountId === ''">
+          Select account
+        </option>
+        @for (account of accounts; track account.id) {
+          <option
+            [value]="accountIdValue(account.id)"
+            [selected]="formAccountId === accountIdValue(account.id)"
+          >
+            {{ account.name }} ({{ account.currency }})
+          </option>
+        }
+      </select>
+      @if (formAccountError) {
+        <span class="field-error">{{ formAccountError }}</span>
+      }
+    </label>
+
+    <label class="field">
+      <span class="field-label">Amount</span>
+      <input
+        name="incomeAmount"
+        type="text"
+        inputmode="decimal"
+        [value]="formAmount"
+        (input)="formAmount = $any($event.target).value"
+      />
+      @if (formAmountError) {
+        <span class="field-error">{{ formAmountError }}</span>
+      }
+    </label>
+
+    <label class="field">
+      <span class="field-label">Frequency</span>
+      <select
+        name="incomeFrequency"
+        [value]="formFrequency"
+        (change)="onFormFrequencyChange($any($event.target).value)"
+      >
+        @for (frequency of frequencyOptions; track frequency) {
+          <option
+            [value]="frequency"
+            [selected]="formFrequency === frequency"
+          >
+            {{ frequencyLabel(frequency) }}
+          </option>
+        }
+      </select>
+    </label>
+
+    <div class="field">
+      <app-date-field
+        label="Start date"
+        name="incomeStartDate"
+        [value]="formStartDateDisplay"
+        (valueChange)="formStartDateDisplay = $event"
+      />
+      @if (formStartDateError) {
+        <span class="field-error">{{ formStartDateError }}</span>
+      }
+    </div>
+
+    <div class="field">
+      <app-date-field
+        label="Next occurrence"
+        name="incomeNextOccurrence"
+        [value]="formNextOccurrenceDisplay"
+        (valueChange)="formNextOccurrenceDisplay = $event"
+      />
+      @if (formNextOccurrenceError) {
+        <span class="field-error">{{ formNextOccurrenceError }}</span>
+      }
+    </div>
+
+    <div class="field">
+      <app-date-field
+        label="End date (optional)"
+        name="incomeEndDate"
+        [value]="formEndDateDisplay"
+        (valueChange)="formEndDateDisplay = $event"
+      />
+      @if (formEndDateError) {
+        <span class="field-error">{{ formEndDateError }}</span>
+      }
+    </div>
+
+    @if (formMode === 'edit') {
+      <label class="field field-checkbox">
+        <span class="field-label">Active</span>
+        <input
+          name="incomeActive"
+          type="checkbox"
+          [checked]="formActive"
+          (change)="onFormActiveChange($any($event.target).checked)"
+        />
+      </label>
+    }
+  </div>
+
+  @if (formError) {
+    <p class="status status-error" role="alert">{{ formError }}</p>
+  }
+</ng-template>
+
+<ng-template #expenseFields>
+  <div class="form-fields">
+    <label class="field">
+      <span class="field-label">Account</span>
+      <select
+        name="expenseAccount"
+        [value]="formAccountId"
+        (change)="onFormAccountChange($any($event.target).value)"
+      >
+        <option value="" [selected]="formAccountId === ''">
+          Select account
+        </option>
+        @for (account of accounts; track account.id) {
+          <option
+            [value]="accountIdValue(account.id)"
+            [selected]="formAccountId === accountIdValue(account.id)"
+          >
+            {{ account.name }} ({{ account.currency }})
+          </option>
+        }
+      </select>
+      @if (formAccountError) {
+        <span class="field-error">{{ formAccountError }}</span>
+      }
+    </label>
+
+    <label class="field">
+      <span class="field-label">Description</span>
+      <input
+        name="expenseDescription"
+        type="text"
+        maxlength="255"
+        [value]="formDescription"
+        (input)="formDescription = $any($event.target).value"
+      />
+      @if (formDescriptionError) {
+        <span class="field-error">{{ formDescriptionError }}</span>
+      }
+    </label>
+
+    <label class="field">
+      <span class="field-label">Amount</span>
+      <input
+        name="expenseAmount"
+        type="text"
+        inputmode="decimal"
+        [value]="formAmount"
+        (input)="formAmount = $any($event.target).value"
+      />
+      @if (formAmountError) {
+        <span class="field-error">{{ formAmountError }}</span>
+      }
+    </label>
+
+    <label class="field">
+      <span class="field-label">Category (optional)</span>
+      <input
+        name="expenseCategory"
+        type="text"
+        maxlength="100"
+        [value]="formCategory"
+        (input)="formCategory = $any($event.target).value"
+      />
+      @if (formCategoryError) {
+        <span class="field-error">{{ formCategoryError }}</span>
+      }
+    </label>
+
+    <label class="field">
+      <span class="field-label">Frequency</span>
+      <select
+        name="expenseFrequency"
+        [value]="formFrequency"
+        (change)="onFormFrequencyChange($any($event.target).value)"
+      >
+        @for (frequency of frequencyOptions; track frequency) {
+          <option
+            [value]="frequency"
+            [selected]="formFrequency === frequency"
+          >
+            {{ frequencyLabel(frequency) }}
+          </option>
+        }
+      </select>
+    </label>
+
+    <div class="field">
+      <app-date-field
+        label="Start date"
+        name="expenseStartDate"
+        [value]="formStartDateDisplay"
+        (valueChange)="formStartDateDisplay = $event"
+      />
+      @if (formStartDateError) {
+        <span class="field-error">{{ formStartDateError }}</span>
+      }
+    </div>
+
+    <div class="field">
+      <app-date-field
+        label="Next occurrence"
+        name="expenseNextOccurrence"
+        [value]="formNextOccurrenceDisplay"
+        (valueChange)="formNextOccurrenceDisplay = $event"
+      />
+      @if (formNextOccurrenceError) {
+        <span class="field-error">{{ formNextOccurrenceError }}</span>
+      }
+    </div>
+
+    <div class="field">
+      <app-date-field
+        label="End date (optional)"
+        name="expenseEndDate"
+        [value]="formEndDateDisplay"
+        (valueChange)="formEndDateDisplay = $event"
+      />
+      @if (formEndDateError) {
+        <span class="field-error">{{ formEndDateError }}</span>
+      }
+    </div>
+
+    @if (formMode === 'edit') {
+      <label class="field field-checkbox">
+        <span class="field-label">Active</span>
+        <input
+          name="expenseActive"
+          type="checkbox"
+          [checked]="formActive"
+          (change)="onFormActiveChange($any($event.target).checked)"
+        />
+      </label>
+    }
+  </div>
+
+  @if (formError) {
+    <p class="status status-error" role="alert">{{ formError }}</p>
+  }
+</ng-template>
+
+<ng-template #scheduleActions>
+  <div class="form-actions">
+    <button type="submit" class="save-button" [disabled]="!canSubmit">
+      @if (saving) {
+        Saving...
+      } @else if (formMode === 'edit') {
+        Save
+      } @else if (formKind === 'income') {
+        Create salary
+      } @else {
+        Create recurring expense
+      }
+    </button>
+    <button
+      type="button"
+      class="cancel-button"
+      [disabled]="saving"
+      (click)="cancelForm()"
+    >
+      Cancel
+    </button>
+  </div>
+</ng-template>

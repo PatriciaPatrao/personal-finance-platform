@@ -10,6 +10,8 @@ import { App } from './app';
 import { routes } from './app.routes';
 import { ForecastService } from './forecast/forecast.service';
 import { GoalService } from './goals/goal.service';
+import { IncomeService } from './schedules/income.service';
+import { RecurringExpenseService } from './schedules/recurring-expense.service';
 import { TransactionService } from './transactions/transactions.service';
 
 describe('App routing', () => {
@@ -114,6 +116,18 @@ describe('App routing', () => {
             listGoals: () => of([]),
           },
         },
+        {
+          provide: IncomeService,
+          useValue: {
+            listIncomes: () => of([]),
+          },
+        },
+        {
+          provide: RecurringExpenseService,
+          useValue: {
+            listRecurringExpenses: () => of([]),
+          },
+        },
       ],
     }).compileComponents();
   });
@@ -206,11 +220,19 @@ describe('App routing', () => {
     expect(compiled.querySelector('main h1')?.textContent).toContain('Goals');
   });
 
+  it('renders the Schedules page at /personal_finance/schedules', async () => {
+    const { compiled } = await renderAt('/personal_finance/schedules');
+    expect(compiled.querySelector('main h1')?.textContent).toContain(
+      'Schedules',
+    );
+  });
+
   it('has Personal Finance navigation links', async () => {
     const { compiled } = await renderAt('/personal_finance');
     expect(navHrefs(compiled)).toEqual([
       '/personal_finance',
       '/personal_finance/accounts',
+      '/personal_finance/schedules',
       '/personal_finance/goals',
       '/personal_finance/analysis',
       '/personal_finance/forecast',
@@ -251,5 +273,10 @@ describe('App routing', () => {
   it('marks Goals as the active tab on /personal_finance/goals', async () => {
     const { compiled } = await renderAt('/personal_finance/goals');
     expect(activeNavHref(compiled)).toBe('/personal_finance/goals');
+  });
+
+  it('marks Schedules as the active tab on /personal_finance/schedules', async () => {
+    const { compiled } = await renderAt('/personal_finance/schedules');
+    expect(activeNavHref(compiled)).toBe('/personal_finance/schedules');
   });
 });

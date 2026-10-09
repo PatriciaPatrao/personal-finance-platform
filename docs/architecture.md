@@ -40,13 +40,14 @@ The modules already isolate **calculation**: Analysis does not call Forecast, an
 
 ## 3. Frontend structure
 
-The shell is `PersonalFinanceLayout` at `/personal_finance`. Navigation is Dashboard, Accounts, Goals, Analysis, Forecast, and Transactions. `/` redirects to `/personal_finance`.
+The shell is `PersonalFinanceLayout` at `/personal_finance`. Navigation is Dashboard, Accounts, Schedules, Goals, Analysis, Forecast, and Transactions. `/` redirects to `/personal_finance`.
 
 | Route | Responsibility |
 | --- | --- |
 | `/personal_finance` | Dashboard: position by currency, signals, goals, links |
 | `/personal_finance/accounts` | Stored accounts list and create form |
 | `/personal_finance/accounts/:id` | Read-only stored account detail |
+| `/personal_finance/schedules` | Salary and fixed recurring expenses: list, create, edit, deactivate |
 | `/personal_finance/goals` | Financial objectives: list, create, and edit |
 | `/personal_finance/analysis` | Historical analysis of transactions |
 | `/personal_finance/forecast` | Projection from balances and schedules |
@@ -63,7 +64,7 @@ Implemented by `PersonalFinance`. It loads:
 - `GET /forecast` grouped by month, from today through the last day of the calendar month two months ahead
 - `GET /financial-goals` for derived goal progress
 
-It presents one stored total per currency. A household with one currency still sees a single total. It shows text signals only when every loaded account uses that same currency. Mixed currencies suppress Analysis and Forecast signals, because those APIs are not currency-safe. Goals show each objective’s target and funded amount in that goal’s currency. Null progress stays unavailable. It links to Accounts, Transactions, Goals, Analysis, and Forecast. It does not write financial data. It is a presentation/orchestration surface (see [Dashboard responsibility](#6-dashboard-responsibility)).
+It presents one stored total per currency. A household with one currency still sees a single total. It shows text signals only when every loaded account uses that same currency. Mixed currencies suppress Analysis and Forecast signals, because those APIs are not currency-safe. Goals show each objective’s target and funded amount in that goal’s currency. Null progress stays unavailable. It links to Accounts, Schedules, Transactions, Goals, Analysis, and Forecast. It does not write financial data. It is a presentation/orchestration surface (see [Dashboard responsibility](#6-dashboard-responsibility)).
 
 ### Analysis
 
@@ -75,9 +76,13 @@ Implemented by `Forecast`. It queries `GET /forecast` with `from`, `to`, and `gr
 
 ### Accounts
 
-Implemented by `Accounts` and `AccountDetail`. The list page loads `GET /accounts` through `AccountService.listAccounts()`, lists every stored account in API order, and shows each account’s name, type, currency, and stored `current_balance`. It creates accounts through `AccountService.createAccount()` with name, type, currency, and optional opening balance. The create form offers EUR, USD, and GBP. That list is a UI constraint, not a domain rule: the API accepts any 3-character currency code and does not convert between them. The detail page at `/personal_finance/accounts/:id` loads one account through `AccountService.getAccount(id)` and shows the stored fields read-only, each balance in that account’s own currency. The Accounts screens do not sum balances across accounts and do not derive them from transactions. There is no update or delete path. `AccountService` is also used by the Dashboard, by the Transactions account picker, and by the Goals account picker. Salary and recurring-expense writes remain API-only.
+Implemented by `Accounts` and `AccountDetail`. The list page loads `GET /accounts` through `AccountService.listAccounts()`, lists every stored account in API order, and shows each account’s name, type, currency, and stored `current_balance`. It creates accounts through `AccountService.createAccount()` with name, type, currency, and optional opening balance. The create form offers EUR, USD, and GBP. That list is a UI constraint, not a domain rule: the API accepts any 3-character currency code and does not convert between them. The detail page at `/personal_finance/accounts/:id` loads one account through `AccountService.getAccount(id)` and shows the stored fields read-only, each balance in that account’s own currency. The Accounts screens do not sum balances across accounts and do not derive them from transactions. There is no update or delete path. `AccountService` is also used by the Dashboard, by the Transactions account picker, by the Goals account picker, and by the Schedules account picker.
 
 `current_balance` is a stored signed amount. Negative values are allowed for every account type. That rule is intentionally simple for the MVP. It is not calculated from transactions, and transaction writes do not modify it. Type-specific meaning is future product work, not current behaviour: bank overdrafts, cash (where a negative amount may not make sense), credit-card debt, and investment valuation. Do not add those rules until that work is specified. Forecast still starts from the sum of every stored balance; that simplification may also need to change if those types stop meaning the same kind of position.
+
+### Schedules
+
+Implemented by `Schedules` at `/personal_finance/schedules`. It loads `GET /incomes`, `GET /recurring-expenses`, and `GET /accounts`, lists salary and fixed recurring-expense records (including inactive ones), and creates and updates them through `POST` and `PUT`. There is no DELETE; deactivation sets `active: false` on a full PUT body that always includes every required field, including `end_date`. Separate sections cover salary and recurring expenses, each with an Active / Inactive / All filter. Dates are entered as DD-MM-YYYY and sent as ISO `YYYY-MM-DD`. The page explains that schedules inform Forecast, are not recorded transactions, do not change `Account.current_balance`, and do not imply a separate projected balance per account. It does not call Transactions, Analysis, or Forecast.
 
 ### Goals
 

@@ -37,7 +37,7 @@ Dashboard does not duplicate Analysis, Forecast, or Goal calculations, does not 
 - Forecast still sums every stored balance and returns currency `EUR` when accounts differ. The Dashboard does not repeat that figure. Changing the Forecast sum is separate work.
 - Goal progress, funded amount, and completion come from the goal response. Null progress is shown as unavailable. A goal with allocations and a funded amount of zero can show 0%. An allocation whose `funded_amount` is below its designated `amount` is flagged. The Dashboard does not add goal amounts across currencies, and it does not flag a passed target date.
 - Dashboard does not define what a negative `current_balance` means for a bank, cash, credit card, or investment account. That stored value is the same signed amount for every type. Type-specific rules, and any later change to Forecast’s starting sum of those balances, belong to future account-domain work, not to this screen.
-- Discovery links to Accounts, Transactions, Goals, Analysis, and Forecast. The Dashboard does not create or change financial records. Salary and recurring expenses still have no UI routes; those writes remain API-only. Named recurring commitments are not listed on the Dashboard.
+- Discovery links to Accounts, Schedules, Transactions, Goals, Analysis, and Forecast. The Dashboard does not create or change financial records. Salary and recurring expenses are maintained on the Schedules screen; the Dashboard only links there. Named recurring commitments are not listed on the Dashboard.
 - A later dashboard endpoint would be justified only if these contracts cannot express a real screen need. That need is not present today.
 
 ## Alternatives considered

@@ -17,7 +17,7 @@ The application is a financial orientation tool:
 - **Forecast** looks ahead using current balances plus active income schedules and recurring expenses. It does not infer the future from historical spending.
 - **Goals** name future financial objectives and derived progress toward them. They do not own money.
 
-The Dashboard is a presentation layer. It loads those results, derives a small set of signals when every account uses the same currency, shows goal progress, and links to Accounts, Transactions, Goals, Analysis, and Forecast.
+The Dashboard is a presentation layer. It loads those results, derives a small set of signals when every account uses the same currency, shows goal progress, and links to Accounts, Schedules, Transactions, Goals, Analysis, and Forecast.
 
 ## Current capabilities
 
@@ -25,9 +25,9 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 
 **Transactions.** Create, read, update, and delete income and expense transactions. Each transaction belongs to an account and may have a category and description. The Angular screen at `/personal_finance/transactions` performs that CRUD. Filters (date range, type, category) run in the client. Category is an optional string. Recording or changing a transaction does not update `Account.current_balance`.
 
-**Income.** Create, read, and update expected salary schedules. Each schedule belongs to an account. Frequency is weekly, monthly, or yearly, with a start date, a next occurrence, an optional end date, and an active flag. The income model is salary only. The start date is stored and checked against the next occurrence and end date. Forecast does not use it to generate dates.
+**Income.** Create, read, and update expected salary schedules. Each schedule belongs to an account. Frequency is weekly, monthly, or yearly, with a start date, a next occurrence, an optional end date, and an active flag. The income model is salary only. The start date is stored and checked against the next occurrence and end date. Forecast does not use it to generate dates. The Angular screen at `/personal_finance/schedules` lists, creates, edits, and deactivates salary schedules. Schedule writes do not create transactions or change balances.
 
-**Recurring expenses.** Create, read, and update fixed scheduled commitments on an account, with the same frequency, start date, occurrence, and active-flag shape, plus a description and optional category. Each schedule has one fixed amount.
+**Recurring expenses.** Create, read, and update fixed scheduled commitments on an account, with the same frequency, start date, occurrence, and active-flag shape, plus a description and optional category. Each schedule has one fixed amount. The same Schedules screen maintains these records alongside salary.
 
 **Analysis.** Read-only historical queries over every account’s transactions for a date range that cannot end in the future. Amounts are not converted between currencies. The Analysis screen labels them EUR. The API response has no currency field.
 
@@ -43,12 +43,12 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 
 **Dashboard signals.** From the loaded summary and forecast, the client can report positive or negative cash flow, missing scheduled income, and whether the projected balance rises or falls over the forecast window. Those signals are hidden when accounts use more than one currency. Forecast itself still sums every balance and labels the result EUR. The Dashboard also lists each goal’s target and funded amount in that goal’s currency. Null progress is shown as unavailable.
 
-There is no authentication. The Angular UI writes transactions, creates accounts, and creates and edits Financial Goals through the API. Income and recurring-expense writes remain API-only.
+There is no authentication. The Angular UI writes transactions, creates accounts, creates and edits Financial Goals, and creates and edits salary and recurring-expense schedules through the API. Schedule writes do not create transactions or change account balances.
 
 ## Architecture
 
 ```text
-Angular (Dashboard, Accounts, Goals, Analysis, Forecast, Transactions)
+Angular (Dashboard, Accounts, Schedules, Goals, Analysis, Forecast, Transactions)
         │  HTTP
         ▼
 FastAPI
@@ -105,14 +105,15 @@ The development client calls `http://127.0.0.1:8000` (`frontend/src/environments
 
 ## Application routes
 
-The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for Dashboard, Accounts, Goals, Analysis, Forecast, and Transactions.
+The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for Dashboard, Accounts, Schedules, Goals, Analysis, Forecast, and Transactions.
 
 | Route | Screen |
 | --- | --- |
 | `/` | Redirects to `/personal_finance` |
-| `/personal_finance` | Dashboard: one stored total per currency, financial signals when currencies match, goal progress, links to Accounts, Transactions, Goals, Analysis, and Forecast |
+| `/personal_finance` | Dashboard: one stored total per currency, financial signals when currencies match, goal progress, links to Accounts, Schedules, Transactions, Goals, Analysis, and Forecast |
 | `/personal_finance/accounts` | Stored accounts list and create form: name, type, currency, and opening/current balance |
 | `/personal_finance/accounts/:id` | Read-only account detail: stored balance, type, currency, and created date. No update or delete. |
+| `/personal_finance/schedules` | Salary and fixed recurring expenses: list active and inactive records, create, edit, and deactivate. Dates are entered as DD-MM-YYYY. Schedules inform Forecast; they are not transactions and do not change balances. |
 | `/personal_finance/goals` | Financial objectives: list, create, and edit; allocate, reduce, or remove designated Account money. Derived progress, no Goal delete. Dates are entered as DD-MM-YYYY. |
 | `/personal_finance/analysis` | Historical summary, expenses by category, and cash flow. Default range is the current month through today. Dates are entered as DD-MM-YYYY. |
 | `/personal_finance/forecast` | Projected income, expenses, net cash flow, and running balance. Default range starts today and ends on the last day of the calendar month two months ahead. Grouping is monthly or daily. |

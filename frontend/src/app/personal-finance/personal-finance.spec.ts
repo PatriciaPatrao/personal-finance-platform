@@ -687,7 +687,7 @@ describe('PersonalFinance', () => {
     expect(text).not.toContain('No allocations yet.');
   });
 
-  it('should link to Accounts, Transactions, Goals, Analysis, and Forecast', async () => {
+  it('should link to Accounts, Schedules, Transactions, Goals, Analysis, and Forecast', async () => {
     const fixture = TestBed.createComponent(PersonalFinance);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -700,6 +700,7 @@ describe('PersonalFinance', () => {
 
     expect(hrefs).toEqual([
       '/personal_finance/accounts',
+      '/personal_finance/schedules',
       '/personal_finance/transactions',
       '/personal_finance/goals',
       '/personal_finance/analysis',
