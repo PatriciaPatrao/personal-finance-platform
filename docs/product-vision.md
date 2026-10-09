@@ -23,7 +23,7 @@ These are implemented in the application today.
 
 ### Current financial position
 
-The dashboard reports **stored account balances**. When every account uses the same currency, it shows a single total across accounts. When currencies differ, it does not invent a combined figure.
+The dashboard reports **stored account balances**. When every account uses the same currency, it shows a single total across accounts. When currencies differ, it shows one total per currency and does not add those totals together.
 
 That total is **current position, not a forecast**. Account `current_balance` is stored on the account. Recording a transaction does not recalculate it.
 
@@ -77,7 +77,7 @@ Recurring expenses are expected future commitments on an account, with a **fixed
 
 The Angular app’s primary surfaces are **Dashboard**, **Accounts**, **Goals**, **Analysis**, **Forecast**, and **Transactions**.
 
-The dashboard is an orientation home: current position, a small set of **explainable financial signals**, and links into analysis and forecast. Signals are rule-based text (for example positive vs negative cash flow this month, no scheduled income in the forecast window, projected balance rising or falling). There is no numeric financial-health score.
+The dashboard is an orientation home: current position by currency, a small set of **explainable financial signals**, goal progress, and links to Accounts, Transactions, Goals, Analysis, and Forecast. Signals are rule-based text (for example positive vs negative cash flow this month, no scheduled income in the forecast window, projected balance rising or falling). They are withheld when accounts use more than one currency, because Analysis and Forecast are not currency-safe. A quiet check names the period that was read. Goal progress comes from the goal API: null progress is unavailable, and a funded amount of zero can display as 0%. There is no numeric financial-health score. The Dashboard does not change financial records.
 
 Accounts and Financial Goals can be listed and written in the UI. Scheduled salary and recurring expenses are maintained through the API. The current UI does not include screens for those schedule write paths.
 

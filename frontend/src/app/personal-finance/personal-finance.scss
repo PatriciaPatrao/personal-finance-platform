@@ -78,10 +78,54 @@
   font-size: 0.85rem;
 }
 
+.status-unavailable {
+  color: #444;
+  background: #f5f5f5;
+  border-color: #e0e0e0;
+}
+
 .empty-state {
   margin: 0.35rem 0 0;
   color: #555;
   line-height: 1.45;
+}
+
+.currency-list,
+.goal-list {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.currency-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.goal-card {
+  padding: 0.9rem 1rem;
+  border: 1px solid #d8d8d8;
+  background: #fff;
+}
+
+.goal-card h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.goal-card p {
+  margin: 0.2rem 0 0;
+  color: #444;
+  line-height: 1.45;
+}
+
+.goal-flag {
+  color: #333;
 }
 
 .panel {

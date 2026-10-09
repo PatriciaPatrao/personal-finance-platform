@@ -12,12 +12,12 @@ Household money is usually split across what is in accounts now, what already ha
 
 The application is a financial orientation tool:
 
-- **Current position** is the sum of stored account balances.
+- **Current position** is stored account balances, summed only within one currency.
 - **Analysis** explains the past using transactions only.
 - **Forecast** looks ahead using current balances plus active income schedules and recurring expenses. It does not infer the future from historical spending.
 - **Goals** name future financial objectives and derived progress toward them. They do not own money.
 
-The Dashboard is a presentation layer. It loads those results, derives a small set of signals, and links to Analysis and Forecast.
+The Dashboard is a presentation layer. It loads those results, derives a small set of signals when every account uses the same currency, shows goal progress, and links to Accounts, Transactions, Goals, Analysis, and Forecast.
 
 ## Current capabilities
 
@@ -41,7 +41,7 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 
 **Financial summary.** `GET /financial-summary` returns the same transaction totals as analysis summary, for a date range that may extend into the future. The Analysis page uses the analysis routes.
 
-**Dashboard signals.** From the loaded summary and forecast, the client can report positive or negative cash flow, missing scheduled income, and whether the projected balance rises or falls over the forecast window.
+**Dashboard signals.** From the loaded summary and forecast, the client can report positive or negative cash flow, missing scheduled income, and whether the projected balance rises or falls over the forecast window. Those signals are hidden when accounts use more than one currency. Forecast itself still sums every balance and labels the result EUR. The Dashboard also lists each goal’s target and funded amount in that goal’s currency. Null progress is shown as unavailable.
 
 There is no authentication. The Angular UI writes transactions, creates accounts, and creates and edits Financial Goals through the API. Income and recurring-expense writes remain API-only.
 
@@ -110,7 +110,7 @@ The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for
 | Route | Screen |
 | --- | --- |
 | `/` | Redirects to `/personal_finance` |
-| `/personal_finance` | Dashboard: combined balance when every account uses the same currency, financial signals, links to Analysis and Forecast |
+| `/personal_finance` | Dashboard: one stored total per currency, financial signals when currencies match, goal progress, links to Accounts, Transactions, Goals, Analysis, and Forecast |
 | `/personal_finance/accounts` | Stored accounts list and create form: name, type, currency, and opening/current balance |
 | `/personal_finance/accounts/:id` | Read-only account detail: stored balance, type, currency, and created date. No update or delete. |
 | `/personal_finance/goals` | Financial objectives: list, create, and edit; allocate, reduce, or remove designated Account money. Derived progress, no Goal delete. Dates are entered as DD-MM-YYYY. |
@@ -118,7 +118,7 @@ The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for
 | `/personal_finance/forecast` | Projected income, expenses, net cash flow, and running balance. Default range starts today and ends on the last day of the calendar month two months ahead. Grouping is monthly or daily. |
 | `/personal_finance/transactions` | Recorded income and expense events: list, client-side filters, create, edit, and delete. Dates are entered as DD-MM-YYYY. |
 
-If accounts use more than one currency, the Dashboard does not show a single combined balance.
+If accounts use more than one currency, the Dashboard shows a separate total for each currency and does not show Analysis or Forecast signals. Forecast still sums those balances and labels the result EUR.
 
 ## Run the backend
 

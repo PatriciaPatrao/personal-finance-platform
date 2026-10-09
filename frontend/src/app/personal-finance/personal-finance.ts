@@ -1,7 +1,7 @@
 import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { catchError, forkJoin, map, of } from 'rxjs';
+import { catchError, map, of } from 'rxjs';
 
 import { Account } from '../accounts/account';
 import { AccountService } from '../accounts/account.service';
@@ -9,9 +9,12 @@ import { AnalysisService } from '../analysis/analysis.service';
 import { AnalysisSummary } from '../analysis/analysis-summary';
 import { ForecastResponse } from '../forecast/forecast-response';
 import { ForecastService } from '../forecast/forecast.service';
+import { FinancialGoal, GoalAllocation } from '../goals/goal';
+import { GoalService } from '../goals/goal.service';
 import {
   deriveFinancialSignals,
   FinancialSignal,
+  quietCheckDetail,
 } from './financial-signals';
 
 function formatDate(date: Date): string {
@@ -71,10 +74,15 @@ type LoadResult<T> =
   | { ok: true; data: T }
   | { ok: false };
 
+export type CurrencyTotal = {
+  currency: string;
+  amount: string;
+};
+
 export type CurrentPositionState =
   | { kind: 'empty' }
-  | { kind: 'mixed_currency' }
-  | { kind: 'ready'; amount: string; currency: string };
+  | { kind: 'ready'; amount: string; currency: string }
+  | { kind: 'by_currency'; totals: CurrencyTotal[] };
 
 @Component({
   selector: 'app-personal-finance',
@@ -83,19 +91,26 @@ export type CurrentPositionState =
   styleUrl: './personal-finance.scss',
 })
 export class PersonalFinance implements OnInit {
-  loading = true;
+  accountsLoading = true;
+  analysisLoading = true;
+  forecastLoading = true;
+  goalsLoading = true;
   accountsError = false;
-  signalsError = false;
+  analysisError = false;
+  forecastError = false;
+  goalsError = false;
 
+  accounts: Account[] = [];
   currentPosition: CurrentPositionState | null = null;
   summary: AnalysisSummary | null = null;
   forecast: ForecastResponse | null = null;
-  signals: FinancialSignal[] = [];
+  goals: FinancialGoal[] = [];
 
   constructor(
     private accountService: AccountService,
     private analysisService: AnalysisService,
     private forecastService: ForecastService,
+    private goalService: GoalService,
     private changeDetector: ChangeDetectorRef,
   ) {}
 
@@ -115,64 +130,140 @@ export class PersonalFinance implements OnInit {
     return `${toEuropeanDate(this.forecast.from_date)} to ${toEuropeanDate(this.forecast.to_date)}`;
   }
 
+  get signalsSuppressed(): boolean {
+    return this.currentPosition?.kind === 'by_currency';
+  }
+
+  get signals(): FinancialSignal[] {
+    if (this.accountsLoading || this.signalsSuppressed) {
+      return [];
+    }
+
+    return deriveFinancialSignals(
+      this.analysisLoading || this.analysisError ? null : this.summary,
+      this.forecastLoading || this.forecastError ? null : this.forecast,
+    );
+  }
+
+  get quietCheckText(): string {
+    if (
+      this.accountsLoading ||
+      this.analysisLoading ||
+      this.forecastLoading ||
+      this.signalsSuppressed ||
+      this.signals.length > 0
+    ) {
+      return '';
+    }
+
+    return quietCheckDetail(this.summary, this.forecast);
+  }
+
   ngOnInit(): void {
     this.loadDashboard();
   }
 
+  progressText(goal: FinancialGoal): string {
+    if (goal.progress === null) {
+      return 'Progress unavailable';
+    }
+
+    const value = Number(goal.progress);
+    if (!Number.isFinite(value)) {
+      return 'Progress unavailable';
+    }
+
+    return `${Math.round(value * 100)}%`;
+  }
+
+  accountLabel(accountId: number): string {
+    const account = this.accounts.find((item) => item.id === accountId);
+    return account ? account.name : `Account ${accountId}`;
+  }
+
+  underfundedAllocations(goal: FinancialGoal): GoalAllocation[] {
+    return goal.allocations.filter(
+      (allocation) =>
+        parseMoneyMinorUnits(allocation.funded_amount) <
+        parseMoneyMinorUnits(allocation.amount),
+    );
+  }
+
   private loadDashboard(): void {
-    this.loading = true;
+    this.accountsLoading = true;
+    this.analysisLoading = true;
+    this.forecastLoading = true;
+    this.goalsLoading = true;
     this.accountsError = false;
-    this.signalsError = false;
+    this.analysisError = false;
+    this.forecastError = false;
+    this.goalsError = false;
+    this.accounts = [];
     this.currentPosition = null;
     this.summary = null;
     this.forecast = null;
-    this.signals = [];
+    this.goals = [];
 
     const analysisRange = currentMonthRange();
     const forecastRange = defaultForecastRange();
 
-    forkJoin({
-      accounts: this.accountService.listAccounts().pipe(
+    this.accountService
+      .listAccounts()
+      .pipe(
         map((data): LoadResult<Account[]> => ({ ok: true, data })),
         catchError(() => of<LoadResult<Account[]>>({ ok: false })),
-      ),
-      summary: this.analysisService
-        .getSummary(analysisRange.from, analysisRange.to)
-        .pipe(
-          map((data): LoadResult<AnalysisSummary> => ({ ok: true, data })),
-          catchError(() => of<LoadResult<AnalysisSummary>>({ ok: false })),
-        ),
-      forecast: this.forecastService
-        .getForecast(forecastRange.from, forecastRange.to, 'month')
-        .pipe(
-          map((data): LoadResult<ForecastResponse> => ({ ok: true, data })),
-          catchError(() => of<LoadResult<ForecastResponse>>({ ok: false })),
-        ),
-    }).subscribe({
-      next: ({ accounts, summary, forecast }) => {
+      )
+      .subscribe((accounts) => {
+        this.accountsLoading = false;
         this.accountsError = !accounts.ok;
-        this.signalsError = !summary.ok || !forecast.ok;
-
         if (accounts.ok) {
+          this.accounts = accounts.data;
           this.currentPosition = this.buildCurrentPosition(accounts.data);
         } else {
+          this.accounts = [];
           this.currentPosition = null;
         }
-
-        if (!this.signalsError && summary.ok && forecast.ok) {
-          this.summary = summary.data;
-          this.forecast = forecast.data;
-          this.signals = deriveFinancialSignals(summary.data, forecast.data);
-        } else {
-          this.summary = null;
-          this.forecast = null;
-          this.signals = [];
-        }
-
-        this.loading = false;
         this.changeDetector.markForCheck();
-      },
-    });
+      });
+
+    this.analysisService
+      .getSummary(analysisRange.from, analysisRange.to)
+      .pipe(
+        map((data): LoadResult<AnalysisSummary> => ({ ok: true, data })),
+        catchError(() => of<LoadResult<AnalysisSummary>>({ ok: false })),
+      )
+      .subscribe((summary) => {
+        this.analysisLoading = false;
+        this.analysisError = !summary.ok;
+        this.summary = summary.ok ? summary.data : null;
+        this.changeDetector.markForCheck();
+      });
+
+    this.forecastService
+      .getForecast(forecastRange.from, forecastRange.to, 'month')
+      .pipe(
+        map((data): LoadResult<ForecastResponse> => ({ ok: true, data })),
+        catchError(() => of<LoadResult<ForecastResponse>>({ ok: false })),
+      )
+      .subscribe((forecast) => {
+        this.forecastLoading = false;
+        this.forecastError = !forecast.ok;
+        this.forecast = forecast.ok ? forecast.data : null;
+        this.changeDetector.markForCheck();
+      });
+
+    this.goalService
+      .listGoals()
+      .pipe(
+        map((data): LoadResult<FinancialGoal[]> => ({ ok: true, data })),
+        catchError(() => of<LoadResult<FinancialGoal[]>>({ ok: false })),
+      )
+      .subscribe((goals) => {
+        this.goalsLoading = false;
+        this.goalsError = !goals.ok;
+        this.goals = goals.ok ? goals.data : [];
+        this.changeDetector.markForCheck();
+      });
   }
 
   private buildCurrentPosition(accounts: Account[]): CurrentPositionState {
@@ -184,19 +275,40 @@ export class PersonalFinance implements OnInit {
     const sameCurrency = accounts.every(
       (account) => account.currency === currency,
     );
-    if (!sameCurrency) {
-      return { kind: 'mixed_currency' };
+    if (sameCurrency) {
+      return {
+        kind: 'ready',
+        amount: this.sumBalances(accounts),
+        currency,
+      };
     }
 
+    const order: string[] = [];
+    const groups = new Map<string, Account[]>();
+    for (const account of accounts) {
+      const group = groups.get(account.currency);
+      if (group) {
+        group.push(account);
+      } else {
+        order.push(account.currency);
+        groups.set(account.currency, [account]);
+      }
+    }
+
+    return {
+      kind: 'by_currency',
+      totals: order.map((code) => ({
+        currency: code,
+        amount: this.sumBalances(groups.get(code) ?? []),
+      })),
+    };
+  }
+
+  private sumBalances(accounts: Account[]): string {
     const total = accounts.reduce(
       (sum, account) => sum + parseMoneyMinorUnits(account.current_balance),
       0n,
     );
-
-    return {
-      kind: 'ready',
-      amount: formatMoneyMinorUnits(total),
-      currency,
-    };
+    return formatMoneyMinorUnits(total);
   }
 }

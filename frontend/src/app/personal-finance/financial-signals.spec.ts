@@ -1,6 +1,9 @@
 import { AnalysisSummary } from '../analysis/analysis-summary';
 import { ForecastResponse } from '../forecast/forecast-response';
-import { deriveFinancialSignals } from './financial-signals';
+import {
+  deriveFinancialSignals,
+  quietCheckDetail,
+} from './financial-signals';
 
 describe('deriveFinancialSignals', () => {
   const emptySummary: AnalysisSummary = {
@@ -108,5 +111,58 @@ describe('deriveFinancialSignals', () => {
     expect(signals.map((signal) => signal.title)).toEqual([
       'No scheduled income',
     ]);
+  });
+
+  it('describes a quiet month and an unchanged projection', () => {
+    const detail = quietCheckDetail(emptySummary, {
+      ...increasingForecast,
+      periods: [
+        {
+          period: '2026-10',
+          income: '100.00',
+          expenses: '100.00',
+          net_cash_flow: '0.00',
+          projected_balance: '5000.00',
+        },
+      ],
+    });
+
+    expect(detail).toContain(
+      'Checked recorded cash flow from 01-10-2026 to 05-10-2026: no income or expenses were recorded.',
+    );
+    expect(detail).toContain(
+      'Checked the forecast from 05-10-2026 to 31-12-2026: scheduled income is present and the projected balance is unchanged.',
+    );
+    expect(detail).not.toContain('nothing currently requires');
+  });
+
+  it('describes equal recorded income and expenses', () => {
+    const detail = quietCheckDetail(
+      {
+        ...emptySummary,
+        total_income: '80.00',
+        total_expenses: '80.00',
+        net_cash_flow: '0.00',
+      },
+      null,
+    );
+
+    expect(detail).toBe(
+      'Checked recorded cash flow from 01-10-2026 to 05-10-2026: recorded income and expenses were equal.',
+    );
+  });
+
+  it('omits a source that produced a signal', () => {
+    const detail = quietCheckDetail(
+      {
+        ...emptySummary,
+        total_income: '2000.00',
+        total_expenses: '1350.00',
+        net_cash_flow: '650.00',
+      },
+      null,
+    );
+
+    expect(detail).toBe('');
   });
 });

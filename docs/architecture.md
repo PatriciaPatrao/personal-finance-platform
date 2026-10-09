@@ -44,7 +44,7 @@ The shell is `PersonalFinanceLayout` at `/personal_finance`. Navigation is Dashb
 
 | Route | Responsibility |
 | --- | --- |
-| `/personal_finance` | Dashboard: current position, signals, links |
+| `/personal_finance` | Dashboard: position by currency, signals, goals, links |
 | `/personal_finance/accounts` | Stored accounts list and create form |
 | `/personal_finance/accounts/:id` | Read-only stored account detail |
 | `/personal_finance/goals` | Financial objectives: list, create, and edit |
@@ -61,8 +61,9 @@ Implemented by `PersonalFinance`. It loads:
 - `GET /accounts` for stored balances
 - `GET /analysis/summary` for the current calendar month through today
 - `GET /forecast` grouped by month, from today through the last day of the calendar month two months ahead
+- `GET /financial-goals` for derived goal progress
 
-It presents a combined current position when every account uses the same currency, a small set of text signals, and links into Analysis and Forecast. It is a presentation/orchestration surface (see [Dashboard responsibility](#6-dashboard-responsibility)).
+It presents one stored total per currency. A household with one currency still sees a single total. It shows text signals only when every loaded account uses that same currency. Mixed currencies suppress Analysis and Forecast signals, because those APIs are not currency-safe. Goals show each objective’s target and funded amount in that goal’s currency. Null progress stays unavailable. It links to Accounts, Transactions, Goals, Analysis, and Forecast. It does not write financial data. It is a presentation/orchestration surface (see [Dashboard responsibility](#6-dashboard-responsibility)).
 
 ### Analysis
 
@@ -150,14 +151,15 @@ Forecast response currency is the string `EUR`. The service does not convert cur
 
 Dashboard is an **orchestration and presentation layer**, not a financial domain.
 
-It may consume existing data contracts (accounts, analysis summary, forecast) and display them. It should not become a second place where balances, cash-flow totals, or projections are defined.
+It may consume existing data contracts (accounts, analysis summary, forecast, financial goals) and display them. It should not become a second place where balances, cash-flow totals, projections, or goal progress are defined.
 
 Today it:
 
-- sums `current_balance` in the client when currencies match, and withholds a combined figure when they differ
-- derives explainable text signals in `frontend/src/app/personal-finance/financial-signals.ts` (this-month cash-flow sign from analysis summary; missing scheduled income and projected balance direction from forecast periods). A zero net cash flow, or a projected ending balance equal to the starting balance, adds no directional signal. When the list is empty, the screen says that nothing currently requires attention.
+- sums `current_balance` in the client within each currency, and keeps a separate total for every currency
+- derives explainable text signals in `frontend/src/app/personal-finance/financial-signals.ts` (this-month cash-flow sign from analysis summary; missing scheduled income and projected balance direction from forecast periods). A zero net cash flow, or a projected ending balance equal to the starting balance, produces no directional signal. The quiet state names the period that was checked. Those signals are hidden when loaded accounts use more than one currency.
+- lists goals from `GET /financial-goals`, including unavailable progress and allocations whose funded amount is below the designated amount
 
-Those signal rules live in the dashboard feature, not in a backend domain service. They interpret API responses; they do not replace Analysis or Forecast.
+Those signal rules live in the dashboard feature, not in a backend domain service. They interpret API responses; they do not replace Analysis, Forecast, or Goals. Account, analysis, forecast, and goal requests load and fail independently.
 
 ## 7. Data ownership
 
@@ -228,7 +230,7 @@ Occurrence dates for Forecast are computed on request. There is no job that mate
 These are **future considerations**. They are not current architecture.
 
 - **Account selection.** Aggregates and forecasts currently include every account (or every active schedule). Filtering by account is not an API concern yet.
-- **Multi-currency.** The Accounts create form offers EUR, USD, and GBP. That is a UI constraint. The API accepts any 3-character code. There is no FX conversion. Dashboard and Accounts withhold a combined figure when currencies differ. Forecast still sums balances and labels the result EUR. Revisit this if broader multi-currency support becomes a product requirement.
+- **Multi-currency.** The Accounts create form offers EUR, USD, and GBP. That is a UI constraint. The API accepts any 3-character code. There is no FX conversion. The Dashboard shows one stored total per currency and does not show Analysis or Forecast signals when those currencies differ. Forecast still sums balances and labels the result EUR. That Forecast limitation is unchanged. Revisit it if broader multi-currency support becomes a product requirement.
 - **Account-type balance rules.** `current_balance` is one signed stored value for every type. Negative amounts are allowed. Bank overdrafts, cash, credit-card debt, and investment valuation are not modeled separately. Forecast’s starting sum assumes they are comparable.
 - **Background jobs.** Not present. Recurring occurrences are expanded when Forecast is requested.
 - **Observability.** Health JSON only. No tracing, metrics, or log platform is wired in.

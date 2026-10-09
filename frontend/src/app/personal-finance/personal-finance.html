@@ -8,15 +8,14 @@
     </p>
   </header>
 
-  @if (loading) {
-    <p class="status status-loading" aria-live="polite">Loading dashboard...</p>
-  }
-
-  @if (!loading) {
-    <section class="hero" aria-labelledby="position-heading">
+  <section class="hero" aria-labelledby="position-heading">
       <h2 id="position-heading">Current financial position</h2>
 
-      @if (accountsError) {
+      @if (accountsLoading) {
+        <p class="status status-loading" aria-live="polite">
+          Loading current position...
+        </p>
+      } @else if (accountsError) {
         <p class="status status-error" role="alert">
           Unable to load your current balance.
         </p>
@@ -26,78 +25,186 @@
             No accounts yet. Add an account to see your current financial
             position.
           </p>
-        } @else if (position.kind === 'mixed_currency') {
-          <p class="empty-state">
-            Your accounts use more than one currency, so a single current
-            balance cannot be shown.
-          </p>
         } @else if (position.kind === 'ready') {
           <p class="hero-balance">
             {{ position.amount | currency: position.currency }}
           </p>
           <p class="hero-caption">Across your accounts</p>
           <p class="hero-note">Current position, not a forecast.</p>
+        } @else if (position.kind === 'by_currency') {
+          <ul class="currency-list">
+            @for (total of position.totals; track total.currency) {
+              <li>
+                <p class="hero-balance">
+                  {{ total.amount | currency: total.currency }}
+                </p>
+                <p class="hero-caption">{{ total.currency }} accounts</p>
+              </li>
+            }
+          </ul>
+          <p class="hero-note">
+            Current position, not a forecast. Totals stay separate by
+            currency.
+          </p>
         }
       }
     </section>
 
     <section class="panel signals-panel" aria-labelledby="signals-heading">
       <h2 id="signals-heading">Financial signals</h2>
-      <p class="panel-intro">Is there anything I should pay attention to?</p>
+      <p class="panel-intro">
+        Recorded cash flow for the current month, and the scheduled projection
+        through the forecast window.
+      </p>
 
-      @if (analysisRangeLabel || forecastRangeLabel) {
-        <p class="range-note">
-          @if (analysisRangeLabel) {
-            <span>Current month: {{ analysisRangeLabel }}</span>
-          }
-          @if (analysisRangeLabel && forecastRangeLabel) {
-            <span aria-hidden="true"> · </span>
-          }
-          @if (forecastRangeLabel) {
-            <span>Forecast period: {{ forecastRangeLabel }}</span>
-          }
+      @if (accountsLoading) {
+        <p class="status status-loading" aria-live="polite">
+          Loading financial signals...
+        </p>
+      } @else if (signalsSuppressed) {
+        <p class="status status-unavailable">
+          Analysis and forecast signals are unavailable because your accounts
+          use more than one currency. Those results add amounts without
+          conversion, so they are not shown here.
+        </p>
+      } @else {
+        @if (analysisRangeLabel || forecastRangeLabel) {
+          <p class="range-note">
+            @if (analysisRangeLabel) {
+              <span>Current month: {{ analysisRangeLabel }}</span>
+            }
+            @if (analysisRangeLabel && forecastRangeLabel) {
+              <span aria-hidden="true"> · </span>
+            }
+            @if (forecastRangeLabel) {
+              <span>Forecast period: {{ forecastRangeLabel }}</span>
+            }
+          </p>
+        }
+
+        @if (analysisLoading) {
+          <p class="status status-loading" aria-live="polite">
+            Loading recorded cash flow...
+          </p>
+        }
+
+        @if (forecastLoading) {
+          <p class="status status-loading" aria-live="polite">
+            Loading the scheduled forecast...
+          </p>
+        }
+
+        @if (signals.length > 0) {
+          <ul class="signal-list">
+            @for (signal of signals; track signal.title) {
+              <li class="signal">
+                <h3>{{ signal.title }}</h3>
+                <p>{{ signal.detail }}</p>
+              </li>
+            }
+          </ul>
+        } @else if (quietCheckText) {
+          <article class="signal signal-neutral">
+            <h3>No directional signals</h3>
+            <p>{{ quietCheckText }}</p>
+          </article>
+        }
+      }
+
+      @if (analysisError) {
+        <p class="status status-error" role="alert">
+          Unable to load recorded cash flow for the current month.
         </p>
       }
 
-      @if (signalsError) {
+      @if (forecastError) {
         <p class="status status-error" role="alert">
-          Unable to load financial signals.
+          Unable to load the scheduled forecast.
         </p>
-      } @else if (signals.length === 0) {
-        <article class="signal signal-neutral">
-          <h3>No immediate signals</h3>
-          <p>Nothing currently requires your attention.</p>
-        </article>
+      }
+    </section>
+
+    <section class="panel goals-panel" aria-labelledby="goals-heading">
+      <h2 id="goals-heading">Goals</h2>
+      <p class="panel-intro">
+        Funded progress uses each goal’s own currency. Amounts are not added
+        across currencies.
+      </p>
+
+      @if (goalsLoading) {
+        <p class="status status-loading" aria-live="polite">Loading goals...</p>
+      } @else if (goalsError) {
+        <p class="status status-error" role="alert">
+          Unable to load financial goals.
+        </p>
+      } @else if (goals.length === 0) {
+        <p class="empty-state">No financial goals yet.</p>
       } @else {
-        <ul class="signal-list">
-          @for (signal of signals; track signal.title) {
-            <li class="signal">
-              <h3>{{ signal.title }}</h3>
-              <p>{{ signal.detail }}</p>
+        <ul class="goal-list">
+          @for (goal of goals; track goal.id) {
+            <li class="goal-card">
+              <h3>{{ goal.name }}</h3>
+              <p>
+                Target:
+                {{ goal.target_amount | currency: goal.currency }}
+                {{ goal.currency }}
+              </p>
+              @if (goal.progress === null) {
+                <p>Progress unavailable</p>
+              } @else {
+                <p>
+                  Funded:
+                  {{ goal.current_amount | currency: goal.currency }}
+                  {{ goal.currency }}
+                </p>
+                <p>{{ progressText(goal) }}</p>
+              }
+              @if (goal.allocations.length === 0) {
+                <p class="goal-flag">No allocations yet.</p>
+              }
+              @for (
+                allocation of underfundedAllocations(goal);
+                track allocation.id
+              ) {
+                <p class="goal-flag">
+                  Allocation for {{ accountLabel(allocation.account_id) }} is
+                  not fully funded:
+                  {{ allocation.funded_amount | currency: goal.currency }}
+                  funded of
+                  {{ allocation.amount | currency: goal.currency }}
+                  designated.
+                </p>
+              }
             </li>
           }
         </ul>
       }
     </section>
-  }
 
   <section class="panel discovery-panel" aria-labelledby="discovery-heading">
     <h2 id="discovery-heading">Explore</h2>
     <div class="discovery-grid">
-      <a
-        class="discovery-card"
-        routerLink="/personal_finance/analysis"
-      >
+      <a class="discovery-card" routerLink="/personal_finance/accounts">
+        <h3>Where money is held</h3>
+        <p>See each account and its stored balance.</p>
+        <span class="discovery-link">Accounts</span>
+      </a>
+      <a class="discovery-card" routerLink="/personal_finance/transactions">
+        <h3>Recorded movements</h3>
+        <p>Review historical income and expense events.</p>
+        <span class="discovery-link">Transactions</span>
+      </a>
+      <a class="discovery-card" routerLink="/personal_finance/goals">
+        <h3>Objectives</h3>
+        <p>Open goals to review or change designated funding.</p>
+        <span class="discovery-link">Goals</span>
+      </a>
+      <a class="discovery-card" routerLink="/personal_finance/analysis">
         <h3>Understand your finances</h3>
-        <p>
-          Explore historical spending, income and cash flow.
-        </p>
+        <p>Explore historical spending, income and cash flow.</p>
         <span class="discovery-link">Analysis</span>
       </a>
-      <a
-        class="discovery-card"
-        routerLink="/personal_finance/forecast"
-      >
+      <a class="discovery-card" routerLink="/personal_finance/forecast">
         <h3>Plan ahead</h3>
         <p>
           See how scheduled income and recurring expenses may affect your

@@ -107,6 +107,33 @@ function deriveForecastSignals(
   return signals;
 }
 
+function europeanDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-');
+  return `${day}-${month}-${year}`;
+}
+
+function analysisQuietSentence(summary: AnalysisSummary): string {
+  const income = parseMoneyMinorUnits(summary.total_income);
+  const expenses = parseMoneyMinorUnits(summary.total_expenses);
+  const range = `${europeanDate(summary.from_date)} to ${europeanDate(summary.to_date)}`;
+
+  if (income === 0n && expenses === 0n) {
+    return `Checked recorded cash flow from ${range}: no income or expenses were recorded.`;
+  }
+
+  return `Checked recorded cash flow from ${range}: recorded income and expenses were equal.`;
+}
+
+function forecastQuietSentence(forecast: ForecastResponse): string {
+  const range = `${europeanDate(forecast.from_date)} to ${europeanDate(forecast.to_date)}`;
+
+  if (forecast.periods.length === 0) {
+    return `Checked the forecast from ${range}: no forecast periods were returned.`;
+  }
+
+  return `Checked the forecast from ${range}: scheduled income is present and the projected balance is unchanged.`;
+}
+
 export function deriveFinancialSignals(
   summary: AnalysisSummary | null,
   forecast: ForecastResponse | null,
@@ -118,4 +145,21 @@ export function deriveFinancialSignals(
   }
   signals.push(...deriveForecastSignals(forecast));
   return signals;
+}
+
+export function quietCheckDetail(
+  summary: AnalysisSummary | null,
+  forecast: ForecastResponse | null,
+): string {
+  const parts: string[] = [];
+
+  if (summary && deriveCashFlowSignal(summary) === null) {
+    parts.push(analysisQuietSentence(summary));
+  }
+
+  if (forecast && deriveForecastSignals(forecast).length === 0) {
+    parts.push(forecastQuietSentence(forecast));
+  }
+
+  return parts.join(' ');
 }
