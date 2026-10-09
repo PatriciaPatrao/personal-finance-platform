@@ -80,7 +80,7 @@ Implemented by `Accounts` and `AccountDetail`. The list page loads `GET /account
 
 ### Goals
 
-Implemented by `Goals` at `/personal_finance/goals`. It loads `GET /financial-goals` and `GET /accounts`, lists objectives, and creates and updates them through `POST` and `PUT`. There is no Goal delete. Inline edit covers name, target, currency, and target date (DD-MM-YYYY). The create form offers EUR, USD, and GBP. Allocations are managed on the Goal card: add, reduce, or remove designations of existing Account money. Compatible Accounts show balance, already allocated, and available capacity. The screen displays backend `current_amount`, `progress` (capped at 100%), `completed`, and allocation rows. A Goal with no allocations shows that progress is unavailable. The page does not recompute those values, does not write `Account.current_balance`, and does not call Analysis, Forecast, or Transactions.
+Implemented by `Goals` at `/personal_finance/goals`. It loads `GET /financial-goals` and `GET /accounts`, lists objectives, and creates and updates them through `POST` and `PUT`. There is no Goal delete. Inline edit covers name, target, currency, and target date (DD-MM-YYYY). The create form offers EUR, USD, and GBP. Allocations are managed on the Goal card: add, reduce, or remove designations of existing Account money. Compatible Accounts show balance, already allocated, and available capacity. The screen displays backend `current_amount` under the label Funded, `progress` (capped at 100%), `completed`, and allocation rows. Each row shows the designated amount and, when that amount is not fully funded, the funded amount. A Goal with no allocations shows that progress is unavailable. The page does not recompute those values, does not write `Account.current_balance`, and does not call Analysis, Forecast, or Transactions.
 
 ### Transactions
 
@@ -115,6 +115,7 @@ When a Goal has allocations:
 - `completed` is `current_amount >= target_amount`
 - each Account’s currency must equal `Goal.currency`
 - designated amounts on an Account must not exceed available capacity on create/increase
+- those capacity checks lock the Account row (`SELECT … FOR UPDATE`) until the allocation transaction commits
 - Goal and allocation writes never modify `Account.current_balance`
 
 When a Goal has no allocations, `current_amount`, `progress`, and `completed` are null. Unavailable progress is not represented as 0%.

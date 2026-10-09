@@ -203,9 +203,11 @@ describe('Goals', () => {
     expect(compiled.querySelector('progress')).toBeNull();
   });
 
-  it('should show allocated amount and progress', async () => {
+  it('should show funded amount and progress', async () => {
     const { compiled } = await render();
     const text = compiled.textContent ?? '';
+    expect(text).toContain('Funded');
+    expect(text).not.toContain('Allocated');
     expect(text).toContain('Savings');
     expect(text).toContain('50%');
     expect(
