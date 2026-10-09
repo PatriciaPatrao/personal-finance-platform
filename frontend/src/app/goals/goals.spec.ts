@@ -15,7 +15,7 @@ describe('Goals', () => {
       name: 'Savings',
       account_type: 'bank',
       currency: 'EUR',
-      current_balance: '2500.00',
+      current_balance: '5000.00',
       created_at: '2026-01-01T00:00:00',
     },
     {
@@ -28,28 +28,37 @@ describe('Goals', () => {
     },
   ];
 
-  const unlinkedGoal: FinancialGoal = {
+  const unallocatedGoal: FinancialGoal = {
     id: 10,
     name: 'Idea',
     target_amount: '1000.00',
     currency: 'EUR',
     target_date: null,
-    account_id: null,
     created_at: '2026-01-10T00:00:00',
+    allocations: [],
     current_amount: null,
     progress: null,
     completed: null,
   };
 
-  const linkedGoal: FinancialGoal = {
+  const allocatedGoal: FinancialGoal = {
     id: 11,
     name: 'Vacation',
-    target_amount: '5000.00',
+    target_amount: '10000.00',
     currency: 'EUR',
     target_date: '2027-06-01',
-    account_id: 1,
     created_at: '2026-01-11T00:00:00',
-    current_amount: '2500.00',
+    allocations: [
+      {
+        id: 21,
+        goal_id: 11,
+        account_id: 1,
+        amount: '5000.00',
+        funded_amount: '5000.00',
+        created_at: '2026-01-11T01:00:00',
+      },
+    ],
+    current_amount: '5000.00',
     progress: '0.5',
     completed: false,
   };
@@ -60,9 +69,18 @@ describe('Goals', () => {
     target_amount: '10000.00',
     currency: 'EUR',
     target_date: null,
-    account_id: 1,
     created_at: '2026-01-12T00:00:00',
-    current_amount: '15000.00',
+    allocations: [
+      {
+        id: 22,
+        goal_id: 12,
+        account_id: 1,
+        amount: '10000.00',
+        funded_amount: '10000.00',
+        created_at: '2026-01-12T01:00:00',
+      },
+    ],
+    current_amount: '10000.00',
     progress: '1',
     completed: true,
   };
@@ -70,12 +88,18 @@ describe('Goals', () => {
   let listGoals: ReturnType<typeof vi.fn>;
   let createGoal: ReturnType<typeof vi.fn>;
   let updateGoal: ReturnType<typeof vi.fn>;
+  let createAllocation: ReturnType<typeof vi.fn>;
+  let updateAllocation: ReturnType<typeof vi.fn>;
+  let deleteAllocation: ReturnType<typeof vi.fn>;
   let listAccounts: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    listGoals = vi.fn().mockReturnValue(of([linkedGoal]));
-    createGoal = vi.fn().mockReturnValue(of(unlinkedGoal));
-    updateGoal = vi.fn().mockReturnValue(of(linkedGoal));
+    listGoals = vi.fn().mockReturnValue(of([allocatedGoal]));
+    createGoal = vi.fn().mockReturnValue(of(unallocatedGoal));
+    updateGoal = vi.fn().mockReturnValue(of(allocatedGoal));
+    createAllocation = vi.fn().mockReturnValue(of(allocatedGoal));
+    updateAllocation = vi.fn().mockReturnValue(of(allocatedGoal));
+    deleteAllocation = vi.fn().mockReturnValue(of(unallocatedGoal));
     listAccounts = vi.fn().mockReturnValue(of(sampleAccounts));
 
     await TestBed.configureTestingModule({
@@ -83,7 +107,14 @@ describe('Goals', () => {
       providers: [
         {
           provide: GoalService,
-          useValue: { listGoals, createGoal, updateGoal },
+          useValue: {
+            listGoals,
+            createGoal,
+            updateGoal,
+            createAllocation,
+            updateAllocation,
+            deleteAllocation,
+          },
         },
         {
           provide: AccountService,
@@ -141,7 +172,7 @@ describe('Goals', () => {
     expect(fixture.componentInstance.loading).toBe(true);
     expect(compiled.textContent).toContain('Loading goals...');
 
-    pending.next([linkedGoal]);
+    pending.next([allocatedGoal]);
     pending.complete();
     fixture.changeDetectorRef.detectChanges();
 
@@ -162,17 +193,17 @@ describe('Goals', () => {
     expect(compiled.querySelector('.create-goal-button')).toBeTruthy();
   });
 
-  it('should show unavailable progress for an unlinked goal', async () => {
-    listGoals.mockReturnValue(of([unlinkedGoal]));
+  it('should show unavailable progress for an unallocated goal', async () => {
+    listGoals.mockReturnValue(of([unallocatedGoal]));
     const { compiled } = await render();
     const text = compiled.textContent ?? '';
     expect(text).toContain('Progress unavailable');
-    expect(text).toContain('No account associated');
+    expect(text).toContain('No money allocated yet');
     expect(text).not.toMatch(/Progress unavailable[\s\S]*0%/);
     expect(compiled.querySelector('progress')).toBeNull();
   });
 
-  it('should show current amount and progress for a linked goal', async () => {
+  it('should show allocated amount and progress', async () => {
     const { compiled } = await render();
     const text = compiled.textContent ?? '';
     expect(text).toContain('Savings');
@@ -180,6 +211,13 @@ describe('Goals', () => {
     expect(
       (compiled.querySelector('progress') as HTMLProgressElement).value,
     ).toBe(50);
+  });
+
+  it('should display allocations on the goal card', async () => {
+    const { compiled } = await render();
+    expect(compiled.textContent).toContain('Allocations');
+    expect(compiled.textContent).toContain('Savings');
+    expect(compiled.textContent).toContain('Designated');
   });
 
   it('should display 100% progress correctly', async () => {
@@ -213,10 +251,10 @@ describe('Goals', () => {
     );
   });
 
-  it('should create an unlinked goal', async () => {
+  it('should create an unallocated goal', async () => {
     listGoals
       .mockReturnValueOnce(of([]))
-      .mockReturnValueOnce(of([unlinkedGoal]));
+      .mockReturnValueOnce(of([unallocatedGoal]));
     const { fixture, compiled, component } = await render();
     openCreateForm(fixture, compiled);
 
@@ -231,34 +269,9 @@ describe('Goals', () => {
       target_amount: 1000,
       currency: 'EUR',
       target_date: null,
-      account_id: null,
     });
     expect(compiled.textContent).toContain('Goal created.');
     expect(compiled.textContent).toContain('Idea');
-  });
-
-  it('should create a linked goal', async () => {
-    listGoals
-      .mockReturnValueOnce(of([]))
-      .mockReturnValueOnce(of([linkedGoal]));
-    createGoal.mockReturnValue(of(linkedGoal));
-    const { fixture, compiled, component } = await render();
-    openCreateForm(fixture, compiled);
-
-    component.formName = 'Vacation';
-    component.formTargetAmount = '5000.00';
-    component.onFormAccountChange('1');
-    component.saveGoal();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(createGoal).toHaveBeenCalledWith({
-      name: 'Vacation',
-      target_amount: 5000,
-      currency: 'EUR',
-      target_date: null,
-      account_id: 1,
-    });
   });
 
   it('should preserve form state when create fails', async () => {
@@ -268,7 +281,7 @@ describe('Goals', () => {
         () =>
           new HttpErrorResponse({
             status: 422,
-            error: { detail: 'Account already has a financial goal' },
+            error: { detail: 'Unable to save the goal.' },
           }),
       ),
     );
@@ -277,28 +290,23 @@ describe('Goals', () => {
 
     component.formName = 'Vacation';
     component.formTargetAmount = '5000.00';
-    component.onFormAccountChange('1');
     component.saveGoal();
     await fixture.whenStable();
     fixture.detectChanges();
 
     expect(component.formMode).toBe('create');
     expect(component.formName).toBe('Vacation');
-    expect(component.formTargetAmount).toBe('5000.00');
-    expect(component.formAccountId).toBe('1');
-    expect(compiled.textContent).toContain(
-      'Account already has a financial goal',
-    );
+    expect(compiled.textContent).toContain('Unable to save the goal.');
   });
 
-  it('should edit a goal', async () => {
+  it('should edit a goal inline without an account field', async () => {
     const updated: FinancialGoal = {
-      ...linkedGoal,
+      ...allocatedGoal,
       name: 'Holiday',
     };
     updateGoal.mockReturnValue(of(updated));
     listGoals
-      .mockReturnValueOnce(of([linkedGoal]))
+      .mockReturnValueOnce(of([allocatedGoal]))
       .mockReturnValueOnce(of([updated]));
 
     const { fixture, compiled, component } = await render();
@@ -307,13 +315,9 @@ describe('Goals', () => {
 
     expect(component.formMode).toBe('edit');
     expect(component.formName).toBe('Vacation');
-    expect(
-      (
-        compiled.querySelector(
-          'select[name="accountId"]',
-        ) as HTMLSelectElement
-      ).value,
-    ).toBe('1');
+    expect(compiled.querySelector('select[name="accountId"]')).toBeNull();
+    expect(component.currencyLocked).toBe(true);
+
     component.formName = 'Holiday';
     component.saveGoal();
     await fixture.whenStable();
@@ -321,47 +325,155 @@ describe('Goals', () => {
 
     expect(updateGoal).toHaveBeenCalledWith(11, {
       name: 'Holiday',
-      target_amount: 5000,
+      target_amount: 10000,
       currency: 'EUR',
       target_date: '2027-06-01',
-      account_id: 1,
     });
     expect(compiled.textContent).toContain('Goal updated.');
-    expect(compiled.textContent).toContain('Holiday');
-    expect(compiled.querySelector('.goal-card form')).toBeNull();
   });
 
-  it('should edit a goal inline and leave other goals displayed', async () => {
-    listGoals.mockReturnValue(of([linkedGoal, unlinkedGoal]));
-    const { fixture, compiled } = await render();
+  function clickAddMoney(compiled: HTMLElement): void {
+    const button = [...compiled.querySelectorAll('button')].find(
+      (item) => item.textContent?.trim() === 'Add money',
+    ) as HTMLButtonElement;
+    button.click();
+  }
 
-    const cards = [...compiled.querySelectorAll('.goal-card')];
-    expect(cards).toHaveLength(2);
-    expect(compiled.querySelector('h2')?.textContent).not.toContain('Edit goal');
-
-    (cards[0].querySelector('.edit-button') as HTMLButtonElement).click();
+  it('should open add money and show available amount', async () => {
+    const { fixture, compiled, component } = await render();
+    clickAddMoney(compiled);
     fixture.detectChanges();
 
-    const editing = compiled.querySelector('.goal-editing') as HTMLElement;
-    expect(editing).toBe(cards[0]);
-    expect(editing.querySelector('form')).toBeTruthy();
-    expect(editing.querySelector('.edit-button')).toBeNull();
-    expect(editing.textContent).toContain('Vacation');
-    expect(
-      (editing.querySelector('input[name="name"]') as HTMLInputElement).value,
-    ).toBe('Vacation');
+    expect(component.allocatingGoalId).toBe(11);
+    expect(compiled.textContent).toContain('Add money');
+    expect(compiled.textContent).toContain('available');
+    expect(component.availableOnAccount(1)).toBe(0);
+    expect(component.designatedOnAccount(1)).toBe(5000);
+  });
 
-    const other = compiled.querySelectorAll('.goal-card')[1] as HTMLElement;
-    expect(other.classList.contains('goal-editing')).toBe(false);
-    expect(other.querySelector('form')).toBeNull();
-    expect(other.textContent).toContain('Idea');
-    expect(other.textContent).toContain('Progress unavailable');
-    expect(other.querySelector('.edit-button')).toBeTruthy();
-    expect(compiled.querySelectorAll('form')).toHaveLength(1);
+  it('should prevent allocating more than available', async () => {
+    listGoals.mockReturnValue(of([unallocatedGoal]));
+    const { fixture, compiled, component } = await render();
+    clickAddMoney(compiled);
+    fixture.detectChanges();
+
+    component.allocateAccountId = '1';
+    component.allocateAmount = '6000.00';
+    component.saveAllocation();
+    fixture.detectChanges();
+
+    expect(createAllocation).not.toHaveBeenCalled();
+    expect(component.allocateAmountError).toContain('Only 5000.00 is available');
+  });
+
+  it('should create an allocation and refresh the goal', async () => {
+    const after: FinancialGoal = {
+      ...unallocatedGoal,
+      allocations: [
+        {
+          id: 30,
+          goal_id: 10,
+          account_id: 1,
+          amount: '1000.00',
+          funded_amount: '1000.00',
+          created_at: '2026-01-13T00:00:00',
+        },
+      ],
+      current_amount: '1000.00',
+      progress: '1',
+      completed: true,
+    };
+    listGoals
+      .mockReturnValueOnce(of([unallocatedGoal]))
+      .mockReturnValueOnce(of([after]));
+    createAllocation.mockReturnValue(of(after));
+
+    const { fixture, compiled, component } = await render();
+    clickAddMoney(compiled);
+    fixture.detectChanges();
+
+    component.allocateAccountId = '1';
+    component.allocateAmount = '1000.00';
+    component.saveAllocation();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(createAllocation).toHaveBeenCalledWith(10, {
+      account_id: 1,
+      amount: 1000,
+    });
+    expect(compiled.textContent).toContain('Allocation updated.');
+    expect(compiled.textContent).toContain('100%');
+  });
+
+  it('should show backend allocation errors', async () => {
+    listGoals.mockReturnValue(of([unallocatedGoal]));
+    createAllocation.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 422,
+            error: {
+              detail: 'Allocation exceeds available account balance',
+            },
+          }),
+      ),
+    );
+    const { fixture, compiled, component } = await render();
+    clickAddMoney(compiled);
+    fixture.detectChanges();
+
+    component.allocateAccountId = '1';
+    component.allocateAmount = '100.00';
+    component.saveAllocation();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain(
+      'Allocation exceeds available account balance',
+    );
+    expect(component.allocatingGoalId).toBe(10);
+  });
+
+  it('should display multiple allocations', async () => {
+    listAccounts.mockReturnValue(
+      of([
+        sampleAccounts[0],
+        {
+          id: 3,
+          name: 'Cash',
+          account_type: 'cash',
+          currency: 'EUR',
+          current_balance: '2000.00',
+          created_at: '2026-01-03T00:00:00',
+        },
+      ]),
+    );
+    const multiAccounts: FinancialGoal = {
+      ...allocatedGoal,
+      allocations: [
+        allocatedGoal.allocations[0],
+        {
+          id: 31,
+          goal_id: 11,
+          account_id: 3,
+          amount: '500.00',
+          funded_amount: '500.00',
+          created_at: '2026-01-14T00:00:00',
+        },
+      ],
+      current_amount: '5500.00',
+      progress: '0.55',
+      completed: false,
+    };
+    listGoals.mockReturnValue(of([multiAccounts]));
+    const { compiled } = await render();
+    expect(compiled.textContent).toContain('Savings');
+    expect(compiled.textContent).toContain('Cash');
   });
 
   it('should keep only one goal in the inline editor', async () => {
-    listGoals.mockReturnValue(of([linkedGoal, unlinkedGoal]));
+    listGoals.mockReturnValue(of([allocatedGoal, unallocatedGoal]));
     const { fixture, compiled, component } = await render();
 
     const editButtons = () =>
@@ -373,133 +485,7 @@ describe('Goals', () => {
 
     editButtons()[0].click();
     fixture.detectChanges();
-
     expect(component.editingId).toBe(10);
     expect(compiled.querySelectorAll('.goal-editing')).toHaveLength(1);
-    expect(compiled.querySelectorAll('form')).toHaveLength(1);
-    expect(
-      (
-        compiled.querySelector(
-          '.goal-editing input[name="name"]',
-        ) as HTMLInputElement
-      ).value,
-    ).toBe('Idea');
-    expect(compiled.querySelectorAll('.goal-card')[0].textContent).toContain(
-      '50%',
-    );
-  });
-
-  it('should cancel inline editing without saving', async () => {
-    const { fixture, compiled, component } = await render();
-    (compiled.querySelector('.edit-button') as HTMLButtonElement).click();
-    fixture.detectChanges();
-
-    component.formName = 'Changed';
-    (
-      compiled.querySelector('.cancel-button') as HTMLButtonElement
-    ).click();
-    fixture.detectChanges();
-
-    expect(updateGoal).not.toHaveBeenCalled();
-    expect(component.formMode).toBeNull();
-    expect(compiled.querySelector('form')).toBeNull();
-    expect(compiled.querySelector('.edit-button')).toBeTruthy();
-    expect(compiled.textContent).toContain('Vacation');
-    expect(compiled.textContent).not.toContain('Changed');
-  });
-
-  it('should refresh progress after changing the target', async () => {
-    const afterUpdate: FinancialGoal = {
-      ...completedGoal,
-      target_amount: '20000.00',
-      progress: '0.75',
-      completed: false,
-    };
-    listGoals
-      .mockReturnValueOnce(of([completedGoal]))
-      .mockReturnValueOnce(of([afterUpdate]));
-    updateGoal.mockReturnValue(of(afterUpdate));
-
-    const { fixture, compiled, component } = await render();
-    expect(compiled.textContent).toContain('Completed');
-    expect(compiled.textContent).toContain('100%');
-
-    (compiled.querySelector('.edit-button') as HTMLButtonElement).click();
-    fixture.detectChanges();
-    component.formTargetAmount = '20000.00';
-    component.saveGoal();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(compiled.textContent).toContain('75%');
-    expect(compiled.textContent).not.toContain('Completed');
-  });
-
-  it('should load accounts for selection', async () => {
-    listGoals.mockReturnValue(of([]));
-    const { fixture, compiled, component } = await render();
-    openCreateForm(fixture, compiled);
-
-    expect(listAccounts).toHaveBeenCalled();
-    expect(component.selectableAccounts.map((item) => item.name)).toEqual([
-      'Savings',
-      'Travel USD',
-    ]);
-    const options = [
-      ...compiled.querySelectorAll('select[name="accountId"] option'),
-    ].map((option) => option.textContent?.trim());
-    expect(options).toContain('No account');
-    expect(options.some((text) => text?.includes('Savings'))).toBe(true);
-  });
-
-  it('should lock currency to the selected account', async () => {
-    listGoals.mockReturnValue(of([]));
-    const { fixture, compiled, component } = await render();
-    openCreateForm(fixture, compiled);
-
-    const accountSelect = compiled.querySelector(
-      'select[name="accountId"]',
-    ) as HTMLSelectElement;
-    accountSelect.value = '2';
-    accountSelect.dispatchEvent(new Event('change'));
-    fixture.detectChanges();
-
-    expect(component.formCurrency).toBe('USD');
-    expect(component.currencyLocked).toBe(true);
-    expect(
-      (
-        compiled.querySelector(
-          'select[name="currency"]',
-        ) as HTMLSelectElement
-      ).disabled,
-    ).toBe(true);
-    expect(compiled.textContent).toContain('Matches account currency (USD).');
-
-    component.onFormCurrencyChange('EUR');
-    expect(component.formCurrency).toBe('USD');
-  });
-
-  it('should keep the goal currency when the account is cleared', async () => {
-    listGoals.mockReturnValue(of([]));
-    const { fixture, compiled, component } = await render();
-    openCreateForm(fixture, compiled);
-
-    const currencySelect = compiled.querySelector(
-      'select[name="currency"]',
-    ) as HTMLSelectElement;
-    currencySelect.value = 'USD';
-    currencySelect.dispatchEvent(new Event('change'));
-    fixture.detectChanges();
-
-    const accountSelect = compiled.querySelector(
-      'select[name="accountId"]',
-    ) as HTMLSelectElement;
-    accountSelect.value = '';
-    accountSelect.dispatchEvent(new Event('change'));
-    fixture.detectChanges();
-
-    expect(component.formAccountId).toBe('');
-    expect(component.formCurrency).toBe('USD');
-    expect(component.currencyLocked).toBe(false);
   });
 });

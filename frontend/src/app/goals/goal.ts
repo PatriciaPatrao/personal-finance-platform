@@ -1,3 +1,13 @@
+/** Designation of Account money toward a Goal. */
+export interface GoalAllocation {
+  id: number;
+  goal_id: number;
+  account_id: number;
+  amount: string;
+  funded_amount: string;
+  created_at: string;
+}
+
 /** Financial goal returned by the API, including derived fields. */
 export interface FinancialGoal {
   id: number;
@@ -5,8 +15,8 @@ export interface FinancialGoal {
   target_amount: string;
   currency: string;
   target_date: string | null;
-  account_id: number | null;
   created_at: string;
+  allocations: GoalAllocation[];
   current_amount: string | null;
   progress: string | null;
   completed: boolean | null;
@@ -18,5 +28,15 @@ export interface FinancialGoalWrite {
   target_amount: number;
   currency: string;
   target_date: string | null;
-  account_id: number | null;
+}
+
+/** Payload for creating a goal allocation. */
+export interface GoalAllocationCreate {
+  account_id: number;
+  amount: number;
+}
+
+/** Payload for updating a goal allocation amount. */
+export interface GoalAllocationUpdate {
+  amount: number;
 }

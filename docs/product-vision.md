@@ -49,11 +49,11 @@ Occurrences are generated when a forecast is requested, starting at each schedul
 
 ### Financial Goals
 
-**Goals** answer what the household wants to achieve. A Goal has a target amount, an optional target date, and an optional Account. It does **not** own or store money. Account balances remain the source of truth for cash.
+**Goals** answer what the household wants to achieve. A Goal has a target amount and an optional target date. It does **not** own or store money. Account balances remain the source of truth for cash. Funding is a `GoalAllocation`: a designation of existing Account money toward the Goal.
 
-When a Goal is linked to an Account, progress is derived from that Account’s `current_balance` and bounded to `[0, 1]`. Completion is derived when the current amount reaches or exceeds the target. When no Account is linked, current amount, progress, and completion are unavailable (null), not zero.
+Progress is derived from funded allocation amounts and bounded to `[0, 1]`. Completion is derived when the funded amount reaches or exceeds the target. When a Goal has no allocations, current amount, progress, and completion are unavailable (null), not zero. An Account may fund many Goals and a Goal may draw from many Accounts of the same currency, within available capacity.
 
-The Angular screen at `/personal_finance/goals` lists, creates, and edits Goals. There is no delete. Goal operations never change `Account.current_balance`. In this MVP an Account may have at most one Goal; the long-term model allows many Goals per Account once GoalAllocation exists. Goals do not feed Analysis or Forecast, and Forecast does not project Goal completion.
+The Angular screen at `/personal_finance/goals` lists, creates, and edits Goals, and adds, reduces, or removes allocations. There is no Goal delete. Goal and allocation operations never change `Account.current_balance`. Goals do not feed Analysis or Forecast, and Forecast does not project Goal completion.
 
 ### Accounts
 
@@ -113,16 +113,13 @@ These are omitted on purpose, not missing by accident:
 - **No premature background-job infrastructure.** Occurrence dates are computed on forecast request.
 - **Salary-only scheduled income.** Other recurring income types are a later concern.
 - **Fixed recurring-expense amounts.** Variable amounts per occurrence are a later concern.
-- **One Goal per Account in the MVP.** Multiple Goals sharing one Account require future GoalAllocation so the same balance is not counted twice.
 - **No Forecast → Goal projected completion.** Including confidence or uncertainty around a projected completion date.
-- **No GoalAllocation.**
 - **No financial resilience analysis module.** Resilience remains a future combined health concept, not a current score or screen.
 
 ## Future product direction
 
 The following are **possible later capabilities**. They are **not** implemented and are **not** current requirements:
 
-- GoalAllocation (many Goals per Account without duplicating balance)
 - Forecast projected Goal completion, including confidence or uncertainty around that projection
 - scenarios
 - financial resilience analysis

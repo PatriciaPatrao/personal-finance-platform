@@ -1,605 +1,354 @@
-"""API tests for financial goals."""
+"""API tests for financial goals and allocations."""
 
 from decimal import Decimal
 
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from app.models.account import Account
+from app.models.transaction import Transaction
 
 
 def _create_account(
     client: TestClient,
-    *,
     name: str = "Savings",
+    balance: str = "5000.00",
     currency: str = "EUR",
-    current_balance: str = "0.00",
 ) -> dict:
-    """Create an account and return its response body."""
     response = client.post(
         "/accounts",
         json={
             "name": name,
             "account_type": "bank",
             "currency": currency,
-            "current_balance": current_balance,
+            "current_balance": balance,
         },
     )
     assert response.status_code == 201
     return response.json()
 
 
-def test_create_goal_without_account(
+def _create_goal(
     client: TestClient,
-) -> None:
-    """POST /financial-goals stores an unlinked goal."""
+    name: str = "Emergency Fund",
+    target_amount: str = "10000.00",
+    currency: str = "EUR",
+) -> dict:
     response = client.post(
         "/financial-goals",
         json={
-            "name": "Emergency Fund",
-            "target_amount": "10000.00",
+            "name": name,
+            "target_amount": target_amount,
+            "currency": currency,
         },
     )
-
     assert response.status_code == 201
-    body = response.json()
-    assert isinstance(body["id"], int)
+    return response.json()
+
+
+def test_create_goal_without_allocation(
+    client: TestClient,
+) -> None:
+    """POST /financial-goals stores an unallocated goal."""
+    body = _create_goal(client)
     assert body["name"] == "Emergency Fund"
-    assert Decimal(body["target_amount"]) == Decimal(
-        "10000.00",
-    )
-    assert body["currency"] == "EUR"
-    assert body["target_date"] is None
-    assert body["account_id"] is None
-    assert body["created_at"]
+    assert body["allocations"] == []
     assert body["current_amount"] is None
     assert body["progress"] is None
     assert body["completed"] is None
+    assert "account_id" not in body
 
 
-def test_create_goal_linked_to_account(
+def test_create_allocation(
     client: TestClient,
 ) -> None:
-    """POST /financial-goals can link to an existing account."""
-    account = _create_account(
-        client,
-        current_balance="2500.00",
-    )
-
+    """POST allocation designates existing account money."""
+    account = _create_account(client)
+    goal = _create_goal(client)
     response = client.post(
-        "/financial-goals",
+        f"/financial-goals/{goal['id']}/allocations",
         json={
-            "name": "Vacation",
-            "target_amount": "5000.00",
             "account_id": account["id"],
+            "amount": "1500.00",
         },
     )
-
     assert response.status_code == 201
     body = response.json()
-    assert body["account_id"] == account["id"]
-    assert Decimal(body["current_amount"]) == Decimal(
-        "2500.00",
-    )
-    assert Decimal(body["progress"]) == Decimal("0.5")
-    assert body["completed"] is False
+    assert body["current_amount"] == "1500.00"
+    assert Decimal(body["progress"]) == Decimal("0.15")
+    assert len(body["allocations"]) == 1
+    assert body["allocations"][0]["amount"] == "1500.00"
+    assert body["allocations"][0]["funded_amount"] == "1500.00"
+
+    account_after = client.get(f"/accounts/{account['id']}")
+    assert account_after.json()["current_balance"] == "5000.00"
 
 
-def test_create_rejects_nonexistent_account(
+def test_allocation_requires_valid_goal(
     client: TestClient,
 ) -> None:
-    """POST rejects a missing account with 404."""
+    """Allocation against a missing goal returns 404."""
+    account = _create_account(client)
     response = client.post(
-        "/financial-goals",
-        json={
-            "name": "Vacation",
-            "target_amount": "5000.00",
-            "account_id": 999999,
-        },
+        "/financial-goals/999999/allocations",
+        json={"account_id": account["id"], "amount": "100.00"},
     )
+    assert response.status_code == 404
 
+
+def test_allocation_requires_valid_account(
+    client: TestClient,
+) -> None:
+    """Allocation against a missing account returns 404."""
+    goal = _create_goal(client)
+    response = client.post(
+        f"/financial-goals/{goal['id']}/allocations",
+        json={"account_id": 999999, "amount": "100.00"},
+    )
     assert response.status_code == 404
     assert response.json()["detail"] == "Account not found"
 
 
-def test_create_rejects_currency_mismatch(
+def test_allocation_rejects_non_positive_amount(
     client: TestClient,
 ) -> None:
-    """POST rejects when Goal and Account currencies differ."""
-    account = _create_account(client, currency="USD")
-
+    """Allocation amount must be greater than zero."""
+    account = _create_account(client)
+    goal = _create_goal(client)
     response = client.post(
-        "/financial-goals",
-        json={
-            "name": "Vacation",
-            "target_amount": "5000.00",
-            "currency": "EUR",
-            "account_id": account["id"],
-        },
+        f"/financial-goals/{goal['id']}/allocations",
+        json={"account_id": account["id"], "amount": "0"},
     )
+    assert response.status_code == 422
 
+
+def test_allocation_rejects_currency_mismatch(
+    client: TestClient,
+) -> None:
+    """Account currency must match Goal currency."""
+    account = _create_account(client, currency="USD")
+    goal = _create_goal(client, currency="EUR")
+    response = client.post(
+        f"/financial-goals/{goal['id']}/allocations",
+        json={"account_id": account["id"], "amount": "100.00"},
+    )
     assert response.status_code == 422
     assert "currency" in response.json()["detail"].lower()
 
 
-def test_create_rejects_duplicate_goal_for_account(
+def test_allocation_allows_exact_capacity(
     client: TestClient,
 ) -> None:
-    """POST rejects a second Goal on the same Account."""
-    account = _create_account(client)
+    """Exact available capacity is accepted."""
+    account = _create_account(client, balance="1000.00")
+    goal = _create_goal(client)
+    response = client.post(
+        f"/financial-goals/{goal['id']}/allocations",
+        json={"account_id": account["id"], "amount": "1000.00"},
+    )
+    assert response.status_code == 201
+    assert response.json()["current_amount"] == "1000.00"
+
+
+def test_allocation_rejects_over_capacity(
+    client: TestClient,
+) -> None:
+    """Amounts above available capacity are rejected."""
+    account = _create_account(client, balance="1000.00")
+    goal = _create_goal(client)
+    response = client.post(
+        f"/financial-goals/{goal['id']}/allocations",
+        json={"account_id": account["id"], "amount": "1000.01"},
+    )
+    assert response.status_code == 422
+    assert "available" in response.json()["detail"].lower()
+
+
+def test_multiple_goals_one_account(
+    client: TestClient,
+) -> None:
+    """One Account may fund multiple Goals within capacity."""
+    account = _create_account(client, balance="20000.00")
+    emergency = _create_goal(client, name="Emergency Fund")
+    holiday = _create_goal(client, name="Holiday", target_amount="5000.00")
+
     first = client.post(
-        "/financial-goals",
-        json={
-            "name": "Emergency Fund",
-            "target_amount": "10000.00",
-            "account_id": account["id"],
-        },
+        f"/financial-goals/{emergency['id']}/allocations",
+        json={"account_id": account["id"], "amount": "8000.00"},
+    )
+    second = client.post(
+        f"/financial-goals/{holiday['id']}/allocations",
+        json={"account_id": account["id"], "amount": "2000.00"},
     )
     assert first.status_code == 201
-
-    second = client.post(
-        "/financial-goals",
-        json={
-            "name": "Vacation",
-            "target_amount": "5000.00",
-            "account_id": account["id"],
-        },
-    )
-
-    assert second.status_code == 422
-    assert "already" in second.json()["detail"].lower()
+    assert second.status_code == 201
+    assert first.json()["current_amount"] == "8000.00"
+    assert second.json()["current_amount"] == "2000.00"
 
 
-def test_create_rejects_non_positive_target_amount(
+def test_one_goal_multiple_accounts(
     client: TestClient,
 ) -> None:
-    """POST rejects target_amount that is not greater than zero."""
-    zero = client.post(
-        "/financial-goals",
-        json={
-            "name": "Invalid",
-            "target_amount": "0.00",
-        },
+    """One Goal may receive allocations from multiple Accounts."""
+    main = _create_account(client, name="Main", balance="3000.00")
+    savings = _create_account(client, name="Savings", balance="2000.00")
+    goal = _create_goal(client)
+
+    client.post(
+        f"/financial-goals/{goal['id']}/allocations",
+        json={"account_id": main["id"], "amount": "3000.00"},
     )
-    negative = client.post(
-        "/financial-goals",
-        json={
-            "name": "Invalid",
-            "target_amount": "-1.00",
-        },
-    )
-
-    assert zero.status_code == 422
-    assert negative.status_code == 422
-
-
-def test_create_defaults_currency_to_eur(
-    client: TestClient,
-) -> None:
-    """POST omits currency and stores EUR."""
     response = client.post(
-        "/financial-goals",
-        json={
-            "name": "Emergency Fund",
-            "target_amount": "10000.00",
-        },
+        f"/financial-goals/{goal['id']}/allocations",
+        json={"account_id": savings["id"], "amount": "2000.00"},
     )
-
     assert response.status_code == 201
-    assert response.json()["currency"] == "EUR"
-
-
-def test_list_goals_returns_stored_goals(
-    client: TestClient,
-) -> None:
-    """GET /financial-goals includes created goals."""
-    created = client.post(
-        "/financial-goals",
-        json={
-            "name": "Emergency Fund",
-            "target_amount": "10000.00",
-        },
-    )
-    assert created.status_code == 201
-    created_id = created.json()["id"]
-
-    response = client.get("/financial-goals")
-
-    assert response.status_code == 200
-    goals = response.json()
-    assert isinstance(goals, list)
-    stored = next(
-        item for item in goals if item["id"] == created_id
-    )
-    assert stored["name"] == "Emergency Fund"
-
-
-def test_get_goal_returns_one_goal(
-    client: TestClient,
-) -> None:
-    """GET /financial-goals/{id} returns the stored goal."""
-    created = client.post(
-        "/financial-goals",
-        json={
-            "name": "Vacation",
-            "target_amount": "2500.00",
-            "currency": "USD",
-        },
-    )
-    assert created.status_code == 201
-    goal_id = created.json()["id"]
-
-    response = client.get(f"/financial-goals/{goal_id}")
-
-    assert response.status_code == 200
     body = response.json()
-    assert body["id"] == goal_id
-    assert body["name"] == "Vacation"
-    assert body["currency"] == "USD"
+    assert body["current_amount"] == "5000.00"
+    assert len(body["allocations"]) == 2
 
 
-def test_get_missing_goal_returns_not_found(
+def test_progress_capped_and_completion(
     client: TestClient,
 ) -> None:
-    """GET /financial-goals/{id} returns 404 when missing."""
-    response = client.get("/financial-goals/999999")
-
-    assert response.status_code == 404
-    assert response.json()["detail"] == (
-        "Financial goal not found"
+    """Progress is capped at 1 and completion is derived."""
+    account = _create_account(client, balance="20000.00")
+    goal = _create_goal(client, target_amount="10000.00")
+    response = client.post(
+        f"/financial-goals/{goal['id']}/allocations",
+        json={"account_id": account["id"], "amount": "15000.00"},
     )
-
-
-def test_linked_goal_uses_account_balance_as_current_amount(
-    client: TestClient,
-) -> None:
-    """Linked current_amount equals Account.current_balance."""
-    account = _create_account(
-        client,
-        current_balance="1234.56",
-    )
-    created = client.post(
-        "/financial-goals",
-        json={
-            "name": "Buffer",
-            "target_amount": "2000.00",
-            "account_id": account["id"],
-        },
-    )
-
-    assert created.status_code == 201
-    assert Decimal(created.json()["current_amount"]) == (
-        Decimal("1234.56")
-    )
-
-
-def test_progress_is_correctly_calculated(
-    client: TestClient,
-) -> None:
-    """Progress is current_amount / target_amount when in range."""
-    account = _create_account(
-        client,
-        current_balance="250.00",
-    )
-    created = client.post(
-        "/financial-goals",
-        json={
-            "name": "Gadget",
-            "target_amount": "1000.00",
-            "account_id": account["id"],
-        },
-    )
-
-    assert created.status_code == 201
-    assert Decimal(created.json()["progress"]) == Decimal(
-        "0.25",
-    )
-    assert created.json()["completed"] is False
-
-
-def test_progress_is_capped_at_one(
-    client: TestClient,
-) -> None:
-    """Progress is capped at 1 when balance exceeds target."""
-    account = _create_account(
-        client,
-        current_balance="15000.00",
-    )
-    created = client.post(
-        "/financial-goals",
-        json={
-            "name": "Emergency Fund",
-            "target_amount": "10000.00",
-            "account_id": account["id"],
-        },
-    )
-
-    assert created.status_code == 201
-    body = created.json()
-    assert Decimal(body["current_amount"]) == Decimal(
-        "15000.00",
-    )
+    body = response.json()
     assert Decimal(body["progress"]) == Decimal("1")
     assert body["completed"] is True
+    assert body["current_amount"] == "15000.00"
 
 
-def test_negative_balance_produces_progress_zero(
+def test_update_and_delete_allocation(
     client: TestClient,
 ) -> None:
-    """Negative Account balance floors progress at 0."""
-    account = _create_account(
-        client,
-        current_balance="-100.00",
-    )
+    """PUT reduces amount; DELETE removes the designation."""
+    account = _create_account(client)
+    goal = _create_goal(client)
     created = client.post(
-        "/financial-goals",
-        json={
-            "name": "Recovery",
-            "target_amount": "1000.00",
-            "account_id": account["id"],
-        },
-    )
-
-    assert created.status_code == 201
-    body = created.json()
-    assert Decimal(body["current_amount"]) == Decimal(
-        "-100.00",
-    )
-    assert Decimal(body["progress"]) == Decimal("0")
-    assert body["completed"] is False
-
-
-def test_completed_when_current_reaches_target(
-    client: TestClient,
-) -> None:
-    """Completed is true when current_amount equals target."""
-    account = _create_account(
-        client,
-        current_balance="5000.00",
-    )
-    created = client.post(
-        "/financial-goals",
-        json={
-            "name": "Laptop",
-            "target_amount": "5000.00",
-            "account_id": account["id"],
-        },
-    )
-
-    assert created.status_code == 201
-    body = created.json()
-    assert Decimal(body["progress"]) == Decimal("1")
-    assert body["completed"] is True
-
-
-def test_unlinked_goal_returns_null_derived_values(
-    client: TestClient,
-) -> None:
-    """Unlinked goals expose null derived fields, not zero."""
-    created = client.post(
-        "/financial-goals",
-        json={
-            "name": "Idea",
-            "target_amount": "1000.00",
-        },
-    )
-
-    assert created.status_code == 201
-    body = created.json()
-    assert body["current_amount"] is None
-    assert body["progress"] is None
-    assert body["completed"] is None
-
-
-def test_update_goal_fields(
-    client: TestClient,
-) -> None:
-    """PUT updates mutable Goal fields."""
-    created = client.post(
-        "/financial-goals",
-        json={
-            "name": "Old Name",
-            "target_amount": "1000.00",
-        },
-    )
-    assert created.status_code == 201
-    goal_id = created.json()["id"]
-
-    response = client.put(
-        f"/financial-goals/{goal_id}",
-        json={
-            "name": "New Name",
-            "target_amount": "2000.00",
-            "currency": "USD",
-            "target_date": "2027-12-31",
-            "account_id": None,
-        },
-    )
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["name"] == "New Name"
-    assert Decimal(body["target_amount"]) == Decimal(
-        "2000.00",
-    )
-    assert body["currency"] == "USD"
-    assert body["target_date"] == "2027-12-31"
-    assert body["account_id"] is None
-
-
-def test_update_target_recalculates_progress(
-    client: TestClient,
-) -> None:
-    """PUT target change recalculates progress and completed."""
-    account = _create_account(
-        client,
-        current_balance="5000.00",
-    )
-    created = client.post(
-        "/financial-goals",
-        json={
-            "name": "Emergency Fund",
-            "target_amount": "10000.00",
-            "account_id": account["id"],
-        },
-    )
-    assert created.status_code == 201
-    goal_id = created.json()["id"]
-    assert created.json()["completed"] is False
-
-    response = client.put(
-        f"/financial-goals/{goal_id}",
-        json={
-            "name": "Emergency Fund",
-            "target_amount": "4000.00",
-            "currency": "EUR",
-            "target_date": None,
-            "account_id": account["id"],
-        },
-    )
-
-    assert response.status_code == 200
-    body = response.json()
-    assert Decimal(body["current_amount"]) == Decimal(
-        "5000.00",
-    )
-    assert Decimal(body["progress"]) == Decimal("1")
-    assert body["completed"] is True
-
-
-def test_update_account_rejects_missing_account(
-    client: TestClient,
-) -> None:
-    """PUT rejects linking to a missing Account."""
-    created = client.post(
-        "/financial-goals",
-        json={
-            "name": "Vacation",
-            "target_amount": "5000.00",
-        },
-    )
-    assert created.status_code == 201
-    goal_id = created.json()["id"]
-
-    response = client.put(
-        f"/financial-goals/{goal_id}",
-        json={
-            "name": "Vacation",
-            "target_amount": "5000.00",
-            "currency": "EUR",
-            "target_date": None,
-            "account_id": 999999,
-        },
-    )
-
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Account not found"
-
-
-def test_update_account_rejects_currency_mismatch(
-    client: TestClient,
-) -> None:
-    """PUT rejects linking when currencies differ."""
-    account = _create_account(client, currency="GBP")
-    created = client.post(
-        "/financial-goals",
-        json={
-            "name": "Vacation",
-            "target_amount": "5000.00",
-            "currency": "EUR",
-        },
-    )
-    assert created.status_code == 201
-    goal_id = created.json()["id"]
-
-    response = client.put(
-        f"/financial-goals/{goal_id}",
-        json={
-            "name": "Vacation",
-            "target_amount": "5000.00",
-            "currency": "EUR",
-            "target_date": None,
-            "account_id": account["id"],
-        },
-    )
-
-    assert response.status_code == 422
-    assert "currency" in response.json()["detail"].lower()
-
-
-def test_update_account_respects_one_goal_per_account(
-    client: TestClient,
-) -> None:
-    """PUT cannot move a Goal onto an Account that has one."""
-    first_account = _create_account(client, name="A")
-    second_account = _create_account(client, name="B")
-    first_goal = client.post(
-        "/financial-goals",
-        json={
-            "name": "First",
-            "target_amount": "1000.00",
-            "account_id": first_account["id"],
-        },
-    )
-    second_goal = client.post(
-        "/financial-goals",
-        json={
-            "name": "Second",
-            "target_amount": "2000.00",
-            "account_id": second_account["id"],
-        },
-    )
-    assert first_goal.status_code == 201
-    assert second_goal.status_code == 201
-    second_id = second_goal.json()["id"]
-
-    response = client.put(
-        f"/financial-goals/{second_id}",
-        json={
-            "name": "Second",
-            "target_amount": "2000.00",
-            "currency": "EUR",
-            "target_date": None,
-            "account_id": first_account["id"],
-        },
-    )
-
-    assert response.status_code == 422
-    assert "already" in response.json()["detail"].lower()
-
-
-def test_goal_operations_do_not_modify_account_balance(
-    client: TestClient,
-) -> None:
-    """Create and update Goals leave Account.current_balance."""
-    account = _create_account(
-        client,
-        current_balance="777.77",
-    )
-    original_balance = Decimal(account["current_balance"])
-
-    created = client.post(
-        "/financial-goals",
-        json={
-            "name": "Protect Balance",
-            "target_amount": "1000.00",
-            "account_id": account["id"],
-        },
-    )
-    assert created.status_code == 201
-    goal_id = created.json()["id"]
+        f"/financial-goals/{goal['id']}/allocations",
+        json={"account_id": account["id"], "amount": "2000.00"},
+    ).json()
+    allocation_id = created["allocations"][0]["id"]
 
     updated = client.put(
-        f"/financial-goals/{goal_id}",
-        json={
-            "name": "Protect Balance",
-            "target_amount": "2000.00",
-            "currency": "EUR",
-            "target_date": None,
-            "account_id": account["id"],
-        },
+        f"/financial-goals/{goal['id']}/allocations/{allocation_id}",
+        json={"amount": "500.00"},
     )
     assert updated.status_code == 200
+    assert updated.json()["current_amount"] == "500.00"
 
-    stored = client.get(f"/accounts/{account['id']}")
-    assert stored.status_code == 200
-    assert Decimal(stored.json()["current_balance"]) == (
-        original_balance
+    deleted = client.delete(
+        f"/financial-goals/{goal['id']}/allocations/{allocation_id}",
     )
+    assert deleted.status_code == 200
+    assert deleted.json()["allocations"] == []
+    assert deleted.json()["current_amount"] is None
+
+    account_after = client.get(f"/accounts/{account['id']}")
+    assert account_after.json()["current_balance"] == "5000.00"
+
+
+def test_allocation_does_not_create_transactions(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    """Allocation endpoints do not insert Transaction rows."""
+    account = _create_account(client)
+    goal = _create_goal(client)
+    client.post(
+        f"/financial-goals/{goal['id']}/allocations",
+        json={"account_id": account["id"], "amount": "100.00"},
+    )
+    assert db_session.query(Transaction).count() == 0
+
+
+def test_list_and_get_include_allocations(
+    client: TestClient,
+) -> None:
+    """GET list and detail include allocations and derived progress."""
+    account = _create_account(client)
+    goal = _create_goal(client)
+    client.post(
+        f"/financial-goals/{goal['id']}/allocations",
+        json={"account_id": account["id"], "amount": "2500.00"},
+    )
+
+    listed = client.get("/financial-goals")
+    assert listed.status_code == 200
+    assert listed.json()[0]["current_amount"] == "2500.00"
+
+    detail = client.get(f"/financial-goals/{goal['id']}")
+    assert detail.status_code == 200
+    assert Decimal(detail.json()["progress"]) == Decimal("0.25")
+
+
+def test_update_goal_objective_fields(
+    client: TestClient,
+) -> None:
+    """PUT goal updates objective fields without account_id."""
+    goal = _create_goal(client)
+    response = client.put(
+        f"/financial-goals/{goal['id']}",
+        json={
+            "name": "Rainy Day",
+            "target_amount": "12000.00",
+            "currency": "EUR",
+            "target_date": "2028-01-31",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == "Rainy Day"
+    assert body["target_amount"] == "12000.00"
+    assert body["target_date"] == "2028-01-31"
+
+
+def test_currency_change_blocked_with_allocations(
+    client: TestClient,
+) -> None:
+    """Goal currency cannot change while allocations exist."""
+    account = _create_account(client)
+    goal = _create_goal(client)
+    client.post(
+        f"/financial-goals/{goal['id']}/allocations",
+        json={"account_id": account["id"], "amount": "100.00"},
+    )
+    response = client.put(
+        f"/financial-goals/{goal['id']}",
+        json={
+            "name": goal["name"],
+            "target_amount": goal["target_amount"],
+            "currency": "USD",
+            "target_date": None,
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_second_allocation_respects_remaining_capacity(
+    client: TestClient,
+) -> None:
+    """Capacity considers all designations on the Account."""
+    account = _create_account(client, balance="1000.00")
+    first = _create_goal(client, name="A")
+    second = _create_goal(client, name="B")
+    client.post(
+        f"/financial-goals/{first['id']}/allocations",
+        json={"account_id": account["id"], "amount": "700.00"},
+    )
+    rejected = client.post(
+        f"/financial-goals/{second['id']}/allocations",
+        json={"account_id": account["id"], "amount": "400.00"},
+    )
+    assert rejected.status_code == 422
+    accepted = client.post(
+        f"/financial-goals/{second['id']}/allocations",
+        json={"account_id": account["id"], "amount": "300.00"},
+    )
+    assert accepted.status_code == 201

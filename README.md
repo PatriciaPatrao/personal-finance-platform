@@ -37,7 +37,7 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 
 **Forecast.** Read-only projection for a date range, grouped by day or month. The Forecast screen defaults to month. It sums every account’s stored balance, then applies active income and recurring-expense occurrences. That sum treats every account the same way. It may need to change if bank, cash, credit card, and investment balances later mean different things. Each schedule belongs to an account, and the projection does not assign an occurrence to that account. Dates are generated from `next_occurrence` through an optional inclusive end date. Dates before today are omitted, including when `from` is earlier than today. The response currency is EUR, with no conversion when account currencies differ. Forecast does not write balances.
 
-**Financial Goals.** The Angular screen at `/personal_finance/goals` lists, creates, and edits future financial objectives. Each Goal has a name, a positive target amount, a currency (EUR by default; the form offers EUR, USD, and GBP), an optional target date, and an optional Account. A Goal does not store money. When linked, the screen shows the API’s `current_amount` (`Account.current_balance`), `progress` bounded to `[0, 1]`, and derived `completed`. When unlinked, those three values are null and the screen says progress is unavailable. Goal writes do not change `Account.current_balance`. In this MVP an Account may have at most one Goal; the form hides accounts that already have a Goal, and a backend rejection is shown if one is submitted. There is no DELETE route.
+**Financial Goals.** The Angular screen at `/personal_finance/goals` lists, creates, and edits future financial objectives, and designates existing Account money through GoalAllocations. Each Goal has a name, a positive target amount, a currency (EUR by default; the form offers EUR, USD, and GBP), and an optional target date. A Goal does not store money. Progress comes from funded allocations: `current_amount` is the sum of funded designation amounts, `progress` is bounded to `[0, 1]`, and `completed` is derived. A Goal with no allocations has those three values null and the screen says progress is unavailable. Allocation writes do not change `Account.current_balance`. An Account may fund many Goals and a Goal may receive allocations from many Accounts of the same currency, as long as designated amounts stay within available capacity. There is no Goal DELETE route; allocations can be reduced or deleted.
 
 **Financial summary.** `GET /financial-summary` returns the same transaction totals as analysis summary, for a date range that may extend into the future. The Analysis page uses the analysis routes.
 
@@ -83,7 +83,8 @@ Layout under `backend/app/`: `api`, `services`, `repositories`, `schemas`, `mode
 | POST, GET, PUT, DELETE | `/transactions`, `/transactions/{id}` | Transactions |
 | POST, GET, PUT | `/incomes`, `/incomes/{id}` | Salary schedules |
 | POST, GET, PUT | `/recurring-expenses`, `/recurring-expenses/{id}` | Fixed recurring expenses |
-| POST, GET, PUT | `/financial-goals`, `/financial-goals/{id}` | Financial objectives; no DELETE |
+| POST, GET, PUT | `/financial-goals`, `/financial-goals/{id}` | Financial objectives; no Goal DELETE |
+| POST, PUT, DELETE | `/financial-goals/{id}/allocations`, `.../{allocation_id}` | Designate existing Account money toward a Goal |
 | GET | `/financial-summary` | Transaction totals for `from` and `to` |
 | GET | `/analysis/summary` | Historical totals; `to` cannot be in the future |
 | GET | `/analysis/expenses` | Historical expenses by category |
@@ -112,7 +113,7 @@ The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for
 | `/personal_finance` | Dashboard: combined balance when every account uses the same currency, financial signals, links to Analysis and Forecast |
 | `/personal_finance/accounts` | Stored accounts list and create form: name, type, currency, and opening/current balance |
 | `/personal_finance/accounts/:id` | Read-only account detail: stored balance, type, currency, and created date. No update or delete. |
-| `/personal_finance/goals` | Financial objectives: list, create, and edit. Optional account, derived progress, no delete. Dates are entered as DD-MM-YYYY. |
+| `/personal_finance/goals` | Financial objectives: list, create, and edit; allocate, reduce, or remove designated Account money. Derived progress, no Goal delete. Dates are entered as DD-MM-YYYY. |
 | `/personal_finance/analysis` | Historical summary, expenses by category, and cash flow. Default range is the current month through today. Dates are entered as DD-MM-YYYY. |
 | `/personal_finance/forecast` | Projected income, expenses, net cash flow, and running balance. Default range starts today and ends on the last day of the calendar month two months ahead. Grouping is monthly or daily. |
 | `/personal_finance/transactions` | Recorded income and expense events: list, client-side filters, create, edit, and delete. Dates are entered as DD-MM-YYYY. |
@@ -224,5 +225,4 @@ Limits already marked and not built:
 
 - Income records expected salary. Other income types are a separate future concern.
 - Recurring expenses store one fixed amount per schedule. Amounts that vary by occurrence are a later change.
-- An Account may link to at most one Goal in this MVP. GoalAllocation will later allow multiple Goals to share an Account without duplicating `Account.current_balance`.
-- Forecast does not project Goal completion. GoalAllocation, multiple Goals per Account, and projection confidence are future work.
+- Forecast does not project Goal completion. Projection confidence and uncertainty around Goal timelines remain future work.

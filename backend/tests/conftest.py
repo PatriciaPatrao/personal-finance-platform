@@ -16,6 +16,7 @@ from app.db.session import get_db
 from app.main import app
 from app.models.account import Account
 from app.models.financial_goal import FinancialGoal
+from app.models.goal_allocation import GoalAllocation
 from app.models.income import Income
 from app.models.recurring_expense import RecurringExpense
 from app.models.transaction import Transaction
@@ -53,12 +54,14 @@ def override_get_db() -> Generator[Session, None, None]:
 
 
 # Delete children before parents when more tables are added.
+# The autouse fixture walks this tuple in reverse.
 _TABLES_TO_CLEAN = (
     Account,
     Transaction,
     RecurringExpense,
     Income,
     FinancialGoal,
+    GoalAllocation,
 )
 
 

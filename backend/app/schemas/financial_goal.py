@@ -19,7 +19,6 @@ class FinancialGoalCreate(BaseModel):
         max_length=3,
     )
     target_date: date | None = None
-    account_id: int | None = None
 
 
 class FinancialGoalUpdate(BaseModel):
@@ -29,7 +28,30 @@ class FinancialGoalUpdate(BaseModel):
     target_amount: Decimal = Field(gt=0)
     currency: str = Field(min_length=3, max_length=3)
     target_date: date | None
-    account_id: int | None
+
+
+class GoalAllocationCreate(BaseModel):
+    """Incoming data for creating a goal allocation."""
+
+    account_id: int
+    amount: Decimal = Field(gt=0)
+
+
+class GoalAllocationUpdate(BaseModel):
+    """Incoming data for updating a goal allocation amount."""
+
+    amount: Decimal = Field(gt=0)
+
+
+class GoalAllocationResponse(BaseModel):
+    """Goal allocation data returned by the API."""
+
+    id: int
+    goal_id: int
+    account_id: int
+    amount: Decimal = Field(gt=0)
+    funded_amount: Decimal
+    created_at: datetime
 
 
 class FinancialGoalResponse(BaseModel):
@@ -40,8 +62,10 @@ class FinancialGoalResponse(BaseModel):
     target_amount: Decimal = Field(gt=0)
     currency: str
     target_date: date | None = None
-    account_id: int | None = None
     created_at: datetime
+    allocations: list[GoalAllocationResponse] = Field(
+        default_factory=list,
+    )
     current_amount: Decimal | None = None
     progress: Decimal | None = None
     completed: bool | None = None

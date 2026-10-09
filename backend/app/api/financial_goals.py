@@ -1,4 +1,4 @@
-"""HTTP routes for financial goals."""
+"""HTTP routes for financial goals and allocations."""
 
 from fastapi import APIRouter
 from fastapi import Depends
@@ -10,10 +10,16 @@ from app.db.session import get_db
 from app.schemas.financial_goal import FinancialGoalCreate
 from app.schemas.financial_goal import FinancialGoalResponse
 from app.schemas.financial_goal import FinancialGoalUpdate
-from app.services.financial_goal import AccountAlreadyHasGoalError
+from app.schemas.financial_goal import GoalAllocationCreate
+from app.schemas.financial_goal import GoalAllocationUpdate
 from app.services.financial_goal import AccountNotFoundError
+from app.services.financial_goal import AllocationAlreadyExistsError
+from app.services.financial_goal import AllocationCapacityExceededError
+from app.services.financial_goal import AllocationNotFoundError
+from app.services.financial_goal import CurrencyChangeBlockedError
 from app.services.financial_goal import CurrencyMismatchError
 from app.services.financial_goal import FinancialGoalService
+from app.services.financial_goal import GoalNotFoundError
 
 
 router = APIRouter()
@@ -30,23 +36,7 @@ def create_financial_goal(
 ) -> FinancialGoalResponse:
     """Create a financial goal and return it."""
     service = FinancialGoalService(session)
-    try:
-        return service.create(data)
-    except AccountNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Account not found",
-        )
-    except CurrencyMismatchError as error:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(error),
-        )
-    except AccountAlreadyHasGoalError as error:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(error),
-        )
+    return service.create(data)
 
 
 @router.get(
@@ -93,17 +83,7 @@ def update_financial_goal(
     service = FinancialGoalService(session)
     try:
         goal = service.update(goal_id, data)
-    except AccountNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Account not found",
-        )
-    except CurrencyMismatchError as error:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(error),
-        )
-    except AccountAlreadyHasGoalError as error:
+    except CurrencyChangeBlockedError as error:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(error),
@@ -114,3 +94,105 @@ def update_financial_goal(
             detail="Financial goal not found",
         )
     return goal
+
+
+@router.post(
+    "/financial-goals/{goal_id}/allocations",
+    response_model=FinancialGoalResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_goal_allocation(
+    goal_id: int,
+    data: GoalAllocationCreate,
+    session: Session = Depends(get_db),
+) -> FinancialGoalResponse:
+    """Create an allocation for a goal and return the goal."""
+    service = FinancialGoalService(session)
+    try:
+        return service.create_allocation(goal_id, data)
+    except GoalNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Financial goal not found",
+        )
+    except AccountNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found",
+        )
+    except CurrencyMismatchError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        )
+    except AllocationAlreadyExistsError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        )
+    except AllocationCapacityExceededError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        )
+
+
+@router.put(
+    "/financial-goals/{goal_id}/allocations/{allocation_id}",
+    response_model=FinancialGoalResponse,
+)
+def update_goal_allocation(
+    goal_id: int,
+    allocation_id: int,
+    data: GoalAllocationUpdate,
+    session: Session = Depends(get_db),
+) -> FinancialGoalResponse:
+    """Update an allocation amount and return the goal."""
+    service = FinancialGoalService(session)
+    try:
+        return service.update_allocation(goal_id, allocation_id, data)
+    except GoalNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Financial goal not found",
+        )
+    except AllocationNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Allocation not found",
+        )
+    except AccountNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found",
+        )
+    except AllocationCapacityExceededError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        )
+
+
+@router.delete(
+    "/financial-goals/{goal_id}/allocations/{allocation_id}",
+    response_model=FinancialGoalResponse,
+)
+def delete_goal_allocation(
+    goal_id: int,
+    allocation_id: int,
+    session: Session = Depends(get_db),
+) -> FinancialGoalResponse:
+    """Delete an allocation and return the goal."""
+    service = FinancialGoalService(session)
+    try:
+        return service.delete_allocation(goal_id, allocation_id)
+    except GoalNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Financial goal not found",
+        )
+    except AllocationNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Allocation not found",
+        )

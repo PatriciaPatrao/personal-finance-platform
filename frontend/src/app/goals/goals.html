@@ -2,8 +2,8 @@
   <header class="page-header">
     <h1>Goals</h1>
     <p class="page-intro">
-      Future financial objectives. Progress comes from a linked account balance
-      when one is associated. Goals do not store or move money.
+      Future financial objectives. Progress comes from money designated from
+      accounts. Goals do not store or move money.
     </p>
   </header>
 
@@ -72,61 +72,287 @@
               <ng-container *ngTemplateOutlet="goalActions" />
             </form>
           } @else {
-          <dl class="goal-details">
-            <div>
-              <dt>Target</dt>
-              <dd>
-                {{ goal.target_amount | currency: goal.currency }}
-                <span class="currency-code">{{ goal.currency }}</span>
-              </dd>
-            </div>
-            <div>
-              <dt>Target date</dt>
-              <dd>{{ displayTargetDate(goal.target_date) }}</dd>
-            </div>
-            <div>
-              <dt>Account</dt>
-              <dd>{{ accountName(goal.account_id) }}</dd>
-            </div>
-            <div>
-              <dt>Current amount</dt>
-              <dd>
-                @if (goal.current_amount === null) {
-                  —
-                } @else {
-                  {{ goal.current_amount | currency: goal.currency }}
-                }
-              </dd>
-            </div>
-          </dl>
-
-          <div class="goal-progress">
-            @if (!hasProgress(goal)) {
-              <p class="progress-unavailable">
-                Progress unavailable. No account associated.
-              </p>
-            } @else {
-              <div class="progress-row">
-                <progress
-                  class="progress-bar"
-                  max="100"
-                  [value]="progressPercent(goal)"
-                  [attr.aria-valuenow]="progressPercent(goal)"
-                  aria-valuemin="0"
-                  aria-valuemax="100"
-                ></progress>
-                <span class="progress-label">{{ progressLabel(goal) }}</span>
+            <dl class="goal-details">
+              <div>
+                <dt>Target</dt>
+                <dd>
+                  {{ goal.target_amount | currency: goal.currency }}
+                  <span class="currency-code">{{ goal.currency }}</span>
+                </dd>
               </div>
-            }
-          </div>
+              <div>
+                <dt>Target date</dt>
+                <dd>{{ displayTargetDate(goal.target_date) }}</dd>
+              </div>
+              <div>
+                <dt>Allocated</dt>
+                <dd>
+                  @if (goal.current_amount === null) {
+                    —
+                  } @else {
+                    {{ goal.current_amount | currency: goal.currency }}
+                  }
+                </dd>
+              </div>
+            </dl>
 
-          <button
-            type="button"
-            class="edit-button"
-            (click)="startEdit(goal)"
-          >
-            Edit
-          </button>
+            <div class="goal-progress">
+              @if (!hasProgress(goal)) {
+                <p class="progress-unavailable">
+                  Progress unavailable. No money allocated yet.
+                </p>
+              } @else {
+                <div class="progress-row">
+                  <progress
+                    class="progress-bar"
+                    max="100"
+                    [value]="progressPercent(goal)"
+                    [attr.aria-valuenow]="progressPercent(goal)"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                  ></progress>
+                  <span class="progress-label">{{ progressLabel(goal) }}</span>
+                </div>
+              }
+            </div>
+
+            <div class="allocations-block">
+              <h3 class="allocations-heading">Allocations</h3>
+              @if (goal.allocations.length === 0) {
+                <p class="allocations-empty">
+                  No allocations yet. Designate money from an account.
+                </p>
+              } @else {
+                <ul class="allocation-list">
+                  @for (allocation of goal.allocations; track allocation.id) {
+                    <li class="allocation-item">
+                      <div class="allocation-summary">
+                        <span class="allocation-account">
+                          {{ accountName(allocation.account_id) }}
+                        </span>
+                        <span class="allocation-amount">
+                          Designated:
+                          {{ allocation.amount | currency: goal.currency }}
+                        </span>
+                        @if (isUnderfunded(allocation)) {
+                          <span class="allocation-funded">
+                            Funded:
+                            {{
+                              allocation.funded_amount
+                                | currency: goal.currency
+                            }}
+                          </span>
+                        }
+                      </div>
+
+                      @if (isReducing(allocation)) {
+                        <div class="reduce-form">
+                          <label class="field">
+                            <span class="field-label">New amount</span>
+                            <input
+                              type="text"
+                              inputmode="decimal"
+                              [value]="reduceAmount"
+                              (input)="reduceAmount = $any($event.target).value"
+                            />
+                            @if (reduceAmountError) {
+                              <span class="field-error">
+                                {{ reduceAmountError }}
+                              </span>
+                            }
+                          </label>
+                          @if (reduceError) {
+                            <p class="status status-error" role="alert">
+                              {{ reduceError }}
+                            </p>
+                          }
+                          <div class="form-actions">
+                            <button
+                              type="button"
+                              class="save-button"
+                              [disabled]="allocating"
+                              (click)="saveReduce(goal, allocation)"
+                            >
+                              @if (allocating) {
+                                Saving...
+                              } @else {
+                                Save
+                              }
+                            </button>
+                            <button
+                              type="button"
+                              class="cancel-button"
+                              [disabled]="allocating"
+                              (click)="cancelReduce()"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      } @else {
+                        <div class="allocation-actions">
+                          <button
+                            type="button"
+                            class="secondary-button"
+                            [disabled]="allocating"
+                            (click)="startReduce(allocation)"
+                          >
+                            Reduce
+                          </button>
+                          <button
+                            type="button"
+                            class="secondary-button"
+                            [disabled]="allocating"
+                            (click)="removeAllocation(goal, allocation)"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+
+              @if (isAllocating(goal)) {
+                <form
+                  class="allocate-form"
+                  (submit)="$event.preventDefault(); saveAllocation()"
+                >
+                  <h4>Add money</h4>
+                  <p class="field-hint">
+                    Designate existing account money. This does not change the
+                    account balance.
+                  </p>
+                  <label class="field">
+                    <span class="field-label">Account</span>
+                    <select
+                      name="allocateAccountId"
+                      [value]="allocateAccountId"
+                      (change)="
+                        onAllocateAccountChange($any($event.target).value)
+                      "
+                    >
+                      <option value="">Select account</option>
+                      @for (
+                        account of compatibleAccounts(goal);
+                        track account.id
+                      ) {
+                        <option [value]="accountIdValue(account.id)">
+                          {{ account.name }} — balance
+                          {{
+                            account.current_balance | currency: account.currency
+                          }},
+                          allocated
+                          {{
+                            designatedOnAccount(account.id)
+                              | currency: account.currency
+                          }},
+                          available
+                          {{
+                            availableOnAccount(account.id)
+                              | currency: account.currency
+                          }}
+                        </option>
+                      }
+                    </select>
+                    @if (accountsLoadFailed) {
+                      <span class="field-hint">
+                        Accounts could not be loaded.
+                      </span>
+                    }
+                  </label>
+                  @if (selectedAllocateAccountId(); as selectedAccountId) {
+                    <dl class="availability-details">
+                      <div>
+                        <dt>Account balance</dt>
+                        <dd>
+                          {{
+                            accountBalance(selectedAccountId)
+                              | currency: goal.currency
+                          }}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Already allocated</dt>
+                        <dd>
+                          {{
+                            designatedOnAccount(selectedAccountId)
+                              | currency: goal.currency
+                          }}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Available</dt>
+                        <dd>
+                          {{
+                            availableOnAccount(selectedAccountId)
+                              | currency: goal.currency
+                          }}
+                        </dd>
+                      </div>
+                    </dl>
+                  }
+                  <label class="field">
+                    <span class="field-label">Amount to designate</span>
+                    <input
+                      name="allocateAmount"
+                      type="text"
+                      inputmode="decimal"
+                      [value]="allocateAmount"
+                      (input)="allocateAmount = $any($event.target).value"
+                    />
+                    @if (allocateAmountError) {
+                      <span class="field-error">{{ allocateAmountError }}</span>
+                    }
+                  </label>
+                  @if (allocateError) {
+                    <p class="status status-error" role="alert">
+                      {{ allocateError }}
+                    </p>
+                  }
+                  <div class="form-actions">
+                    <button
+                      type="submit"
+                      class="save-button"
+                      [disabled]="!canSubmitAllocation"
+                    >
+                      @if (allocating) {
+                        Saving...
+                      } @else {
+                        Add money
+                      }
+                    </button>
+                    <button
+                      type="button"
+                      class="cancel-button"
+                      [disabled]="allocating"
+                      (click)="cancelAddMoney()"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              } @else {
+                <button
+                  type="button"
+                  class="secondary-button"
+                  [disabled]="allocating || formMode !== null"
+                  (click)="startAddMoney(goal)"
+                >
+                  Add money
+                </button>
+              }
+            </div>
+
+            <button
+              type="button"
+              class="edit-button"
+              [disabled]="allocatingGoalId !== null || reducingAllocationId !== null"
+              (click)="startEdit(goal)"
+            >
+              Edit
+            </button>
           }
         </li>
       }
@@ -178,9 +404,9 @@
           </option>
         }
       </select>
-      @if (currencyLocked && selectedAccountCurrency()) {
+      @if (currencyLocked) {
         <span class="field-hint">
-          Matches account currency ({{ selectedAccountCurrency() }}).
+          Currency cannot change while allocations exist.
         </span>
       }
     </label>
@@ -196,31 +422,6 @@
         <span class="field-error">{{ formTargetDateError }}</span>
       }
     </div>
-
-    <label class="field">
-      <span class="field-label">Account (optional)</span>
-      <select
-        name="accountId"
-        [value]="formAccountId"
-        (change)="onFormAccountChange($any($event.target).value)"
-      >
-        <option value="" [selected]="formAccountId === ''">No account</option>
-        @for (account of selectableAccounts; track account.id) {
-          <option
-            [value]="accountIdValue(account.id)"
-            [selected]="formAccountId === accountIdValue(account.id)"
-          >
-            {{ account.name }} ({{ account.currency }})
-          </option>
-        }
-      </select>
-      @if (accountsLoadFailed) {
-        <span class="field-hint">
-          Accounts could not be loaded. You can still create an unlinked
-          goal.
-        </span>
-      }
-    </label>
   </div>
 
   @if (formError) {

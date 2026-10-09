@@ -4,7 +4,7 @@
 
 Accepted
 
-**Revision note.** This decision supersedes the earlier MVP rule that a Goal optionally linked to one Account through `FinancialGoal.account_id` and derived progress from the full `Account.current_balance`. The accepted domain is now `Account → GoalAllocation → Goal`. The running application still implements the superseded direct link. That code remains valid until a later milestone implements this decision. README, architecture, and product vision continue to describe the implemented behaviour until that work lands.
+**Revision note.** This decision supersedes the earlier MVP rule that a Goal optionally linked to one Account through `FinancialGoal.account_id` and derived progress from the full `Account.current_balance`. The accepted domain is `Account → GoalAllocation → Goal`. The application implements GoalAllocation persistence, API routes, funded progress, and Goals UI for designating Account money.
 
 ## Problem
 

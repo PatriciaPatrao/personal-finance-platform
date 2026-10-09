@@ -6,7 +6,11 @@ import { catchError, forkJoin, of } from 'rxjs';
 import { Account } from '../accounts/account';
 import { AccountService } from '../accounts/account.service';
 import { DateField } from '../analysis/date-field';
-import { FinancialGoal, FinancialGoalWrite } from './goal';
+import {
+  FinancialGoal,
+  FinancialGoalWrite,
+  GoalAllocation,
+} from './goal';
 import { GoalService } from './goal.service';
 
 export type GoalFormMode = 'create' | 'edit';
@@ -19,7 +23,7 @@ interface ApiValidationIssue {
   msg?: string;
 }
 
-function normalizeTargetAmount(value: string): number | null {
+function normalizePositiveAmount(value: string): number | null {
   const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(value.trim());
   if (!match) {
     return null;
@@ -88,6 +92,8 @@ function fieldLabel(field: string): string {
       return 'Target date';
     case 'account_id':
       return 'Account';
+    case 'amount':
+      return 'Amount';
     default:
       return field;
   }
@@ -145,11 +151,22 @@ export class Goals implements OnInit {
   formTargetAmount = '';
   formCurrency = 'EUR';
   formTargetDateDisplay = '';
-  formAccountId = '';
   formNameError: string | null = null;
   formTargetAmountError: string | null = null;
   formTargetDateError: string | null = null;
   formError: string | null = null;
+
+  allocatingGoalId: number | null = null;
+  allocateAccountId = '';
+  allocateAmount = '';
+  allocateAmountError: string | null = null;
+  allocateError: string | null = null;
+  allocating = false;
+
+  reducingAllocationId: number | null = null;
+  reduceAmount = '';
+  reduceAmountError: string | null = null;
+  reduceError: string | null = null;
 
   constructor(
     private goalService: GoalService,
@@ -166,18 +183,20 @@ export class Goals implements OnInit {
   }
 
   get currencyLocked(): boolean {
-    return this.formAccountId !== '';
+    if (this.formMode !== 'edit' || this.editingId === null) {
+      return false;
+    }
+
+    const goal = this.goals.find((item) => item.id === this.editingId);
+    return (goal?.allocations.length ?? 0) > 0;
   }
 
-  get selectableAccounts(): Account[] {
-    const occupied = new Set(
-      this.goals
-        .filter((goal) => goal.account_id !== null)
-        .filter((goal) => goal.id !== this.editingId)
-        .map((goal) => goal.account_id as number),
-    );
+  get canSubmitAllocation(): boolean {
+    if (this.allocating || this.allocatingGoalId === null) {
+      return false;
+    }
 
-    return this.accounts.filter((account) => !occupied.has(account.id));
+    return this.buildAllocationAmount() !== null;
   }
 
   ngOnInit(): void {
@@ -188,22 +207,66 @@ export class Goals implements OnInit {
     return String(accountId);
   }
 
-  accountName(accountId: number | null): string {
-    if (accountId === null) {
-      return 'No account associated';
-    }
-
-    return this.accountNames.get(accountId) ?? `Account ${accountId}`;
-  }
-
-  selectedAccountCurrency(): string | null {
-    if (!this.formAccountId) {
+  selectedAllocateAccountId(): number | null {
+    if (!this.allocateAccountId) {
       return null;
     }
 
-    const accountId = Number(this.formAccountId);
+    const accountId = Number(this.allocateAccountId);
+    return Number.isNaN(accountId) ? null : accountId;
+  }
+
+  accountName(accountId: number): string {
+    return this.accountNames.get(accountId) ?? `Account ${accountId}`;
+  }
+
+  accountBalance(accountId: number): string | null {
+    return (
+      this.accounts.find((account) => account.id === accountId)
+        ?.current_balance ?? null
+    );
+  }
+
+  designatedOnAccount(accountId: number): number {
+    let total = 0;
+    for (const goal of this.goals) {
+      for (const allocation of goal.allocations) {
+        if (allocation.account_id === accountId) {
+          total += Number(allocation.amount);
+        }
+      }
+    }
+    return total;
+  }
+
+  availableOnAccount(accountId: number): number {
     const account = this.accounts.find((item) => item.id === accountId);
-    return account?.currency ?? null;
+    if (!account) {
+      return 0;
+    }
+
+    const balance = Number(account.current_balance);
+    const capacity = Number.isNaN(balance) ? 0 : Math.max(0, balance);
+    return Math.max(0, capacity - this.designatedOnAccount(accountId));
+  }
+
+  compatibleAccounts(goal: FinancialGoal): Account[] {
+    return this.accounts.filter(
+      (account) => account.currency === goal.currency,
+    );
+  }
+
+  allocationForAccount(
+    goal: FinancialGoal,
+    accountId: number,
+  ): GoalAllocation | undefined {
+    return goal.allocations.find(
+      (allocation) => allocation.account_id === accountId,
+    );
+  }
+
+  isUnderfunded(allocation: GoalAllocation): boolean {
+    return Number(allocation.funded_amount) < Number(allocation.amount);
   }
 
   displayTargetDate(isoDate: string | null): string {
@@ -239,18 +302,26 @@ export class Goals implements OnInit {
     return this.formMode === 'edit' && this.editingId === goal.id;
   }
 
+  isAllocating(goal: FinancialGoal): boolean {
+    return this.allocatingGoalId === goal.id;
+  }
+
+  isReducing(allocation: GoalAllocation): boolean {
+    return this.reducingAllocationId === allocation.id;
+  }
+
   startCreate(): void {
     if (this.loading || this.errorMessage !== null || this.saving) {
       return;
     }
 
+    this.closeAllocationPanels();
     this.formMode = 'create';
     this.editingId = null;
     this.formName = '';
     this.formTargetAmount = '';
     this.formCurrency = 'EUR';
     this.formTargetDateDisplay = '';
-    this.formAccountId = '';
     this.clearFieldErrors();
     this.formError = null;
     this.successMessage = null;
@@ -262,6 +333,7 @@ export class Goals implements OnInit {
       return;
     }
 
+    this.closeAllocationPanels();
     this.formMode = 'edit';
     this.editingId = goal.id;
     this.formName = goal.name;
@@ -270,8 +342,6 @@ export class Goals implements OnInit {
     this.formTargetDateDisplay = goal.target_date
       ? toEuropeanDate(goal.target_date)
       : '';
-    this.formAccountId =
-      goal.account_id === null ? '' : String(goal.account_id);
     this.clearFieldErrors();
     this.formError = null;
     this.successMessage = null;
@@ -290,26 +360,209 @@ export class Goals implements OnInit {
     this.changeDetector.detectChanges();
   }
 
-  onFormAccountChange(accountId: string): void {
-    this.formAccountId = accountId;
-    if (!accountId) {
-      return;
-    }
-
-    const account = this.accounts.find(
-      (item) => item.id === Number(accountId),
-    );
-    if (account) {
-      this.formCurrency = account.currency;
-    }
-  }
-
   onFormCurrencyChange(currency: string): void {
     if (this.currencyLocked) {
       return;
     }
 
     this.formCurrency = currency;
+  }
+
+  startAddMoney(goal: FinancialGoal): void {
+    if (this.loading || this.errorMessage !== null || this.allocating) {
+      return;
+    }
+
+    this.formMode = null;
+    this.editingId = null;
+    this.reducingAllocationId = null;
+    this.allocatingGoalId = goal.id;
+    this.allocateAccountId = '';
+    this.allocateAmount = '';
+    this.allocateAmountError = null;
+    this.allocateError = null;
+    this.successMessage = null;
+    this.changeDetector.detectChanges();
+  }
+
+  cancelAddMoney(): void {
+    if (this.allocating) {
+      return;
+    }
+
+    this.closeAllocationPanels();
+    this.changeDetector.detectChanges();
+  }
+
+  onAllocateAccountChange(accountId: string): void {
+    this.allocateAccountId = accountId;
+    this.allocateAmountError = null;
+  }
+
+  saveAllocation(): void {
+    if (this.allocating || this.allocatingGoalId === null) {
+      return;
+    }
+
+    const goal = this.goals.find(
+      (item) => item.id === this.allocatingGoalId,
+    );
+    if (!goal) {
+      return;
+    }
+
+    this.allocateAmountError = null;
+    this.allocateError = null;
+
+    if (!this.allocateAccountId) {
+      this.allocateError = 'Select an account.';
+      this.changeDetector.detectChanges();
+      return;
+    }
+
+    const accountId = Number(this.allocateAccountId);
+    const amount = normalizePositiveAmount(this.allocateAmount);
+    if (amount === null) {
+      this.allocateAmountError = 'Enter an amount greater than zero.';
+      this.changeDetector.detectChanges();
+      return;
+    }
+
+    const available = this.availableOnAccount(accountId);
+    if (amount > available) {
+      this.allocateAmountError =
+        `Only ${available.toFixed(2)} is available on this account.`;
+      this.changeDetector.detectChanges();
+      return;
+    }
+
+    const existing = this.allocationForAccount(goal, accountId);
+    this.allocating = true;
+    this.successMessage = null;
+
+    const request = existing
+      ? this.goalService.updateAllocation(goal.id, existing.id, {
+          amount: Number(
+            (Number(existing.amount) + amount).toFixed(2),
+          ),
+        })
+      : this.goalService.createAllocation(goal.id, {
+          account_id: accountId,
+          amount,
+        });
+
+    request.subscribe({
+      next: () => {
+        this.allocating = false;
+        this.closeAllocationPanels();
+        this.successMessage = 'Allocation updated.';
+        this.changeDetector.markForCheck();
+        this.loadPage({ keepSuccessMessage: true });
+      },
+      error: (error: unknown) => {
+        this.allocating = false;
+        this.allocateError = formatApiError(
+          error,
+          'Unable to save the allocation.',
+        );
+        this.changeDetector.markForCheck();
+      },
+    });
+  }
+
+  startReduce(allocation: GoalAllocation): void {
+    if (this.allocating) {
+      return;
+    }
+
+    this.formMode = null;
+    this.editingId = null;
+    this.allocatingGoalId = null;
+    this.reducingAllocationId = allocation.id;
+    this.reduceAmount = allocation.amount;
+    this.reduceAmountError = null;
+    this.reduceError = null;
+    this.successMessage = null;
+    this.changeDetector.detectChanges();
+  }
+
+  cancelReduce(): void {
+    if (this.allocating) {
+      return;
+    }
+
+    this.reducingAllocationId = null;
+    this.reduceAmountError = null;
+    this.reduceError = null;
+    this.changeDetector.detectChanges();
+  }
+
+  saveReduce(goal: FinancialGoal, allocation: GoalAllocation): void {
+    if (this.allocating) {
+      return;
+    }
+
+    const amount = normalizePositiveAmount(this.reduceAmount);
+    if (amount === null) {
+      this.reduceAmountError = 'Enter an amount greater than zero.';
+      this.changeDetector.detectChanges();
+      return;
+    }
+
+    if (amount >= Number(allocation.amount)) {
+      this.reduceAmountError =
+        'Enter an amount lower than the current designation.';
+      this.changeDetector.detectChanges();
+      return;
+    }
+
+    this.allocating = true;
+    this.reduceError = null;
+    this.goalService
+      .updateAllocation(goal.id, allocation.id, { amount })
+      .subscribe({
+        next: () => {
+          this.allocating = false;
+          this.reducingAllocationId = null;
+          this.successMessage = 'Allocation updated.';
+          this.changeDetector.markForCheck();
+          this.loadPage({ keepSuccessMessage: true });
+        },
+        error: (error: unknown) => {
+          this.allocating = false;
+          this.reduceError = formatApiError(
+            error,
+            'Unable to save the allocation.',
+          );
+          this.changeDetector.markForCheck();
+        },
+      });
+  }
+
+  removeAllocation(goal: FinancialGoal, allocation: GoalAllocation): void {
+    if (this.allocating) {
+      return;
+    }
+
+    this.allocating = true;
+    this.reduceError = null;
+    this.goalService.deleteAllocation(goal.id, allocation.id).subscribe({
+      next: () => {
+        this.allocating = false;
+        this.reducingAllocationId = null;
+        this.successMessage = 'Allocation removed.';
+        this.changeDetector.markForCheck();
+        this.loadPage({ keepSuccessMessage: true });
+      },
+      error: (error: unknown) => {
+        this.allocating = false;
+        this.reduceError = formatApiError(
+          error,
+          'Unable to remove the allocation.',
+        );
+        this.changeDetector.markForCheck();
+      },
+    });
   }
 
   saveGoal(): void {
@@ -354,6 +607,38 @@ export class Goals implements OnInit {
     });
   }
 
+  private closeAllocationPanels(): void {
+    this.allocatingGoalId = null;
+    this.allocateAccountId = '';
+    this.allocateAmount = '';
+    this.allocateAmountError = null;
+    this.allocateError = null;
+    this.reducingAllocationId = null;
+    this.reduceAmount = '';
+    this.reduceAmountError = null;
+    this.reduceError = null;
+  }
+
+  private buildAllocationAmount(): number | null {
+    if (!this.allocateAccountId) {
+      return null;
+    }
+
+    const amount = normalizePositiveAmount(this.allocateAmount);
+    if (amount === null) {
+      return null;
+    }
+
+    const available = this.availableOnAccount(
+      Number(this.allocateAccountId),
+    );
+    if (amount > available) {
+      return null;
+    }
+
+    return amount;
+  }
+
   private clearFieldErrors(): void {
     this.formNameError = null;
     this.formTargetAmountError = null;
@@ -381,7 +666,7 @@ export class Goals implements OnInit {
       }
     }
 
-    const targetAmount = normalizeTargetAmount(this.formTargetAmount);
+    const targetAmount = normalizePositiveAmount(this.formTargetAmount);
     if (targetAmount === null) {
       valid = false;
       if (showErrors) {
@@ -403,24 +688,6 @@ export class Goals implements OnInit {
       }
     }
 
-    let accountId: number | null = null;
-    if (this.formAccountId) {
-      accountId = Number(this.formAccountId);
-      const account = this.accounts.find((item) => item.id === accountId);
-      if (!account || Number.isNaN(accountId)) {
-        valid = false;
-        if (showErrors) {
-          this.formError = 'Select a valid account.';
-        }
-      } else if (account.currency !== this.formCurrency) {
-        valid = false;
-        if (showErrors) {
-          this.formError =
-            'Goal currency must match the selected account.';
-        }
-      }
-    }
-
     if (!valid || targetAmount === null) {
       return null;
     }
@@ -430,7 +697,6 @@ export class Goals implements OnInit {
       target_amount: targetAmount,
       currency: this.formCurrency,
       target_date: targetDate,
-      account_id: accountId,
     };
   }
 

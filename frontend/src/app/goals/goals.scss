@@ -51,7 +51,8 @@
 .create-goal-button,
 .save-button,
 .cancel-button,
-.edit-button {
+.edit-button,
+.secondary-button {
   font: inherit;
   font-weight: 600;
   padding: 0.55rem 1.15rem;
@@ -59,6 +60,10 @@
   background: #fff;
   color: #222;
   cursor: pointer;
+}
+
+.secondary-button {
+  font-weight: 500;
 }
 
 .create-goal-button,
@@ -241,15 +246,105 @@
   min-width: 3rem;
 }
 
-.edit-button {
+.edit-button,
+.secondary-button {
   align-self: flex-start;
+}
+
+.allocations-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.allocations-heading {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.allocations-empty {
+  margin: 0;
+  color: #555;
+}
+
+.allocation-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.allocation-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.allocation-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  font-weight: 600;
+}
+
+.allocation-funded {
+  color: #7a1f1f;
+  font-weight: 500;
+}
+
+.allocation-actions,
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.allocate-form,
+.reduce-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.85rem;
+  border: 1px solid #d8d8d8;
+  background: #fff;
+}
+
+.allocate-form h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.availability-details {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.5rem 1rem;
+}
+
+.availability-details dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #555;
+}
+
+.availability-details dd {
+  margin: 0;
+  font-weight: 600;
 }
 
 @media (max-width: 720px) {
   .create-goal-button,
   .save-button,
   .cancel-button,
-  .edit-button {
+  .edit-button,
+  .secondary-button {
     width: 100%;
   }
 }

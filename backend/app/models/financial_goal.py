@@ -1,7 +1,7 @@
 """Financial goals that name a future objective.
 
-Progress and completion are derived from an associated Account
-when one exists. This model does not store a current amount,
+Progress and completion are derived from GoalAllocations when
+any exist. This model does not store a current amount,
 completed flag, or active flag.
 """
 
@@ -12,12 +12,9 @@ from decimal import Decimal
 from sqlalchemy import CheckConstraint
 from sqlalchemy import Date
 from sqlalchemy import DateTime
-from sqlalchemy import ForeignKey
-from sqlalchemy import Index
 from sqlalchemy import Numeric
 from sqlalchemy import String
 from sqlalchemy import func
-from sqlalchemy import text
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
@@ -33,12 +30,6 @@ class FinancialGoal(Base):
         CheckConstraint(
             "target_amount > 0",
             name="ck_financial_goals_target_amount_positive",
-        ),
-        Index(
-            "uq_financial_goals_account_id",
-            "account_id",
-            unique=True,
-            postgresql_where=text("account_id IS NOT NULL"),
         ),
     )
 
@@ -64,18 +55,11 @@ class FinancialGoal(Base):
         Date,
         nullable=True,
     )
-    account_id: Mapped[int | None] = mapped_column(
-        ForeignKey(
-            "accounts.id",
-            name="fk_financial_goals_account_id_accounts",
-        ),
-        nullable=True,
-    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
     )
-    account: Mapped["Account | None"] = relationship(
-        back_populates="financial_goal",
+    allocations: Mapped[list["GoalAllocation"]] = relationship(
+        back_populates="goal",
     )

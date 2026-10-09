@@ -32,7 +32,7 @@ That shape matches the current coupling:
 
 - Accounts, transactions, incomes, recurring expenses, and financial goals share foreign keys to `accounts` where an association exists.
 - Analysis and Forecast are read models over those tables, not separate stores.
-- Financial Goals are a separate objective domain. They read `Account.current_balance` when linked and never write it.
+- Financial Goals are a separate objective domain. They designate existing Account money through GoalAllocation and never write `Account.current_balance`.
 - A request uses one database session (`get_db`).
 - The product is still an MVP. Splitting the API into microservices would add network boundaries without a corresponding ownership split.
 
@@ -80,7 +80,7 @@ Implemented by `Accounts` and `AccountDetail`. The list page loads `GET /account
 
 ### Goals
 
-Implemented by `Goals` at `/personal_finance/goals`. It loads `GET /financial-goals` and `GET /accounts`, lists objectives, and creates and updates them through `POST` and `PUT`. There is no delete. The create form offers EUR, USD, and GBP and an optional target date (DD-MM-YYYY). Account is optional. Selecting an Account locks the Goal currency to that Account’s currency. Accounts that already have a Goal are omitted from the picker except the Goal being edited. The screen displays backend `current_amount`, `progress` (capped at 100%), and `completed`. An unlinked Goal shows that progress is unavailable. The page does not recompute those values, does not write `Account.current_balance`, and does not call Analysis, Forecast, or Transactions.
+Implemented by `Goals` at `/personal_finance/goals`. It loads `GET /financial-goals` and `GET /accounts`, lists objectives, and creates and updates them through `POST` and `PUT`. There is no Goal delete. Inline edit covers name, target, currency, and target date (DD-MM-YYYY). The create form offers EUR, USD, and GBP. Allocations are managed on the Goal card: add, reduce, or remove designations of existing Account money. Compatible Accounts show balance, already allocated, and available capacity. The screen displays backend `current_amount`, `progress` (capped at 100%), `completed`, and allocation rows. A Goal with no allocations shows that progress is unavailable. The page does not recompute those values, does not write `Account.current_balance`, and does not call Analysis, Forecast, or Transactions.
 
 ### Transactions
 
@@ -94,7 +94,7 @@ Implemented by `Transactions`. It loads `GET /transactions` and `GET /accounts`,
 | Transactions | Recorded income or expense events on an account. Source of historical analysis. | `transactions` |
 | Income | Expected **salary** schedules on an account (weekly / monthly / yearly), with start date, next occurrence, optional end, and active flag. | `incomes` |
 | Recurring expenses | Expected future commitments on an account with **one fixed amount**, optional category, and the same date and frequency shape as income. | `recurring_expenses` |
-| Financial Goals | Future financial objectives with a target amount, optional target date, and optional Account. Do not store money. | `financial_goals` |
+| Financial Goals | Future financial objectives with a target amount and optional target date. Funding is GoalAllocation. Do not store money. | `financial_goals`, `goal_allocations` |
 | Analysis | Read-only aggregates over transactions in a historical range. | None of its own |
 | Forecast | Read-only projection from balances and active schedules. | None of its own |
 
@@ -104,21 +104,24 @@ Income and recurring-expense models document salary-only income and fixed recurr
 
 Financial Goals answer “what financial objective am I saving for or trying to achieve?” Domain rules are recorded in [004-financial-goals.md](decisions/004-financial-goals.md).
 
-Persisted fields: `name`, `target_amount` (must be greater than zero), `currency` (default EUR), optional `target_date`, optional `account_id`, and `created_at`. The model does **not** persist `current_amount`, `progress`, `completed`, or `active`.
+Persisted Goal fields: `name`, `target_amount` (must be greater than zero), `currency` (default EUR), optional `target_date`, and `created_at`. The Goal model does **not** persist `current_amount`, `progress`, `completed`, `active`, or `account_id`.
 
-When a Goal is linked to an Account:
+`GoalAllocation` designates an amount of existing Account money toward a Goal: `goal_id`, `account_id`, positive `amount`, `created_at`, unique `(goal_id, account_id)`.
 
-- `current_amount` is derived from `Account.current_balance`
+When a Goal has allocations:
+
+- `current_amount` is the sum of **funded** allocation amounts (Account capacity walked by `created_at`, then `id`, up to `max(0, current_balance)`)
 - `progress = max(0, min(1, current_amount / target_amount))`
 - `completed` is `current_amount >= target_amount`
-- `Goal.currency` must equal `Account.currency`
-- Goal create/update never modifies `Account.current_balance`
+- each Account’s currency must equal `Goal.currency`
+- designated amounts on an Account must not exceed available capacity on create/increase
+- Goal and allocation writes never modify `Account.current_balance`
 
-When a Goal has no Account, `current_amount`, `progress`, and `completed` are null. Unavailable progress is not represented as 0%.
+When a Goal has no allocations, `current_amount`, `progress`, and `completed` are null. Unavailable progress is not represented as 0%.
 
-**MVP cardinality:** `Account → 0..1 Goal`. That is an intentional temporary limit so multiple Goals cannot each claim the full account balance. The long-term intended model is `Account → 0..N Goals` through a future `GoalAllocation`. GoalAllocation and Forecast-based projected Goal completion are not implemented.
+**Cardinality:** `Account → 0..N Goals` and `Goal → 0..N Accounts` through GoalAllocation. Forecast-based projected Goal completion is not implemented.
 
-API: `POST /financial-goals`, `GET /financial-goals`, `GET /financial-goals/{goal_id}`, `PUT /financial-goals/{goal_id}`. There is no DELETE. List order is newest first (`created_at` desc, `id` desc), matching Accounts.
+API: `POST /financial-goals`, `GET /financial-goals`, `GET /financial-goals/{goal_id}`, `PUT /financial-goals/{goal_id}`, plus `POST/PUT/DELETE` allocation routes under `/financial-goals/{goal_id}/allocations`. There is no Goal DELETE. List order is newest first (`created_at` desc, `id` desc), matching Accounts.
 
 `GET /financial-summary` is a separate route that returns the same transaction totals as analysis summary. Analysis summary reuses `FinancialSummaryService`. The Analysis page and Dashboard use `/analysis/summary`, not `/financial-summary`. `/financial-summary` does not reject a `to` date in the future (see [API design principles](#8-api-design-principles)).
 
@@ -163,7 +166,7 @@ Those signal rules live in the dashboard feature, not in a backend domain servic
 | Historical financial events | `Transaction` rows (`occurred_on`, type, amount, optional category). |
 | Scheduled future inflows | Active `Income` rows (salary). |
 | Scheduled future outflows | Active `RecurringExpense` rows (fixed amount). |
-| Financial objective and target | `FinancialGoal` rows (`target_amount`, optional `target_date`, optional `account_id`). |
+| Financial objective and target | `FinancialGoal` rows (`target_amount`, optional `target_date`). Designated funding is `GoalAllocation`. |
 | Goal current amount, progress, completion | Not persisted. Derived on each Goal API response from the linked Account when present. |
 | Calculated forecast periods | Not persisted. Produced on each `GET /forecast`. |
 | Historical analysis totals | Not persisted. Produced on each `/analysis/*` request. |
@@ -187,7 +190,7 @@ Relevant decisions that the current API implements:
 
 ### Backend
 
-pytest plus FastAPI `TestClient` (`httpx`). Tests use the same `DATABASE_URL` as the app, with connection `search_path` set to a PostgreSQL schema named `test` (`backend/tests/conftest.py`). That schema must already exist and contain migrated tables. The suite does not create the schema. Each test deletes rows in `accounts`, `transactions`, `recurring_expenses`, `incomes`, and `financial_goals`.
+pytest plus FastAPI `TestClient` (`httpx`). Tests use the same `DATABASE_URL` as the app, with connection `search_path` set to a PostgreSQL schema named `test` (`backend/tests/conftest.py`). That schema must already exist and contain migrated tables. The suite does not create the schema. Each test deletes rows in `goal_allocations`, `financial_goals`, `accounts`, `transactions`, `recurring_expenses`, and `incomes`.
 
 Coverage is HTTP-level and domain-level: health, CORS preflight, accounts, transactions, account–transaction relationship, incomes, recurring expenses, financial goals, financial summary, analysis, forecast, occurrence helpers, and database session wiring.
 
@@ -229,7 +232,6 @@ These are **future considerations**. They are not current architecture.
 - **Background jobs.** Not present. Recurring occurrences are expanded when Forecast is requested.
 - **Observability.** Health JSON only. No tracing, metrics, or log platform is wired in.
 - **Richer financial insights.** Signals are a small, rule-based set on the Dashboard. Deeper resilience analysis is product direction, not an implemented module.
-- **GoalAllocation.** Not present. Until it exists, an Account may associate with at most one Goal so the full `current_balance` is not counted toward several objectives.
 - **Forecast → Goal projected completion.** Forecast does not read Goals. Projecting when a Goal may be met from schedules, including any confidence or uncertainty around that projection, is future work.
 - **ML.** Not used. Predictive models are explicitly out of the current product.
 
