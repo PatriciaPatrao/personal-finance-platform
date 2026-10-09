@@ -34,6 +34,9 @@ def _set_test_search_path(dbapi_connection, _connection_record) -> None:
     cursor = dbapi_connection.cursor()
     cursor.execute("SET search_path TO test")
     cursor.close()
+    # SET is transactional. Commit it so a later rollback cannot
+    # return this pooled connection to the public schema.
+    dbapi_connection.commit()
 
 
 SessionLocal = sessionmaker(

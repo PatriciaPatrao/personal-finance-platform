@@ -5,10 +5,16 @@ from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
 from decimal import Decimal
+import threading
+import time
 
 import pytest
+from sqlalchemy import select
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
+from tests.conftest import SessionLocal
 
 from app.models.account import Account
 from app.models.account import AccountType
@@ -592,3 +598,224 @@ def test_goal_update_rejects_currency_change_with_allocations(
                 target_date=None,
             ),
         )
+
+
+def _designated_sum(account_id: int) -> Decimal:
+    """Read committed designated amounts on a fresh session."""
+    session = SessionLocal()
+    try:
+        amounts = session.scalars(
+            select(GoalAllocation.amount).where(
+                GoalAllocation.account_id == account_id,
+            ),
+        ).all()
+        return sum(amounts, Decimal("0"))
+    finally:
+        session.close()
+
+
+def _ungranted_lock_count() -> int:
+    """Count lock requests currently waiting in this database."""
+    session = SessionLocal()
+    try:
+        count = session.execute(
+            text("SELECT count(*) FROM pg_locks WHERE NOT granted"),
+        ).scalar_one()
+        return int(count)
+    finally:
+        session.close()
+
+
+def _wait_for_lock_contention() -> None:
+    """Wait until another session is blocked on a row lock."""
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        if _ungranted_lock_count() > 0:
+            return
+        time.sleep(0.05)
+    raise AssertionError(
+        "The allocation write did not wait on the account lock",
+    )
+
+
+def test_concurrent_creates_cannot_exceed_capacity(
+    db_session: Session,
+) -> None:
+    """A create waits for an in-flight designation before checking capacity.
+
+    One session holds the Account row and flushes an 800 designation
+    without committing. The service create asks for another 800. It must
+    block on the row lock, then see the committed 800 and reject.
+    Without that lock the second write can pass while the first is still
+    uncommitted, and both 800 amounts can commit.
+    """
+    account = _account(db_session, balance=Decimal("1000.00"))
+    service = FinancialGoalService(db_session)
+    goal_a = service.create(
+        FinancialGoalCreate(
+            name="Goal A",
+            target_amount=Decimal("1000.00"),
+        ),
+    )
+    goal_b = service.create(
+        FinancialGoalCreate(
+            name="Goal B",
+            target_amount=Decimal("1000.00"),
+        ),
+    )
+    held = threading.Event()
+    release = threading.Event()
+    outcome: list[str] = []
+    errors: list[BaseException] = []
+
+    def hold_designation() -> None:
+        session = SessionLocal()
+        try:
+            session.scalars(
+                select(Account)
+                .where(Account.id == account.id)
+                .with_for_update(),
+            ).one()
+            session.add(
+                GoalAllocation(
+                    goal_id=goal_a.id,
+                    account_id=account.id,
+                    amount=Decimal("800.00"),
+                ),
+            )
+            session.flush()
+            held.set()
+            assert release.wait(timeout=15)
+            session.commit()
+        except BaseException as error:
+            errors.append(error)
+            session.rollback()
+        finally:
+            held.set()
+            session.close()
+
+    def contend() -> None:
+        session = SessionLocal()
+        try:
+            FinancialGoalService(session).create_allocation(
+                goal_b.id,
+                GoalAllocationCreate(
+                    account_id=account.id,
+                    amount=Decimal("800.00"),
+                ),
+            )
+            outcome.append("ok")
+        except AllocationCapacityExceededError:
+            outcome.append("capacity")
+        except BaseException as error:
+            errors.append(error)
+        finally:
+            session.close()
+
+    holder = threading.Thread(target=hold_designation)
+    contender = threading.Thread(target=contend)
+    holder.start()
+    assert held.wait(timeout=10)
+    contender.start()
+    try:
+        _wait_for_lock_contention()
+    finally:
+        release.set()
+    contender.join(timeout=15)
+    holder.join(timeout=15)
+
+    assert errors == []
+    assert outcome == ["capacity"]
+    assert _designated_sum(account.id) == Decimal("800.00")
+    db_session.refresh(account)
+    assert account.current_balance == Decimal("1000.00")
+
+
+def test_concurrent_increases_cannot_exceed_capacity(
+    db_session: Session,
+) -> None:
+    """An increase waits for an in-flight increase before checking capacity."""
+    account = _account(db_session, balance=Decimal("1000.00"))
+    service = FinancialGoalService(db_session)
+    allocation_ids: list[int] = []
+    goals: list[int] = []
+    for name in ("Goal A", "Goal B"):
+        goal = service.create(
+            FinancialGoalCreate(
+                name=name,
+                target_amount=Decimal("1000.00"),
+            ),
+        )
+        created = service.create_allocation(
+            goal.id,
+            GoalAllocationCreate(
+                account_id=account.id,
+                amount=Decimal("100.00"),
+            ),
+        )
+        goals.append(goal.id)
+        allocation_ids.append(created.allocations[0].id)
+
+    held = threading.Event()
+    release = threading.Event()
+    outcome: list[str] = []
+    errors: list[BaseException] = []
+
+    def hold_increase() -> None:
+        session = SessionLocal()
+        try:
+            session.scalars(
+                select(Account)
+                .where(Account.id == account.id)
+                .with_for_update(),
+            ).one()
+            allocation = session.get(
+                GoalAllocation,
+                allocation_ids[0],
+            )
+            assert allocation is not None
+            allocation.amount = Decimal("900.00")
+            session.flush()
+            held.set()
+            assert release.wait(timeout=15)
+            session.commit()
+        except BaseException as error:
+            errors.append(error)
+            session.rollback()
+        finally:
+            held.set()
+            session.close()
+
+    def contend() -> None:
+        session = SessionLocal()
+        try:
+            FinancialGoalService(session).update_allocation(
+                goals[1],
+                allocation_ids[1],
+                GoalAllocationUpdate(amount=Decimal("900.00")),
+            )
+            outcome.append("ok")
+        except AllocationCapacityExceededError:
+            outcome.append("capacity")
+        except BaseException as error:
+            errors.append(error)
+        finally:
+            session.close()
+
+    holder = threading.Thread(target=hold_increase)
+    contender = threading.Thread(target=contend)
+    holder.start()
+    assert held.wait(timeout=10)
+    contender.start()
+    try:
+        _wait_for_lock_contention()
+    finally:
+        release.set()
+    contender.join(timeout=15)
+    holder.join(timeout=15)
+
+    assert errors == []
+    assert outcome == ["capacity"]
+    assert _designated_sum(account.id) == Decimal("1000.00")
+    db_session.refresh(account)
+    assert account.current_balance == Decimal("1000.00")

@@ -49,3 +49,15 @@ class AccountRepository:
             Account.id == account_id,
         )
         return self._session.scalars(statement).one_or_none()
+
+    def get_by_id_for_update(
+        self,
+        account_id: int,
+    ) -> Account | None:
+        """Lock one account row until this session commits or rolls back."""
+        statement = (
+            select(Account)
+            .where(Account.id == account_id)
+            .with_for_update()
+        )
+        return self._session.scalars(statement).one_or_none()

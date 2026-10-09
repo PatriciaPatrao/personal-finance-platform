@@ -255,7 +255,9 @@ class FinancialGoalService:
                 f"Financial goal {goal_id} not found",
             )
 
-        account = self._account_repository.get_by_id(data.account_id)
+        account = self._account_repository.get_by_id_for_update(
+            data.account_id,
+        )
         if account is None:
             raise AccountNotFoundError(
                 f"Account {data.account_id} not found",
@@ -311,15 +313,21 @@ class FinancialGoalService:
                 f"Allocation {allocation_id} not found",
             )
 
-        account = self._account_repository.get_by_id(
-            allocation.account_id,
-        )
+        increasing = data.amount > allocation.amount
+        if increasing:
+            account = self._account_repository.get_by_id_for_update(
+                allocation.account_id,
+            )
+        else:
+            account = self._account_repository.get_by_id(
+                allocation.account_id,
+            )
         if account is None:
             raise AccountNotFoundError(
                 f"Account {allocation.account_id} not found",
             )
 
-        if data.amount > allocation.amount:
+        if increasing:
             designated = self._designated_sum_for_account(
                 allocation.account_id,
                 exclude_allocation_id=allocation_id,
