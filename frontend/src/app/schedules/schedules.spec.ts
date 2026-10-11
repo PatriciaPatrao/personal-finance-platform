@@ -164,7 +164,7 @@ describe('Schedules', () => {
     expect(listAccounts).toHaveBeenCalledTimes(1);
     expect(compiled.textContent).toContain('Salary');
     expect(compiled.textContent).toContain('Rent');
-    expect(compiled.textContent).toContain('inform Forecast');
+    expect(compiled.textContent).toContain('does not add a transaction');
   });
 
   it('should show loading until schedules arrive', async () => {
@@ -420,6 +420,85 @@ describe('Schedules', () => {
       end_date: null,
       active: false,
     });
+  });
+
+  it('should show a page-level error when salary deactivation fails', async () => {
+    updateIncome.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 404,
+            error: { detail: 'Income not found' },
+          }),
+      ),
+    );
+    const { fixture, compiled, component } = await render();
+    expect(component.formMode).toBeNull();
+
+    component.deactivateIncome(activeIncome);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component.formMode).toBeNull();
+    expect(component.formError).toBeNull();
+    expect(compiled.textContent).toContain('Income not found');
+    expect(compiled.querySelector('.schedule-form')).toBeNull();
+  });
+
+  it('should show a page-level error when recurring-expense deactivation fails', async () => {
+    updateRecurringExpense.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 404,
+            error: { detail: 'Recurring expense not found' },
+          }),
+      ),
+    );
+    const { fixture, compiled, component } = await render();
+    expect(component.formMode).toBeNull();
+
+    component.deactivateExpense(activeExpense);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component.formMode).toBeNull();
+    expect(component.formError).toBeNull();
+    expect(compiled.textContent).toContain('Recurring expense not found');
+    expect(compiled.querySelector('.schedule-form')).toBeNull();
+  });
+
+  it('should format a known account currency', async () => {
+    const { compiled, component } = await render();
+    expect(component.accountCurrency(1)).toBe('EUR');
+    expect(compiled.textContent).toContain('€');
+    expect(compiled.textContent).not.toContain('Currency unavailable');
+  });
+
+  it('should not invent EUR when accounts fail to load', async () => {
+    listAccounts.mockReturnValue(throwError(() => new Error('fail')));
+    const { compiled, component } = await render();
+
+    expect(component.accountCurrency(1)).toBeNull();
+    expect(compiled.textContent).toContain('Currency unavailable');
+    expect(compiled.textContent).toContain('2500.00');
+    expect(compiled.textContent).not.toContain('€');
+  });
+
+  it('should not invent EUR when the schedule account is unavailable', async () => {
+    listIncomes.mockReturnValue(
+      of([{ ...activeIncome, account_id: 99 }]),
+    );
+    const { compiled, component } = await render();
+
+    expect(component.accountCurrency(99)).toBeNull();
+    expect(component.accountCurrency(1)).toBe('EUR');
+    const salary = compiled.querySelector('.schedule-section');
+    expect(salary?.textContent).toContain('Currency unavailable');
+    expect(salary?.textContent).toContain('2500.00');
+    expect(salary?.textContent).not.toContain('€');
   });
 
   it('should surface API errors from create', async () => {

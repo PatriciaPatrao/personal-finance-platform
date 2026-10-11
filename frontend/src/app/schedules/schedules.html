@@ -2,16 +2,21 @@
   <header class="page-header">
     <h1>Schedules</h1>
     <p class="page-intro">
-      Expected future salary and fixed recurring expenses. These records
-      inform Forecast projections. They are not transactions already
-      recorded, and they do not change account balances. Choosing an
-      account links the commitment to that account; it does not produce a
-      separate projected account balance.
+      Expected future salary and fixed recurring expenses. Forecast counts
+      occurrences from the next occurrence, not from the start date.
+      Creating or editing a schedule does not add a transaction, including
+      when the start date is already in the past, and it does not change
+      account balances. Choosing an account links the commitment to that
+      account; it does not produce a separate projected account balance.
     </p>
   </header>
 
   @if (successMessage) {
     <p class="status status-success" role="status">{{ successMessage }}</p>
+  }
+
+  @if (actionError) {
+    <p class="status status-error" role="alert">{{ actionError }}</p>
   }
 
   @if (loading) {
@@ -135,10 +140,14 @@
                   <div>
                     <dt>Amount</dt>
                     <dd>
-                      {{
-                        income.amount
-                          | currency: accountCurrency(income.account_id)
-                      }}
+                      @if (accountCurrency(income.account_id); as currency) {
+                        {{ income.amount | currency: currency }}
+                      } @else {
+                        {{ income.amount }}
+                        <span class="currency-unavailable">
+                          Currency unavailable
+                        </span>
+                      }
                     </dd>
                   </div>
                   <div>
@@ -278,10 +287,14 @@
                   <div>
                     <dt>Amount</dt>
                     <dd>
-                      {{
-                        expense.amount
-                          | currency: accountCurrency(expense.account_id)
-                      }}
+                      @if (accountCurrency(expense.account_id); as currency) {
+                        {{ expense.amount | currency: currency }}
+                      } @else {
+                        {{ expense.amount }}
+                        <span class="currency-unavailable">
+                          Currency unavailable
+                        </span>
+                      }
                     </dd>
                   </div>
                   <div>

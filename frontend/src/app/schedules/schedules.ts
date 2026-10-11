@@ -163,6 +163,7 @@ export class Schedules implements OnInit {
 
   loading = true;
   errorMessage: string | null = null;
+  actionError: string | null = null;
   successMessage: string | null = null;
   incomes: Income[] = [];
   expenses: RecurringExpense[] = [];
@@ -241,8 +242,8 @@ export class Schedules implements OnInit {
     return this.accountNames.get(accountId) ?? `Account ${accountId}`;
   }
 
-  accountCurrency(accountId: number): string {
-    return this.accountCurrencies.get(accountId) ?? 'EUR';
+  accountCurrency(accountId: number): string | null {
+    return this.accountCurrencies.get(accountId) ?? null;
   }
 
   displayDate(isoDate: string | null): string {
@@ -384,6 +385,7 @@ export class Schedules implements OnInit {
 
     this.saving = true;
     this.successMessage = null;
+    this.actionError = null;
     this.incomeService.updateIncome(income.id, payload).subscribe({
       next: () => {
         this.saving = false;
@@ -396,7 +398,7 @@ export class Schedules implements OnInit {
       },
       error: (error: unknown) => {
         this.saving = false;
-        this.formError = formatApiError(
+        this.actionError = formatApiError(
           error,
           'Unable to deactivate the salary schedule.',
         );
@@ -424,6 +426,7 @@ export class Schedules implements OnInit {
 
     this.saving = true;
     this.successMessage = null;
+    this.actionError = null;
     this.recurringExpenseService
       .updateRecurringExpense(expense.id, payload)
       .subscribe({
@@ -438,7 +441,7 @@ export class Schedules implements OnInit {
         },
         error: (error: unknown) => {
           this.saving = false;
-          this.formError = formatApiError(
+          this.actionError = formatApiError(
             error,
             'Unable to deactivate the recurring expense.',
           );
@@ -469,6 +472,7 @@ export class Schedules implements OnInit {
 
     this.saving = true;
     this.formError = null;
+    this.actionError = null;
     this.successMessage = null;
 
     const editing = this.formMode === 'edit';
@@ -511,6 +515,7 @@ export class Schedules implements OnInit {
 
     this.saving = true;
     this.formError = null;
+    this.actionError = null;
     this.successMessage = null;
 
     const editing = this.formMode === 'edit';
@@ -587,6 +592,7 @@ export class Schedules implements OnInit {
     this.formActive = true;
     this.clearFieldErrors();
     this.formError = null;
+    this.actionError = null;
     this.successMessage = null;
   }
 
@@ -818,6 +824,7 @@ export class Schedules implements OnInit {
   private loadPage(options?: { keepSuccessMessage?: boolean }): void {
     this.loading = true;
     this.errorMessage = null;
+    this.actionError = null;
     this.incomes = [];
     this.expenses = [];
     this.accountsLoadFailed = false;
