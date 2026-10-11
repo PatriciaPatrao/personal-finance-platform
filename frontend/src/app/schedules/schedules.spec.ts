@@ -403,6 +403,23 @@ describe('Schedules', () => {
     });
   });
 
+  it('should activate a salary schedule with active true', async () => {
+    const { fixture, component } = await render();
+    component.activateIncome(inactiveIncome);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(updateIncome).toHaveBeenCalledWith(11, {
+      account_id: 1,
+      amount: 2000,
+      frequency: 'weekly',
+      start_date: '2025-01-01',
+      next_occurrence: '2025-06-01',
+      end_date: '2025-12-31',
+      active: true,
+    });
+  });
+
   it('should deactivate a recurring expense with active false', async () => {
     const { fixture, component } = await render();
     component.deactivateExpense(activeExpense);
@@ -419,6 +436,25 @@ describe('Schedules', () => {
       next_occurrence: '2026-02-01',
       end_date: null,
       active: false,
+    });
+  });
+
+  it('should activate a recurring expense with active true', async () => {
+    const { fixture, component } = await render();
+    component.activateExpense(inactiveExpense);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(updateRecurringExpense).toHaveBeenCalledWith(21, {
+      account_id: 1,
+      description: 'Old gym',
+      amount: 40,
+      category: null,
+      frequency: 'monthly',
+      start_date: '2025-01-01',
+      next_occurrence: '2025-06-01',
+      end_date: '2025-12-31',
+      active: true,
     });
   });
 

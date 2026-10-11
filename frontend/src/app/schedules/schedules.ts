@@ -368,7 +368,23 @@ export class Schedules implements OnInit {
     this.formActive = checked;
   }
 
+  activateIncome(income: Income): void {
+    this.setIncomeActive(income, true);
+  }
+
   deactivateIncome(income: Income): void {
+    this.setIncomeActive(income, false);
+  }
+
+  activateExpense(expense: RecurringExpense): void {
+    this.setExpenseActive(expense, true);
+  }
+
+  deactivateExpense(expense: RecurringExpense): void {
+    this.setExpenseActive(expense, false);
+  }
+
+  private setIncomeActive(income: Income, active: boolean): void {
     if (this.saving || this.loading || this.errorMessage !== null) {
       return;
     }
@@ -380,7 +396,7 @@ export class Schedules implements OnInit {
       start_date: income.start_date,
       next_occurrence: income.next_occurrence,
       end_date: income.end_date,
-      active: false,
+      active,
     };
 
     this.saving = true;
@@ -392,7 +408,9 @@ export class Schedules implements OnInit {
         this.formKind = null;
         this.formMode = null;
         this.editingId = null;
-        this.successMessage = 'Salary schedule deactivated.';
+        this.successMessage = active
+          ? 'Salary schedule activated.'
+          : 'Salary schedule deactivated.';
         this.changeDetector.markForCheck();
         this.loadPage({ keepSuccessMessage: true });
       },
@@ -400,14 +418,16 @@ export class Schedules implements OnInit {
         this.saving = false;
         this.actionError = formatApiError(
           error,
-          'Unable to deactivate the salary schedule.',
+          active
+            ? 'Unable to activate the salary schedule.'
+            : 'Unable to deactivate the salary schedule.',
         );
         this.changeDetector.markForCheck();
       },
     });
   }
 
-  deactivateExpense(expense: RecurringExpense): void {
+  private setExpenseActive(expense: RecurringExpense, active: boolean): void {
     if (this.saving || this.loading || this.errorMessage !== null) {
       return;
     }
@@ -421,7 +441,7 @@ export class Schedules implements OnInit {
       start_date: expense.start_date,
       next_occurrence: expense.next_occurrence,
       end_date: expense.end_date,
-      active: false,
+      active,
     };
 
     this.saving = true;
@@ -435,7 +455,9 @@ export class Schedules implements OnInit {
           this.formKind = null;
           this.formMode = null;
           this.editingId = null;
-          this.successMessage = 'Recurring expense deactivated.';
+          this.successMessage = active
+            ? 'Recurring expense activated.'
+            : 'Recurring expense deactivated.';
           this.changeDetector.markForCheck();
           this.loadPage({ keepSuccessMessage: true });
         },
@@ -443,7 +465,9 @@ export class Schedules implements OnInit {
           this.saving = false;
           this.actionError = formatApiError(
             error,
-            'Unable to deactivate the recurring expense.',
+            active
+              ? 'Unable to activate the recurring expense.'
+              : 'Unable to deactivate the recurring expense.',
           );
           this.changeDetector.markForCheck();
         },

@@ -187,6 +187,15 @@
                     >
                       Deactivate
                     </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="secondary-button"
+                      [disabled]="saving"
+                      (click)="activateIncome(income)"
+                    >
+                      Activate
+                    </button>
                   }
                 </div>
               }
@@ -337,6 +346,15 @@
                       (click)="deactivateExpense(expense)"
                     >
                       Deactivate
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="secondary-button"
+                      [disabled]="saving"
+                      (click)="activateExpense(expense)"
+                    >
+                      Activate
                     </button>
                   }
                 </div>
