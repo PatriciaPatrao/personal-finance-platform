@@ -39,6 +39,44 @@ def test_generate_occurrences_stops_on_inclusive_end_date() -> None:
     assert dates == [date(2026, 1, 1), date(2026, 2, 1)]
 
 
+def test_monthly_expense_from_october_second_recurs() -> None:
+    """A monthly schedule includes its next occurrence and later months.
+
+    as_of is on or before next_occurrence, so 2 October is kept.
+    """
+    dates = generate_occurrences(
+        next_occurrence=date(2026, 10, 2),
+        frequency=IncomeFrequency.MONTHLY,
+        end_date=date(2027, 4, 9),
+        from_date=date(2026, 10, 1),
+        to_date=date(2027, 1, 31),
+        as_of=date(2026, 10, 1),
+    )
+    assert dates == [
+        date(2026, 10, 2),
+        date(2026, 11, 2),
+        date(2026, 12, 2),
+        date(2027, 1, 2),
+    ]
+
+
+def test_monthly_expense_skips_october_second_after_as_of() -> None:
+    """A next occurrence before as_of is skipped; later months remain."""
+    dates = generate_occurrences(
+        next_occurrence=date(2026, 10, 2),
+        frequency=IncomeFrequency.MONTHLY,
+        end_date=date(2027, 4, 9),
+        from_date=date(2026, 10, 1),
+        to_date=date(2027, 1, 31),
+        as_of=date(2026, 10, 11),
+    )
+    assert dates == [
+        date(2026, 11, 2),
+        date(2026, 12, 2),
+        date(2027, 1, 2),
+    ]
+
+
 def test_generate_occurrences_skips_dates_before_as_of() -> None:
     """Past occurrences are not future expectations."""
     dates = generate_occurrences(

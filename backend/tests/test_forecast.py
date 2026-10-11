@@ -391,6 +391,92 @@ def test_forecast_ignores_income_after_to(
     )
 
 
+def _freeze_forecast_today(
+    monkeypatch: pytest.MonkeyPatch,
+    frozen: date,
+) -> None:
+    """Make ForecastService treat frozen as today."""
+
+    class FrozenDate(date):
+        """date subclass whose today() is fixed."""
+
+        @classmethod
+        def today(cls) -> date:
+            """Return the frozen application date."""
+            return frozen
+
+    monkeypatch.setattr(
+        "app.services.forecast.date",
+        FrozenDate,
+    )
+
+
+def test_forecast_monthly_expense_on_october_second(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """100 is counted on 2 Oct, 2 Nov, and 2 Dec when not past."""
+    _freeze_forecast_today(monkeypatch, date(2026, 10, 1))
+    account = _create_account(client)
+    _create_expense(
+        client,
+        account["id"],
+        amount=100,
+        frequency="monthly",
+        start_date=date(2026, 9, 2),
+        next_occurrence=date(2026, 10, 2),
+        end_date=date(2027, 4, 9),
+    )
+    body = _forecast(
+        client,
+        date(2026, 10, 1),
+        date(2027, 1, 31),
+        "day",
+    )
+    assert Decimal(
+        _period(body, "2026-10-02")["expenses"],
+    ) == Decimal("100.00")
+    assert Decimal(
+        _period(body, "2026-11-02")["expenses"],
+    ) == Decimal("100.00")
+    assert Decimal(
+        _period(body, "2026-12-02")["expenses"],
+    ) == Decimal("100.00")
+
+
+def test_forecast_omits_october_second_when_it_is_before_today(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """2 October is omitted after today; November still counts 100."""
+    _freeze_forecast_today(monkeypatch, date(2026, 10, 11))
+    account = _create_account(client)
+    _create_expense(
+        client,
+        account["id"],
+        amount=100,
+        frequency="monthly",
+        start_date=date(2026, 9, 2),
+        next_occurrence=date(2026, 10, 2),
+        end_date=date(2027, 4, 9),
+    )
+    body = _forecast(
+        client,
+        date(2026, 10, 1),
+        date(2027, 1, 31),
+        "day",
+    )
+    assert Decimal(
+        _period(body, "2026-10-02")["expenses"],
+    ) == Decimal("0.00")
+    assert Decimal(
+        _period(body, "2026-11-02")["expenses"],
+    ) == Decimal("100.00")
+    assert Decimal(
+        _period(body, "2026-12-02")["expenses"],
+    ) == Decimal("100.00")
+
+
 def test_forecast_monthly_recurring_expense(
     client: TestClient,
     today: date,
