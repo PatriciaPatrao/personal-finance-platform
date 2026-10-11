@@ -4,6 +4,7 @@ import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { catchError, forkJoin, of } from 'rxjs';
 
 import { Account } from '../accounts/account';
+import { CopyTable } from '../copy-table/copy-table';
 import { AccountService } from '../accounts/account.service';
 import { DateField } from '../analysis/date-field';
 import {
@@ -156,7 +157,7 @@ function parseEuropeanDate(value: string): string | null {
 
 @Component({
   selector: 'app-transactions',
-  imports: [CurrencyPipe, DateField],
+  imports: [CopyTable, CurrencyPipe, DateField],
   templateUrl: './transactions.html',
   styleUrl: './transactions.scss',
 })

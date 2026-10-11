@@ -2,6 +2,7 @@ import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 
 import { DateField } from '../analysis/date-field';
+import { CopyTable } from '../copy-table/copy-table';
 import {
   ForecastGroupBy,
   ForecastPeriod,
@@ -95,7 +96,7 @@ function formatMoneyMinorUnits(minorUnits: bigint): string {
 
 @Component({
   selector: 'app-forecast',
-  imports: [CurrencyPipe, DateField],
+  imports: [CopyTable, CurrencyPipe, DateField],
   templateUrl: './forecast.html',
   styleUrl: './forecast.scss',
 })

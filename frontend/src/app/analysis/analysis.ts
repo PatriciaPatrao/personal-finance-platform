@@ -9,6 +9,7 @@ import {
   CashFlowGroupBy,
   ExpensesByCategory,
 } from './analysis-summary';
+import { CopyTable } from '../copy-table/copy-table';
 import { DateField } from './date-field';
 
 function formatDate(date: Date): string {
@@ -56,7 +57,7 @@ function parseEuropeanDate(value: string): string | null {
 
 @Component({
   selector: 'app-analysis',
-  imports: [CurrencyPipe, DateField],
+  imports: [CopyTable, CurrencyPipe, DateField],
   templateUrl: './analysis.html',
   styleUrl: './analysis.scss',
 })

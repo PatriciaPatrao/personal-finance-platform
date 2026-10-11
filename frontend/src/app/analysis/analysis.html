@@ -68,6 +68,7 @@
       <h2 id="expenses-heading">Expenses by Category</h2>
 
       @if (expenses && expenses.categories.length > 0) {
+        <app-copy-table>
         <table class="data-table">
           <thead>
             <tr>
@@ -86,6 +87,7 @@
             }
           </tbody>
         </table>
+        </app-copy-table>
       } @else {
         <p class="empty-state">No expenses recorded for this period.</p>
       }
@@ -121,6 +123,7 @@
 
       @if (!cashFlowLoading && !cashFlowErrorMessage && cashFlow) {
         @if (cashFlow.periods.length > 0) {
+          <app-copy-table>
           <table class="data-table">
             <thead>
               <tr>
@@ -141,6 +144,7 @@
               }
             </tbody>
           </table>
+          </app-copy-table>
         } @else {
           <p class="empty-state">
             No cash flow periods recorded for this range.

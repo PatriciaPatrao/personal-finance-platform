@@ -120,6 +120,7 @@
   }
 
   @if (!loading && errorMessage === null && accounts.length > 0) {
+    <app-copy-table>
     <table class="data-table">
       <thead>
         <tr>
@@ -149,5 +150,6 @@
         }
       </tbody>
     </table>
+    </app-copy-table>
   }
 </section>

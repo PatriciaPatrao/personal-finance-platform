@@ -2,6 +2,7 @@ import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { CopyTable } from '../copy-table/copy-table';
 import {
   Account,
   AccountCreate,
@@ -40,7 +41,7 @@ function parseOpeningBalance(value: string): number | null {
 
 @Component({
   selector: 'app-accounts',
-  imports: [CurrencyPipe, RouterLink],
+  imports: [CopyTable, CurrencyPipe, RouterLink],
   templateUrl: './accounts.html',
   styleUrl: './accounts.scss',
 })
