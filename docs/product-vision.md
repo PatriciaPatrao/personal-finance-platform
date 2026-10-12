@@ -45,7 +45,7 @@ Those totals are not converted between currencies. The Analysis screen labels th
 - active scheduled salary
 - active recurring expenses with a fixed expected amount
 
-Occurrences are generated when a forecast is requested, starting at each schedule’s next occurrence. A stored start date is not the generation start. Dates before today are omitted, including when the requested range begins earlier. Each schedule belongs to an account. Users can view a **household** projection (all accounts, one shared currency) or choose **one account** on the Forecast page so only that balance and its linked active schedules apply. Mixed-currency households cannot get a combined household forecast without FX. The projection is **not** a model of historical spending and **does not** write transactions.
+Occurrences are generated when a forecast is requested, starting at each schedule’s next occurrence. A stored start date is not the generation start. Dates before today are omitted, including when the requested range begins earlier. Each schedule belongs to an account. Users can view **household** projections (one time series per account currency, never summed across currencies) or choose **one account** on the Forecast page. There is no FX conversion. The projection is **not** a model of historical spending and **does not** write transactions.
 
 ### Financial Goals
 
@@ -110,7 +110,7 @@ These are omitted on purpose, not missing by accident:
 - **No arbitrary financial-health score.**
 - **No ML** in the current application.
 - **No automatic generation of transactions** from recurring records or salary schedules. Forecast calculates occurrences in memory and does not persist them as transactions.
-- **No unnecessary multi-currency complexity.** Currency defaults to EUR. The dashboard will not invent a single balance across mixed currencies. Forecast reports EUR. Full FX conversion is out of scope.
+- **No unnecessary multi-currency complexity.** Currency defaults to EUR. The dashboard will not invent a single balance across mixed currencies. Forecast returns separate projections per currency. Full FX conversion is out of scope.
 - **No premature background-job infrastructure.** Occurrence dates are computed on forecast request.
 - **Salary-only scheduled income.** Other recurring income types are a later concern.
 - **Fixed recurring-expense amounts.** Variable amounts per occurrence are a later concern.

@@ -1,5 +1,8 @@
 import { AnalysisSummary } from '../analysis/analysis-summary';
-import { ForecastResponse } from '../forecast/forecast-response';
+import {
+  ForecastResponse,
+  primaryProjection,
+} from '../forecast/forecast-response';
 
 export interface FinancialSignal {
   title: string;
@@ -16,18 +19,6 @@ function parseMoneyMinorUnits(value: string): bigint {
   const whole = BigInt(match[2]);
   const fraction = (match[3] ?? '00').padEnd(2, '0');
   return sign * (whole * 100n + BigInt(fraction));
-}
-
-function forecastStartingBalance(forecast: ForecastResponse): bigint | null {
-  if (forecast.periods.length === 0) {
-    return null;
-  }
-
-  const firstPeriod = forecast.periods[0];
-  return (
-    parseMoneyMinorUnits(firstPeriod.projected_balance) -
-    parseMoneyMinorUnits(firstPeriod.net_cash_flow)
-  );
 }
 
 function deriveCashFlowSignal(
@@ -65,12 +56,13 @@ function deriveCashFlowSignal(
 function deriveForecastSignals(
   forecast: ForecastResponse | null,
 ): FinancialSignal[] {
-  if (!forecast || forecast.periods.length === 0) {
+  const projection = forecast ? primaryProjection(forecast) : null;
+  if (!projection || projection.periods.length === 0) {
     return [];
   }
 
   const signals: FinancialSignal[] = [];
-  const hasScheduledIncome = forecast.periods.some(
+  const hasScheduledIncome = projection.periods.some(
     (period) => parseMoneyMinorUnits(period.income) > 0n,
   );
 
@@ -81,13 +73,10 @@ function deriveForecastSignals(
     });
   }
 
-  const startingBalance = forecastStartingBalance(forecast);
-  if (startingBalance === null) {
-    return signals;
-  }
+  const startingBalance = parseMoneyMinorUnits(projection.starting_balance);
 
   const endingBalance = parseMoneyMinorUnits(
-    forecast.periods[forecast.periods.length - 1].projected_balance,
+    projection.periods[projection.periods.length - 1].projected_balance,
   );
 
   if (endingBalance < startingBalance) {
@@ -127,7 +116,8 @@ function analysisQuietSentence(summary: AnalysisSummary): string {
 function forecastQuietSentence(forecast: ForecastResponse): string {
   const range = `${europeanDate(forecast.from_date)} to ${europeanDate(forecast.to_date)}`;
 
-  if (forecast.periods.length === 0) {
+  const projection = primaryProjection(forecast);
+  if (!projection || projection.periods.length === 0) {
     return `Checked the forecast from ${range}: no forecast periods were returned.`;
   }
 

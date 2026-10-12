@@ -94,10 +94,26 @@
   border-color: #e2bcbc;
 }
 
-.status-info {
-  color: #2a3f5f;
-  background: #eef3f9;
-  border-color: #c5d4e8;
+.currency-projection-panel {
+  border-top: 1px solid #e4e4e4;
+  padding-top: 1.15rem;
+}
+
+.currency-projection-panel h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+.periods-subheading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.group-by-bar {
+  padding-top: 0;
+  border-top: none;
 }
 
 .panel {

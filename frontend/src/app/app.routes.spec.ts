@@ -90,15 +90,22 @@ describe('App routing', () => {
               of({
                 from_date: '2026-10-05',
                 to_date: '2026-12-31',
-                currency: 'EUR',
+                scope: 'household',
+                account_id: null,
                 group_by: 'month',
-                periods: [
+                projections: [
                   {
-                    period: '2026-10',
-                    income: '2000.00',
-                    expenses: '1250.00',
-                    net_cash_flow: '750.00',
-                    projected_balance: '5750.00',
+                    currency: 'EUR',
+                    starting_balance: '5000.00',
+                    periods: [
+                      {
+                        period: '2026-10',
+                        income: '2000.00',
+                        expenses: '1250.00',
+                        net_cash_flow: '750.00',
+                        projected_balance: '5750.00',
+                      },
+                    ],
                   },
                 ],
               }),

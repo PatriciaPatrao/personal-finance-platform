@@ -50,107 +50,132 @@
     <p class="status status-loading" aria-live="polite">Loading forecast...</p>
   }
 
-  @if (mixedCurrencyHouseholdMessage) {
-    <p class="status status-info" role="status">
-      {{ mixedCurrencyHouseholdMessage }}
-    </p>
-  }
-
   @if (errorMessage) {
     <p class="status status-error" role="alert">{{ errorMessage }}</p>
   }
 
   @if (!loading && !errorMessage && forecast) {
-    <section class="panel overview-panel" aria-labelledby="overview-heading">
-      <h2 id="overview-heading">Forecast overview</h2>
-      <p class="overview-copy">
-        The starting balance is the balance at the beginning of the range.
-        The ending projected balance is the balance after the final period.
-      </p>
+    <div class="panel group-by-bar">
+      <label class="field group-by-field">
+        <span class="field-label">Grouping</span>
+        <select
+          name="groupBy"
+          [value]="groupBy"
+          (change)="onGroupByChange($any($event.target).value)"
+        >
+          <option value="month">Monthly</option>
+          <option value="day">Daily</option>
+        </select>
+      </label>
+    </div>
 
-      @if (startingBalance !== null && endingProjectedBalance !== null) {
-        <div class="metric-grid">
-          <article class="metric">
-            <h3>Starting balance</h3>
-            <p class="metric-value">
-              {{ startingBalance | currency: displayCurrency }}
-            </p>
-            <p class="metric-caption">At the start of the forecast</p>
-          </article>
-          <article class="metric projected-balance-metric">
-            <h3>Ending projected balance</h3>
-            <p class="metric-value projected-balance-value">
-              {{ endingProjectedBalance | currency: displayCurrency }}
-            </p>
-            @if (endingProjectedBalanceDate) {
-              <p class="metric-caption">
-                At {{ endingProjectedBalanceDate }}
-              </p>
-            }
-          </article>
-        </div>
-      }
-    </section>
-
-    <section class="panel" aria-labelledby="periods-heading">
-      <div class="panel-header">
-        <h2 id="periods-heading">Forecast periods</h2>
-        <label class="field group-by-field">
-          <span class="field-label">Grouping</span>
-          <select
-            name="groupBy"
-            [value]="groupBy"
-            (change)="onGroupByChange($any($event.target).value)"
-          >
-            <option value="month">Monthly</option>
-            <option value="day">Daily</option>
-          </select>
-        </label>
-      </div>
-
-      @if (forecast.periods.length > 0) {
-        <p class="table-note">
-          Each projected balance is the running balance after that period.
+    @for (
+      projection of displayProjections;
+      track trackProjection($index, projection)
+    ) {
+      <section
+        class="panel currency-projection-panel"
+        [attr.aria-labelledby]="'overview-' + projection.currency"
+      >
+        <h2 [id]="'overview-' + projection.currency">
+          {{ projection.currency }} forecast
+        </h2>
+        <p class="overview-copy">
+          The starting balance is the balance at the beginning of the range
+          for {{ projection.currency }} accounts. The ending projected balance
+          is the balance after the final period in this currency only.
         </p>
 
-        @if (hasZeroSchedule) {
-          <p class="table-note">
-            No scheduled income or recurring expenses fall within this range,
-            so the projected balance remains unchanged.
-          </p>
+        @if (
+          endingProjectedBalance(projection) !== null
+        ) {
+          <div class="metric-grid">
+            <article class="metric">
+              <h3>Starting balance</h3>
+              <p class="metric-value">
+                {{
+                  projection.starting_balance
+                    | currency: projection.currency
+                }}
+              </p>
+              <p class="metric-caption">At the start of the forecast</p>
+            </article>
+            <article class="metric projected-balance-metric">
+              <h3>Ending projected balance</h3>
+              <p class="metric-value projected-balance-value">
+                {{
+                  endingProjectedBalance(projection)
+                    | currency: projection.currency
+                }}
+              </p>
+              @if (endingProjectedBalanceDate) {
+                <p class="metric-caption">
+                  At {{ endingProjectedBalanceDate }}
+                </p>
+              }
+            </article>
+          </div>
         }
 
-        <app-copy-table>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th scope="col">Period</th>
-              <th scope="col">Income</th>
-              <th scope="col">Expenses</th>
-              <th scope="col">Net Cash Flow</th>
-              <th scope="col">Projected Balance</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (period of forecast.periods; track trackPeriod($index, period)) {
-              <tr>
-                <td>{{ period.period }}</td>
-                <td>{{ period.income | currency: displayCurrency }}</td>
-                <td>{{ period.expenses | currency: displayCurrency }}</td>
-                <td>{{ period.net_cash_flow | currency: displayCurrency }}</td>
-                <td class="projected-balance-cell">
-                  {{ period.projected_balance | currency: displayCurrency }}
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-        </app-copy-table>
-      } @else {
-        <p class="empty-state">
-          No forecast periods returned for this range.
-        </p>
-      }
-    </section>
+        @if (projection.periods.length > 0) {
+          <h3 class="periods-subheading">Forecast periods</h3>
+          <p class="table-note">
+            Each projected balance is the running balance after that period.
+          </p>
+
+          @if (hasZeroSchedule(projection)) {
+            <p class="table-note">
+              No scheduled income or recurring expenses fall within this range,
+              so the projected balance remains unchanged.
+            </p>
+          }
+
+          <app-copy-table>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Period</th>
+                  <th scope="col">Income</th>
+                  <th scope="col">Expenses</th>
+                  <th scope="col">Net Cash Flow</th>
+                  <th scope="col">Projected Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (
+                  period of projection.periods;
+                  track trackPeriod($index, period)
+                ) {
+                  <tr>
+                    <td>{{ period.period }}</td>
+                    <td>
+                      {{ period.income | currency: projection.currency }}
+                    </td>
+                    <td>
+                      {{ period.expenses | currency: projection.currency }}
+                    </td>
+                    <td>
+                      {{
+                        period.net_cash_flow | currency: projection.currency
+                      }}
+                    </td>
+                    <td class="projected-balance-cell">
+                      {{
+                        period.projected_balance
+                          | currency: projection.currency
+                      }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </app-copy-table>
+        } @else {
+          <p class="empty-state">
+            No forecast periods returned for this range.
+          </p>
+        }
+      </section>
+    }
   }
 </section>

@@ -35,7 +35,7 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 - expenses grouped by category, including each category’s share of the total. A missing category is reported as Uncategorized
 - cash flow grouped by day or month. The Analysis screen defaults to month
 
-**Forecast.** Read-only projection for a date range, grouped by day or month. The Forecast screen defaults to month and offers “All accounts” or a single account. Without `account_id`, household scope sums every account balance and every active schedule when all accounts share one currency; mixed currencies return **422**. With `account_id`, only that account’s balance and matching active schedules are used; the response `currency` matches the account. Dates are generated from `next_occurrence` through an optional inclusive end date. Dates before today are omitted. There is no FX conversion. Forecast does not write balances.
+**Forecast.** Read-only projection for a date range, grouped by day or month. The Forecast screen defaults to month and offers “All accounts” or a single account. `GET /forecast` returns `projections[]`: each item has `currency`, `starting_balance`, and `periods`. Household scope returns one projection per account currency (sorted by currency code), never combining unlike currencies. Account scope (`account_id`) returns one projection for that account. Dates are generated from `next_occurrence` through an optional inclusive end date. Dates before today are omitted. There is no FX conversion. Forecast does not write balances.
 
 **Financial Goals.** The Angular screen at `/personal_finance/goals` lists, creates, and edits future financial objectives, and designates existing Account money through GoalAllocations. Each Goal has a name, a positive target amount, a currency (EUR by default; the form offers EUR, USD, and GBP), and an optional target date. A Goal does not store money. Progress comes from funded allocations: `current_amount` is the sum of funded designation amounts, `progress` is bounded to `[0, 1]`, and `completed` is derived. A Goal with no allocations has those three values null and the screen says progress is unavailable. Allocation writes do not change `Account.current_balance`. An Account may fund many Goals and a Goal may receive allocations from many Accounts of the same currency, as long as designated amounts stay within available capacity. There is no Goal DELETE route; allocations can be reduced or deleted.
 
@@ -89,7 +89,7 @@ Layout under `backend/app/`: `api`, `services`, `repositories`, `schemas`, `mode
 | GET | `/analysis/summary` | Historical totals; `to` cannot be in the future |
 | GET | `/analysis/expenses` | Historical expenses by category |
 | GET | `/analysis/cash-flow` | Historical cash flow; `group_by` is `day` or `month` |
-| GET | `/forecast` | Projection; `group_by` is `day` or `month`; optional `account_id`; response includes `scope`, `account_id`, and `currency` |
+| GET | `/forecast` | Projection; `group_by` is `day` or `month`; optional `account_id`; response includes `scope`, `account_id`, and `projections[]` |
 
 Date query parameters use the names `from` and `to`.
 

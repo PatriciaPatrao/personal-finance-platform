@@ -20,10 +20,35 @@ def _month(value: date) -> str:
     return f"{value.year:04d}-{value.month:02d}"
 
 
-def _period(body: dict, label: str) -> dict:
+def _projection(
+    body: dict,
+    currency: str | None = None,
+) -> dict:
+    """Return one currency projection from the response body."""
+    projections = body["projections"]
+    assert projections
+    if currency is not None:
+        return next(
+            item
+            for item in projections
+            if item["currency"] == currency
+        )
+    assert len(projections) == 1
+    return projections[0]
+
+
+def _period(
+    body: dict,
+    label: str,
+    *,
+    currency: str | None = None,
+) -> dict:
     """Return the forecast period with the given label."""
+    projection = _projection(body, currency)
     return next(
-        item for item in body["periods"] if item["period"] == label
+        item
+        for item in projection["periods"]
+        if item["period"] == label
     )
 
 
@@ -134,12 +159,14 @@ def _forecast(
     )
     assert response.status_code == 200
     body = response.json()
+    assert body["projections"]
     if account_id is None:
         assert body["scope"] == "household"
         assert body["account_id"] is None
     else:
         assert body["scope"] == "account"
         assert body["account_id"] == account_id
+        assert len(body["projections"]) == 1
     return body
 
 
@@ -376,7 +403,7 @@ def test_forecast_ignores_income_before_from(
     body = _forecast(client, from_date, to_date, "day")
     assert all(
         Decimal(item["income"]) == Decimal("0.00")
-        for item in body["periods"]
+        for item in _projection(body)["periods"]
     )
 
 
@@ -401,7 +428,7 @@ def test_forecast_ignores_income_after_to(
     )
     assert all(
         Decimal(item["income"]) == Decimal("0.00")
-        for item in body["periods"]
+        for item in _projection(body)["periods"]
     )
 
 
@@ -757,8 +784,9 @@ def test_forecast_daily_grouping(
         "day",
     )
     assert body["group_by"] == "day"
-    assert body["currency"] == "EUR"
-    assert body["periods"][0]["period"] == _iso(today)
+    projection = _projection(body)
+    assert projection["currency"] == "EUR"
+    assert projection["periods"][0]["period"] == _iso(today)
 
 
 def test_forecast_monthly_grouping(
@@ -772,7 +800,7 @@ def test_forecast_monthly_grouping(
         to_date = today
     body = _forecast(client, today, to_date, "month")
     assert body["group_by"] == "month"
-    assert body["periods"][0]["period"] == _month(today)
+    assert _projection(body)["periods"][0]["period"] == _month(today)
 
 
 def test_forecast_returns_all_daily_periods(
@@ -783,7 +811,7 @@ def test_forecast_returns_all_daily_periods(
     _create_account(client)
     to_date = today + timedelta(days=2)
     body = _forecast(client, today, to_date, "day")
-    labels = [item["period"] for item in body["periods"]]
+    labels = [item["period"] for item in _projection(body)["periods"]]
     assert labels == [
         _iso(today),
         _iso(today + timedelta(days=1)),
@@ -800,7 +828,7 @@ def test_forecast_returns_all_monthly_periods(
     from_date = date(today.year, today.month, 1)
     to_date = add_months(from_date, 2)
     body = _forecast(client, from_date, to_date, "month")
-    labels = [item["period"] for item in body["periods"]]
+    labels = [item["period"] for item in _projection(body)["periods"]]
     assert labels == [
         _month(from_date),
         _month(add_months(from_date, 1)),
@@ -1054,7 +1082,7 @@ def test_forecast_account_scope_isolates_schedules(
         account_id=account_b["id"],
     )
     period_b = _period(body_b, _iso(today))
-    assert body_b["currency"] == "EUR"
+    assert _projection(body_b)["currency"] == "EUR"
     assert Decimal(period_b["income"]) == Decimal("0.00")
     assert Decimal(period_b["projected_balance"]) == Decimal(
         "5000.00",
@@ -1141,26 +1169,55 @@ def test_forecast_account_scope_uses_account_currency(
         "day",
         account_id=account["id"],
     )
-    assert body["currency"] == "USD"
+    assert _projection(body)["currency"] == "USD"
 
 
-def test_forecast_household_rejects_mixed_currencies(
+def test_forecast_household_returns_projection_per_currency(
     client: TestClient,
     today: date,
 ) -> None:
-    """Household forecast is unavailable when currencies differ."""
-    _create_account(client, name="EUR account", currency="EUR")
-    _create_account(client, name="USD account", currency="USD")
-    response = client.get(
-        "/forecast",
-        params={
-            "from": _iso(today),
-            "to": _iso(today),
-            "group_by": "day",
-        },
+    """Mixed-currency households return one projection per currency."""
+    eur_account = _create_account(
+        client,
+        name="EUR account",
+        currency="EUR",
+        current_balance=1000,
     )
-    assert response.status_code == 422
-    assert "same currency" in response.json()["detail"]
+    usd_account = _create_account(
+        client,
+        name="USD account",
+        currency="USD",
+        current_balance=200,
+    )
+    _create_income(
+        client,
+        eur_account["id"],
+        amount=500,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+    _create_expense(
+        client,
+        usd_account["id"],
+        amount=50,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+    body = _forecast(client, today, today, "day")
+    assert [item["currency"] for item in body["projections"]] == [
+        "EUR",
+        "USD",
+    ]
+    eur = _projection(body, "EUR")
+    usd = _projection(body, "USD")
+    assert Decimal(eur["starting_balance"]) == Decimal("1000.00")
+    assert Decimal(usd["starting_balance"]) == Decimal("200.00")
+    eur_period = _period(body, _iso(today), currency="EUR")
+    usd_period = _period(body, _iso(today), currency="USD")
+    assert Decimal(eur_period["income"]) == Decimal("500.00")
+    assert Decimal(usd_period["expenses"]) == Decimal("50.00")
+    assert Decimal(eur_period["projected_balance"]) == Decimal("1500.00")
+    assert Decimal(usd_period["projected_balance"]) == Decimal("150.00")
 
 
 def test_forecast_household_matches_sum_of_account_scopes(
@@ -1207,11 +1264,14 @@ def test_forecast_household_matches_sum_of_account_scopes(
         "day",
         account_id=account_b["id"],
     )
-    assert household["currency"] == "EUR"
     label = _iso(today)
     home = _period(household, label)
     part_a = _period(scope_a, label)
     part_b = _period(scope_b, label)
+    assert Decimal(_projection(household)["starting_balance"]) == (
+        Decimal(_projection(scope_a)["starting_balance"])
+        + Decimal(_projection(scope_b)["starting_balance"])
+    )
     assert Decimal(home["income"]) == (
         Decimal(part_a["income"]) + Decimal(part_b["income"])
     )
@@ -1251,3 +1311,84 @@ def test_forecast_account_scope_matches_household_single_account(
     )
     label = _iso(today)
     assert _period(household, label) == _period(scoped, label)
+    assert _projection(household)["starting_balance"] == _projection(
+        scoped,
+    )["starting_balance"]
+
+
+def test_forecast_household_currency_matches_account_scopes(
+    client: TestClient,
+    today: date,
+) -> None:
+    """Each household currency projection matches its account scopes."""
+    eur_main = _create_account(
+        client,
+        name="EUR main",
+        currency="EUR",
+        current_balance=1000,
+    )
+    eur_side = _create_account(
+        client,
+        name="EUR side",
+        currency="EUR",
+        current_balance=250,
+    )
+    usd_account = _create_account(
+        client,
+        name="USD",
+        currency="USD",
+        current_balance=80,
+    )
+    _create_income(
+        client,
+        eur_main["id"],
+        amount=100,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+    _create_expense(
+        client,
+        usd_account["id"],
+        amount=20,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+    household = _forecast(client, today, today, "day")
+    eur_scope_main = _forecast(
+        client,
+        today,
+        today,
+        "day",
+        account_id=eur_main["id"],
+    )
+    eur_scope_side = _forecast(
+        client,
+        today,
+        today,
+        "day",
+        account_id=eur_side["id"],
+    )
+    usd_scope = _forecast(
+        client,
+        today,
+        today,
+        "day",
+        account_id=usd_account["id"],
+    )
+    label = _iso(today)
+    home_eur = _period(household, label, currency="EUR")
+    home_usd = _period(household, label, currency="USD")
+    assert Decimal(_projection(household, "EUR")["starting_balance"]) == (
+        Decimal(_projection(eur_scope_main)["starting_balance"])
+        + Decimal(_projection(eur_scope_side)["starting_balance"])
+    )
+    assert Decimal(home_eur["income"]) == Decimal(
+        _period(eur_scope_main, label)["income"],
+    )
+    assert Decimal(home_eur["projected_balance"]) == Decimal("1350.00")
+    assert Decimal(home_usd["expenses"]) == Decimal(
+        _period(usd_scope, label)["expenses"],
+    )
+    assert Decimal(_projection(household, "USD")["starting_balance"]) == Decimal(
+        _projection(usd_scope)["starting_balance"],
+    )

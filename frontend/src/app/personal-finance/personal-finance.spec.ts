@@ -43,31 +43,36 @@ describe('PersonalFinance', () => {
   const increasingForecast: ForecastResponse = {
     from_date: '2026-10-05',
     to_date: '2026-12-31',
-    currency: 'EUR',
     scope: 'household',
     account_id: null,
     group_by: 'month',
-    periods: [
+    projections: [
       {
-        period: '2026-10',
-        income: '2000.00',
-        expenses: '1250.00',
-        net_cash_flow: '750.00',
-        projected_balance: '5750.00',
-      },
-      {
-        period: '2026-11',
-        income: '2000.00',
-        expenses: '1250.00',
-        net_cash_flow: '750.00',
-        projected_balance: '6500.00',
-      },
-      {
-        period: '2026-12',
-        income: '2000.00',
-        expenses: '1250.00',
-        net_cash_flow: '750.00',
-        projected_balance: '7250.00',
+        currency: 'EUR',
+        starting_balance: '5000.00',
+        periods: [
+          {
+            period: '2026-10',
+            income: '2000.00',
+            expenses: '1250.00',
+            net_cash_flow: '750.00',
+            projected_balance: '5750.00',
+          },
+          {
+            period: '2026-11',
+            income: '2000.00',
+            expenses: '1250.00',
+            net_cash_flow: '750.00',
+            projected_balance: '6500.00',
+          },
+          {
+            period: '2026-12',
+            income: '2000.00',
+            expenses: '1250.00',
+            net_cash_flow: '750.00',
+            projected_balance: '7250.00',
+          },
+        ],
       },
     ],
   };
@@ -75,17 +80,22 @@ describe('PersonalFinance', () => {
   const flatForecast: ForecastResponse = {
     from_date: '2026-10-05',
     to_date: '2026-12-31',
-    currency: 'EUR',
     scope: 'household',
     account_id: null,
     group_by: 'month',
-    periods: [
+    projections: [
       {
-        period: '2026-10',
-        income: '1250.00',
-        expenses: '1250.00',
-        net_cash_flow: '0.00',
-        projected_balance: '5000.00',
+        currency: 'EUR',
+        starting_balance: '5000.00',
+        periods: [
+          {
+            period: '2026-10',
+            income: '1250.00',
+            expenses: '1250.00',
+            net_cash_flow: '0.00',
+            projected_balance: '5000.00',
+          },
+        ],
       },
     ],
   };
@@ -93,17 +103,22 @@ describe('PersonalFinance', () => {
   const noIncomeForecast: ForecastResponse = {
     from_date: '2026-10-05',
     to_date: '2026-12-31',
-    currency: 'EUR',
     scope: 'household',
     account_id: null,
     group_by: 'month',
-    periods: [
+    projections: [
       {
-        period: '2026-10',
-        income: '0.00',
-        expenses: '0.00',
-        net_cash_flow: '0.00',
-        projected_balance: '5000.00',
+        currency: 'EUR',
+        starting_balance: '5000.00',
+        periods: [
+          {
+            period: '2026-10',
+            income: '0.00',
+            expenses: '0.00',
+            net_cash_flow: '0.00',
+            projected_balance: '5000.00',
+          },
+        ],
       },
     ],
   };
@@ -332,13 +347,19 @@ describe('PersonalFinance', () => {
     getForecast.mockReturnValue(
       of({
         ...noIncomeForecast,
-        periods: [
+        projections: [
           {
-            period: '2026-10',
-            income: '0.00',
-            expenses: '100.00',
-            net_cash_flow: '-100.00',
-            projected_balance: '4900.00',
+            currency: 'EUR',
+            starting_balance: '5000.00',
+            periods: [
+              {
+                period: '2026-10',
+                income: '0.00',
+                expenses: '100.00',
+                net_cash_flow: '-100.00',
+                projected_balance: '4900.00',
+              },
+            ],
           },
         ],
       }),

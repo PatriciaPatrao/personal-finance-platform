@@ -32,17 +32,22 @@ describe('ForecastService', () => {
     const expected: ForecastResponse = {
       from_date: '2026-10-05',
       to_date: '2026-12-31',
-      currency: 'EUR',
       scope: 'household',
       account_id: null,
       group_by: 'month',
-      periods: [
+      projections: [
         {
-          period: '2026-10',
-          income: '2000.00',
-          expenses: '1500.00',
-          net_cash_flow: '500.00',
-          projected_balance: '2500.00',
+          currency: 'EUR',
+          starting_balance: '2000.00',
+          periods: [
+            {
+              period: '2026-10',
+              income: '2000.00',
+              expenses: '1500.00',
+              net_cash_flow: '500.00',
+              projected_balance: '2500.00',
+            },
+          ],
         },
       ],
     };
@@ -66,32 +71,39 @@ describe('ForecastService', () => {
     request.flush(expected);
 
     expect(actual).toEqual(expected);
-    expect(actual?.periods[0].projected_balance).toBe('2500.00');
-    expect(actual?.periods[0].income).toBe('2000.00');
+    expect(actual?.projections[0].periods[0].projected_balance).toBe(
+      '2500.00',
+    );
+    expect(actual?.projections[0].periods[0].income).toBe('2000.00');
   });
 
   it('should request the forecast with daily grouping', () => {
     const expected: ForecastResponse = {
       from_date: '2026-10-05',
       to_date: '2026-10-06',
-      currency: 'EUR',
       scope: 'household',
       account_id: null,
       group_by: 'day',
-      periods: [
+      projections: [
         {
-          period: '2026-10-05',
-          income: '0.00',
-          expenses: '0.00',
-          net_cash_flow: '0.00',
-          projected_balance: '1000.00',
-        },
-        {
-          period: '2026-10-06',
-          income: '0.00',
-          expenses: '0.00',
-          net_cash_flow: '0.00',
-          projected_balance: '1000.00',
+          currency: 'EUR',
+          starting_balance: '1000.00',
+          periods: [
+            {
+              period: '2026-10-05',
+              income: '0.00',
+              expenses: '0.00',
+              net_cash_flow: '0.00',
+              projected_balance: '1000.00',
+            },
+            {
+              period: '2026-10-06',
+              income: '0.00',
+              expenses: '0.00',
+              net_cash_flow: '0.00',
+              projected_balance: '1000.00',
+            },
+          ],
         },
       ],
     };
@@ -113,18 +125,23 @@ describe('ForecastService', () => {
 
     expect(actual).toEqual(expected);
     expect(actual?.group_by).toBe('day');
-    expect(actual?.periods).toHaveLength(2);
+    expect(actual?.projections[0].periods).toHaveLength(2);
   });
 
   it('should include account_id when requesting an account-scoped forecast', () => {
     const expected: ForecastResponse = {
       from_date: '2026-10-05',
       to_date: '2026-10-05',
-      currency: 'USD',
       scope: 'account',
       account_id: 3,
       group_by: 'day',
-      periods: [],
+      projections: [
+        {
+          currency: 'USD',
+          starting_balance: '100.00',
+          periods: [],
+        },
+      ],
     };
 
     service

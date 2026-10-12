@@ -13,8 +13,6 @@ from app.schemas.forecast import ForecastQuery
 from app.schemas.forecast import ForecastResponse
 from app.services.forecast import ForecastAccountNotFoundError
 from app.services.forecast import ForecastService
-from app.services.forecast import MIXED_CURRENCY_HOUSEHOLD_DETAIL
-from app.services.forecast import MixedCurrencyHouseholdForecastError
 
 
 router = APIRouter()
@@ -42,8 +40,3 @@ def get_forecast(
             status_code=404,
             detail=str(error),
         ) from error
-    except MixedCurrencyHouseholdForecastError:
-        raise HTTPException(
-            status_code=422,
-            detail=MIXED_CURRENCY_HOUSEHOLD_DETAIL,
-        ) from None

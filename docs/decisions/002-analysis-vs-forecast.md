@@ -20,8 +20,9 @@ Keep Analysis and Forecast as separate read models.
 
 **Forecast** is future-oriented. It answers “what may happen based on what is scheduled?” `GET /forecast` accepts optional `account_id`.
 
-- **Household scope** (default, `account_id` omitted): sum every `Account.current_balance`, include every active Income and active Recurring Expense, and set `currency` to the single shared account currency. If accounts use more than one currency, the API returns **422** with an explicit message. There is no FX conversion.
-- **Account scope** (`account_id` set): use that account’s `current_balance`, include only active schedules whose `account_id` matches, set `currency` to that account’s currency, and return **404** when the account is missing.
+- **Household scope** (default, `account_id` omitted): return one **projection** per distinct account currency, sorted alphabetically by currency code. Each projection sums `current_balance` only for accounts in that currency and includes only active schedules linked to those accounts. There is no FX conversion and no cross-currency totals.
+- **Account scope** (`account_id` set): return a single projection for that account’s currency, using its `current_balance` and matching active schedules. **404** when the account is missing.
+- **Response shape:** `projections[]` with `currency`, `starting_balance`, and `periods` (no top-level combined `currency` or `periods`).
 
 Occurrences are generated in memory when `GET /forecast` is requested, from `next_occurrence` through an optional inclusive `end_date`. Dates before today are omitted. `start_date` is validated on write and is not used to generate dates. Gaps between `start_date` and `next_occurrence` are not projected. Forecast does not read transactions, does not write transactions or balances, and does not import Analysis.
 
@@ -32,8 +33,8 @@ Historical transactions are not extrapolated into future Forecast values. Past s
 - A number is either observed (transactions) or assumed from an explicit schedule. The two are not blended.
 - Changing how categories or historical totals are computed does not change a projection, and changing a salary or recurring expense does not change Analysis.
 - Empty forecast periods stay zero when nothing is scheduled, even if similar months in history had spending. A requested `from` before today still does not include occurrences before today.
-- Household forecast requires a single currency across accounts. Account-scoped forecast labels the account’s currency. Mixed-currency household requests are rejected instead of summing unlike currencies.
-- The response includes `scope` (`household` or `account`) and `account_id` (null for household).
+- Multi-currency households receive multiple independent projections in one response. Dashboard financial signals stay suppressed when accounts use more than one currency (no per-currency signals yet).
+- The response includes `scope` (`household` or `account`), `account_id` (null for household), and `projections`.
 - Period-label helpers are duplicated in the two services. Both use `add_months` from `app.services.occurrence` as a calendar helper. That shared helper is not a shared financial calculation.
 - `GET /financial-summary` returns the same transaction totals as analysis summary but does not reject a future `to` date. The Analysis page and Dashboard call `/analysis/summary`, which does enforce the historical bound.
 

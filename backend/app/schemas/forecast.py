@@ -54,13 +54,20 @@ class ForecastPeriod(BaseModel):
     projected_balance: Decimal = Field(decimal_places=2)
 
 
+class ForecastCurrencyProjection(BaseModel):
+    """Projected cash flow for one currency."""
+
+    currency: str
+    starting_balance: Decimal = Field(decimal_places=2)
+    periods: list[ForecastPeriod]
+
+
 class ForecastResponse(BaseModel):
     """Projected cash flow for a date range."""
 
     from_date: date
     to_date: date
-    currency: str
     group_by: ForecastGroupBy
     scope: ForecastScope
     account_id: int | None = None
-    periods: list[ForecastPeriod]
+    projections: list[ForecastCurrencyProjection]

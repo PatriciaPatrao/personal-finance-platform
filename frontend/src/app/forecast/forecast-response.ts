@@ -10,12 +10,23 @@ export interface ForecastPeriod {
 
 export type ForecastScope = 'household' | 'account';
 
+export interface ForecastCurrencyProjection {
+  currency: string;
+  starting_balance: string;
+  periods: ForecastPeriod[];
+}
+
 export interface ForecastResponse {
   from_date: string;
   to_date: string;
-  currency: string;
   scope: ForecastScope;
   account_id: number | null;
   group_by: ForecastGroupBy;
-  periods: ForecastPeriod[];
+  projections: ForecastCurrencyProjection[];
+}
+
+export function primaryProjection(
+  forecast: ForecastResponse,
+): ForecastCurrencyProjection | null {
+  return forecast.projections?.[0] ?? null;
 }

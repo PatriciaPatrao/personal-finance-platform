@@ -1,5 +1,4 @@
 import { CurrencyPipe } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 
 import { Account } from '../accounts/account';
@@ -7,6 +6,7 @@ import { AccountService } from '../accounts/account.service';
 import { DateField } from '../analysis/date-field';
 import { CopyTable } from '../copy-table/copy-table';
 import {
+  ForecastCurrencyProjection,
   ForecastGroupBy,
   ForecastPeriod,
   ForecastResponse,
@@ -89,19 +89,6 @@ function parseMoneyMinorUnits(value: string): bigint {
   return sign * (whole * 100n + BigInt(fraction));
 }
 
-function formatMoneyMinorUnits(minorUnits: bigint): string {
-  const sign = minorUnits < 0n ? '-' : '';
-  const absolute = minorUnits < 0n ? -minorUnits : minorUnits;
-  const whole = absolute / 100n;
-  const fraction = (absolute % 100n).toString().padStart(2, '0');
-  return `${sign}${whole}.${fraction}`;
-}
-
-export const MIXED_CURRENCY_HOUSEHOLD_MESSAGE =
-  'A combined projection for all accounts is unavailable because your ' +
-  'accounts use more than one currency. Select an account below to see ' +
-  'its forecast.';
-
 @Component({
   selector: 'app-forecast',
   imports: [CopyTable, CurrencyPipe, DateField],
@@ -125,12 +112,9 @@ export class Forecast implements OnInit {
 
   loading = true;
   errorMessage: string | null = null;
-  mixedCurrencyHouseholdMessage: string | null = null;
   validationMessage: string | null = null;
 
   private loadGeneration = 0;
-  private householdMixedCurrencyBlocked = false;
-  private householdBlockedRequestKey: string | null = null;
 
   constructor(
     private accountService: AccountService,
@@ -138,15 +122,16 @@ export class Forecast implements OnInit {
     private changeDetector: ChangeDetectorRef,
   ) {}
 
-  get displayCurrency(): string {
-    return this.forecast?.currency ?? 'EUR';
+  get displayProjections(): ForecastCurrencyProjection[] {
+    return this.forecast?.projections ?? [];
   }
 
   get scopeIntro(): string {
     if (this.accountFilter === 'all') {
       return (
-        'Household projection across all accounts with the same currency. ' +
-        'If your accounts use different currencies, select one account below.'
+        'Household projections are calculated separately for each ' +
+        'currency. Amounts are never combined across currencies and ' +
+        'there is no currency conversion.'
       );
     }
 
@@ -160,45 +145,12 @@ export class Forecast implements OnInit {
     );
   }
 
-  get startingBalance(): string | null {
-    if (!this.forecast || this.forecast.periods.length === 0) {
-      return null;
-    }
-
-    const firstPeriod = this.forecast.periods[0];
-    const projected = parseMoneyMinorUnits(firstPeriod.projected_balance);
-    const netCashFlow = parseMoneyMinorUnits(firstPeriod.net_cash_flow);
-    return formatMoneyMinorUnits(projected - netCashFlow);
-  }
-
-  get endingProjectedBalance(): string | null {
-    if (!this.forecast || this.forecast.periods.length === 0) {
-      return null;
-    }
-
-    const lastPeriod =
-      this.forecast.periods[this.forecast.periods.length - 1];
-    return lastPeriod.projected_balance;
-  }
-
   get endingProjectedBalanceDate(): string | null {
-    if (!this.forecast || this.forecast.periods.length === 0) {
+    if (!this.forecast) {
       return null;
     }
 
     return formatLongDate(this.forecast.to_date);
-  }
-
-  get hasZeroSchedule(): boolean {
-    if (!this.forecast || this.forecast.periods.length === 0) {
-      return false;
-    }
-
-    return this.forecast.periods.every(
-      (period) =>
-        parseMoneyMinorUnits(period.income) === 0n &&
-        parseMoneyMinorUnits(period.expenses) === 0n,
-    );
   }
 
   ngOnInit(): void {
@@ -256,34 +208,52 @@ export class Forecast implements OnInit {
     this.loadForecast();
   }
 
+  trackProjection(_index: number, projection: ForecastCurrencyProjection): string {
+    return projection.currency;
+  }
+
   trackPeriod(_index: number, period: ForecastPeriod): string {
     return period.period;
+  }
+
+  endingProjectedBalance(
+    projection: ForecastCurrencyProjection,
+  ): string | null {
+    if (projection.periods.length === 0) {
+      return null;
+    }
+
+    return projection.periods[projection.periods.length - 1].projected_balance;
+  }
+
+  hasZeroSchedule(projection: ForecastCurrencyProjection): boolean {
+    if (projection.periods.length === 0) {
+      return false;
+    }
+
+    return projection.periods.every(
+      (period) =>
+        parseMoneyMinorUnits(period.income) === 0n &&
+        parseMoneyMinorUnits(period.expenses) === 0n,
+    );
   }
 
   private clearForecastResult(): void {
     this.forecast = null;
     this.loading = false;
     this.errorMessage = null;
-    this.mixedCurrencyHouseholdMessage = null;
   }
 
   private loadForecast(): void {
     const generation = ++this.loadGeneration;
     this.loading = true;
     this.errorMessage = null;
-    this.mixedCurrencyHouseholdMessage = null;
     this.forecast = null;
 
     const accountId =
       this.accountFilter === 'all'
         ? undefined
         : Number(this.accountFilter);
-
-    if (accountId === undefined && this.shouldSkipHouseholdForecastRequest()) {
-      this.rememberHouseholdMixedCurrencyBlock();
-      this.applyHouseholdMixedCurrencyState(generation);
-      return;
-    }
 
     this.forecastService
       .getForecast(this.from, this.to, this.groupBy, accountId)
@@ -292,75 +262,19 @@ export class Forecast implements OnInit {
           if (generation !== this.loadGeneration) {
             return;
           }
-          if (accountId === undefined) {
-            this.householdMixedCurrencyBlocked = false;
-            this.householdBlockedRequestKey = null;
-          }
           this.forecast = forecast;
           this.loading = false;
           this.changeDetector.markForCheck();
         },
-        error: (error: unknown) => {
+        error: () => {
           if (generation !== this.loadGeneration) {
             return;
           }
           this.forecast = null;
-          if (
-            accountId === undefined &&
-            this.isMixedCurrencyHouseholdError(error)
-          ) {
-            this.rememberHouseholdMixedCurrencyBlock();
-            this.applyHouseholdMixedCurrencyState(generation);
-            return;
-          }
           this.errorMessage = 'Unable to load the forecast.';
           this.loading = false;
           this.changeDetector.markForCheck();
         },
       });
-  }
-
-  private shouldSkipHouseholdForecastRequest(): boolean {
-    if (this.accountsHaveMixedCurrency()) {
-      return true;
-    }
-    return (
-      this.householdMixedCurrencyBlocked &&
-      this.householdBlockedRequestKey === this.householdRequestKey()
-    );
-  }
-
-  private accountsHaveMixedCurrency(): boolean {
-    if (this.accounts.length <= 1) {
-      return false;
-    }
-    const currency = this.accounts[0].currency;
-    return !this.accounts.every(
-      (account) => account.currency === currency,
-    );
-  }
-
-  private householdRequestKey(): string {
-    return `${this.from}|${this.to}|${this.groupBy}`;
-  }
-
-  private rememberHouseholdMixedCurrencyBlock(): void {
-    this.householdMixedCurrencyBlocked = true;
-    this.householdBlockedRequestKey = this.householdRequestKey();
-  }
-
-  private applyHouseholdMixedCurrencyState(generation: number): void {
-    if (generation !== this.loadGeneration) {
-      return;
-    }
-    this.forecast = null;
-    this.errorMessage = null;
-    this.mixedCurrencyHouseholdMessage = MIXED_CURRENCY_HOUSEHOLD_MESSAGE;
-    this.loading = false;
-    this.changeDetector.markForCheck();
-  }
-
-  private isMixedCurrencyHouseholdError(error: unknown): boolean {
-    return error instanceof HttpErrorResponse && error.status === 422;
   }
 }

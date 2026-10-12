@@ -13,6 +13,7 @@ from app.repositories.income import IncomeRepository
 from app.repositories.recurring_expense import (
     RecurringExpenseRepository,
 )
+from app.schemas.forecast import ForecastCurrencyProjection
 from app.schemas.forecast import ForecastGroupBy
 from app.schemas.forecast import ForecastPeriod
 from app.schemas.forecast import ForecastResponse
@@ -24,18 +25,9 @@ from app.services.occurrence import generate_occurrences
 _ZERO = Decimal("0.00")
 _DEFAULT_CURRENCY = "EUR"
 
-MIXED_CURRENCY_HOUSEHOLD_DETAIL = (
-    "Household forecast requires every account to use the same "
-    "currency. Select an account or use accounts in one currency."
-)
-
 
 class ForecastAccountNotFoundError(Exception):
     """Raised when a forecast references a missing account."""
-
-
-class MixedCurrencyHouseholdForecastError(Exception):
-    """Raised when household forecast spans multiple currencies."""
 
 
 def _as_money(value: Decimal) -> Decimal:
@@ -164,16 +156,76 @@ def _build_periods(
     return periods
 
 
-def _household_currency(accounts: list) -> str:
-    """Return the shared currency code or raise when mixed."""
-    currencies = {account.currency for account in accounts}
-    if len(currencies) > 1:
-        raise MixedCurrencyHouseholdForecastError(
-            MIXED_CURRENCY_HOUSEHOLD_DETAIL,
+def _household_projections(
+    accounts: list,
+    all_incomes: list[Income],
+    all_expenses: list[RecurringExpense],
+    from_date: date,
+    to_date: date,
+    group_by: ForecastGroupBy,
+    as_of: date,
+) -> list[ForecastCurrencyProjection]:
+    """Build one projection per distinct account currency."""
+    if not accounts:
+        periods = _build_periods(
+            _ZERO,
+            all_incomes,
+            all_expenses,
+            from_date,
+            to_date,
+            group_by,
+            as_of,
         )
-    if len(currencies) == 1:
-        return next(iter(currencies))
-    return _DEFAULT_CURRENCY
+        return [
+            ForecastCurrencyProjection(
+                currency=_DEFAULT_CURRENCY,
+                starting_balance=_ZERO,
+                periods=periods,
+            ),
+        ]
+
+    currencies = sorted({account.currency for account in accounts})
+    projections: list[ForecastCurrencyProjection] = []
+    for currency in currencies:
+        currency_accounts = [
+            account
+            for account in accounts
+            if account.currency == currency
+        ]
+        account_ids = {account.id for account in currency_accounts}
+        starting_balance = _as_money(
+            sum(
+                (account.current_balance for account in currency_accounts),
+                _ZERO,
+            ),
+        )
+        incomes = [
+            income
+            for income in all_incomes
+            if income.account_id in account_ids
+        ]
+        expenses = [
+            expense
+            for expense in all_expenses
+            if expense.account_id in account_ids
+        ]
+        periods = _build_periods(
+            starting_balance,
+            incomes,
+            expenses,
+            from_date,
+            to_date,
+            group_by,
+            as_of,
+        )
+        projections.append(
+            ForecastCurrencyProjection(
+                currency=currency,
+                starting_balance=starting_balance,
+                periods=periods,
+            ),
+        )
+    return projections
 
 
 class ForecastService:
@@ -229,23 +281,21 @@ class ForecastService:
             return ForecastResponse(
                 from_date=from_date,
                 to_date=to_date,
-                currency=account.currency,
                 group_by=group_by,
                 scope=ForecastScope.ACCOUNT,
                 account_id=account_id,
-                periods=periods,
+                projections=[
+                    ForecastCurrencyProjection(
+                        currency=account.currency,
+                        starting_balance=starting_balance,
+                        periods=periods,
+                    ),
+                ],
             )
 
         accounts = self._accounts.list_all()
-        currency = _household_currency(accounts)
-        starting_balance = _as_money(
-            sum(
-                (account.current_balance for account in accounts),
-                _ZERO,
-            ),
-        )
-        periods = _build_periods(
-            starting_balance,
+        projections = _household_projections(
+            accounts,
             all_incomes,
             all_expenses,
             from_date,
@@ -256,9 +306,8 @@ class ForecastService:
         return ForecastResponse(
             from_date=from_date,
             to_date=to_date,
-            currency=currency,
             group_by=group_by,
             scope=ForecastScope.HOUSEHOLD,
             account_id=None,
-            periods=periods,
+            projections=projections,
         )

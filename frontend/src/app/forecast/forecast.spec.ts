@@ -1,44 +1,83 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 
 import { AccountService } from '../accounts/account.service';
-import {
-  Forecast,
-  MIXED_CURRENCY_HOUSEHOLD_MESSAGE,
-} from './forecast';
+import { Forecast } from './forecast';
 import { ForecastResponse } from './forecast-response';
 import { ForecastService } from './forecast.service';
 
 describe('Forecast', () => {
+  const samplePeriods = [
+    {
+      period: '2026-10',
+      income: '2000.00',
+      expenses: '1500.00',
+      net_cash_flow: '500.00',
+      projected_balance: '2500.00',
+    },
+    {
+      period: '2026-11',
+      income: '2000.00',
+      expenses: '1500.00',
+      net_cash_flow: '500.00',
+      projected_balance: '3000.00',
+    },
+    {
+      period: '2026-12',
+      income: '2000.00',
+      expenses: '1500.00',
+      net_cash_flow: '500.00',
+      projected_balance: '3500.00',
+    },
+  ];
+
   const sampleForecast: ForecastResponse = {
     from_date: '2026-10-05',
     to_date: '2026-12-31',
-    currency: 'EUR',
     scope: 'household',
     account_id: null,
     group_by: 'month',
-    periods: [
+    projections: [
       {
-        period: '2026-10',
-        income: '2000.00',
-        expenses: '1500.00',
-        net_cash_flow: '500.00',
-        projected_balance: '2500.00',
+        currency: 'EUR',
+        starting_balance: '2000.00',
+        periods: samplePeriods,
+      },
+    ],
+  };
+
+  const multiCurrencyForecast: ForecastResponse = {
+    from_date: '2026-10-05',
+    to_date: '2026-12-31',
+    scope: 'household',
+    account_id: null,
+    group_by: 'month',
+    projections: [
+      {
+        currency: 'EUR',
+        starting_balance: '2000.00',
+        periods: [
+          {
+            period: '2026-10',
+            income: '100.00',
+            expenses: '0.00',
+            net_cash_flow: '100.00',
+            projected_balance: '2100.00',
+          },
+        ],
       },
       {
-        period: '2026-11',
-        income: '2000.00',
-        expenses: '1500.00',
-        net_cash_flow: '500.00',
-        projected_balance: '3000.00',
-      },
-      {
-        period: '2026-12',
-        income: '2000.00',
-        expenses: '1500.00',
-        net_cash_flow: '500.00',
-        projected_balance: '3500.00',
+        currency: 'USD',
+        starting_balance: '500.00',
+        periods: [
+          {
+            period: '2026-10',
+            income: '0.00',
+            expenses: '50.00',
+            net_cash_flow: '-50.00',
+            projected_balance: '450.00',
+          },
+        ],
       },
     ],
   };
@@ -168,7 +207,7 @@ describe('Forecast', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     const text = compiled.textContent ?? '';
-    expect(text).toContain('Forecast overview');
+    expect(text).toContain('EUR forecast');
     expect(text).toContain('Ending projected balance');
     expect(text).toContain('3,500.00');
     expect(text).toContain('At 31 December 2026');
@@ -176,9 +215,7 @@ describe('Forecast', () => {
     expect(text).toContain('2026-10');
     expect(text).toContain('2026-11');
     expect(text).toContain('2026-12');
-    expect(text).toContain(
-      'The starting balance is the balance at the beginning of the range.',
-    );
+    expect(text).toContain('for EUR accounts');
     expect(text).toContain(
       'Each projected balance is the running balance after that period.',
     );
@@ -194,8 +231,9 @@ describe('Forecast', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const text = compiled.textContent ?? '';
 
-    expect(component.startingBalance).toBe('2000.00');
-    expect(component.endingProjectedBalance).toBe('3500.00');
+    const projection = component.displayProjections[0];
+    expect(projection.starting_balance).toBe('2000.00');
+    expect(component.endingProjectedBalance(projection)).toBe('3500.00');
     expect(text).toContain('Starting balance');
     expect(text).toContain('2,000.00');
     expect(text).toContain('At the start of the forecast');
@@ -205,7 +243,13 @@ describe('Forecast', () => {
     getForecast.mockReturnValue(
       of({
         ...sampleForecast,
-        periods: [],
+        projections: [
+          {
+            currency: 'EUR',
+            starting_balance: '2000.00',
+            periods: [],
+          },
+        ],
       }),
     );
 
@@ -218,10 +262,14 @@ describe('Forecast', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const text = compiled.textContent ?? '';
 
-    expect(component.startingBalance).toBeNull();
-    expect(component.endingProjectedBalance).toBeNull();
-    expect(component.endingProjectedBalanceDate).toBeNull();
-    expect(component.hasZeroSchedule).toBe(false);
+    expect(component.displayProjections).toHaveLength(1);
+    expect(
+      component.endingProjectedBalance(component.displayProjections[0]),
+    ).toBeNull();
+    expect(component.endingProjectedBalanceDate).toBe('31 December 2026');
+    expect(
+      component.hasZeroSchedule(component.displayProjections[0]),
+    ).toBe(false);
     expect(text).toContain('No forecast periods returned for this range.');
     expect(text).not.toContain('Starting balance');
     expect(text).not.toContain('Ending projected balance');
@@ -234,20 +282,26 @@ describe('Forecast', () => {
     getForecast.mockReturnValue(
       of({
         ...sampleForecast,
-        periods: [
+        projections: [
           {
-            period: '2026-10',
-            income: '0.00',
-            expenses: '0.00',
-            net_cash_flow: '0.00',
-            projected_balance: '1000.00',
-          },
-          {
-            period: '2026-11',
-            income: '0.00',
-            expenses: '0.00',
-            net_cash_flow: '0.00',
-            projected_balance: '1000.00',
+            currency: 'EUR',
+            starting_balance: '1000.00',
+            periods: [
+              {
+                period: '2026-10',
+                income: '0.00',
+                expenses: '0.00',
+                net_cash_flow: '0.00',
+                projected_balance: '1000.00',
+              },
+              {
+                period: '2026-11',
+                income: '0.00',
+                expenses: '0.00',
+                net_cash_flow: '0.00',
+                projected_balance: '1000.00',
+              },
+            ],
           },
         ],
       }),
@@ -338,8 +392,7 @@ describe('Forecast', () => {
     expect(getForecast).not.toHaveBeenCalled();
     expect(text).toContain('From must be on or before To.');
     expect(component.forecast).toBeNull();
-    expect(component.startingBalance).toBeNull();
-    expect(component.endingProjectedBalance).toBeNull();
+    expect(component.displayProjections).toEqual([]);
     expect(text).not.toContain('3,500.00');
     expect(text).not.toContain('2026-10');
     expect(compiled.querySelector('.data-table')).toBeNull();
@@ -350,13 +403,19 @@ describe('Forecast', () => {
       ...sampleForecast,
       from_date: '2026-11-01',
       to_date: '2026-11-30',
-      periods: [
+      projections: [
         {
-          period: '2026-11',
-          income: '2000.00',
-          expenses: '1250.00',
-          net_cash_flow: '750.00',
-          projected_balance: '4100.00',
+          currency: 'EUR',
+          starting_balance: '3350.00',
+          periods: [
+            {
+              period: '2026-11',
+              income: '2000.00',
+              expenses: '1250.00',
+              net_cash_flow: '750.00',
+              projected_balance: '4100.00',
+            },
+          ],
         },
       ],
     };
@@ -414,8 +473,7 @@ describe('Forecast', () => {
     expect(text).toContain('Unable to load the forecast.');
     expect(text).not.toContain('Internal Server Error');
     expect(component.forecast).toBeNull();
-    expect(component.startingBalance).toBeNull();
-    expect(component.endingProjectedBalance).toBeNull();
+    expect(component.displayProjections).toEqual([]);
     expect(text).not.toContain('3,500.00');
     expect(compiled.querySelector('.data-table')).toBeNull();
   });
@@ -446,13 +504,19 @@ describe('Forecast', () => {
       ...sampleForecast,
       from_date: '2026-11-01',
       to_date: '2026-11-30',
-      periods: [
+      projections: [
         {
-          period: '2026-11',
-          income: '2000.00',
-          expenses: '1250.00',
-          net_cash_flow: '750.00',
-          projected_balance: '4100.00',
+          currency: 'EUR',
+          starting_balance: '3350.00',
+          periods: [
+            {
+              period: '2026-11',
+              income: '2000.00',
+              expenses: '1250.00',
+              net_cash_flow: '750.00',
+              projected_balance: '4100.00',
+            },
+          ],
         },
       ],
     };
@@ -521,52 +585,75 @@ describe('Forecast', () => {
     );
   });
 
-  it('should skip the household request on init when accounts use mixed currencies', async () => {
+  it('should request household forecast on init when accounts use mixed currencies', async () => {
     listAccounts.mockReturnValue(of(mixedCurrencyAccounts));
+    getForecast.mockReturnValue(of(multiCurrencyForecast));
     const fixture = TestBed.createComponent(Forecast);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(getForecast).not.toHaveBeenCalled();
+    expect(getForecast).toHaveBeenCalledTimes(1);
     const root = fixture.nativeElement as HTMLElement;
     const text = root.textContent ?? '';
-    expect(text).toContain(MIXED_CURRENCY_HOUSEHOLD_MESSAGE);
-    expect(root.querySelector('.status-info')).not.toBeNull();
-    expect(root.querySelector('.status-error')).toBeNull();
+    expect(text).toContain('EUR forecast');
+    expect(text).toContain('USD forecast');
+    expect(text).toContain('2,100.00');
+    expect(text).toContain('450.00');
     expect(text).not.toContain('Unable to load the forecast.');
-    expect(
-      (root.querySelector('select[name="account"]') as HTMLSelectElement)
-        .disabled,
-    ).toBe(false);
-    expect(fixture.componentInstance.loading).toBe(false);
-    expect(fixture.componentInstance.forecast).toBeNull();
   });
 
-  it('should load an account-scoped forecast after mixed-currency household state', async () => {
+  it('should render separate household sections without a combined total', async () => {
+    listAccounts.mockReturnValue(of(mixedCurrencyAccounts));
+    getForecast.mockReturnValue(of(multiCurrencyForecast));
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelectorAll('.currency-projection-panel')).toHaveLength(2);
+    const text = root.textContent ?? '';
+    expect(text).not.toMatch(/2,550\.00/);
+  });
+
+  it('should load an account-scoped forecast when an account is selected', async () => {
     listAccounts.mockReturnValue(of(mixedCurrencyAccounts));
     const accountForecast: ForecastResponse = {
-      ...sampleForecast,
+      from_date: '2026-10-05',
+      to_date: '2026-12-31',
       scope: 'account',
       account_id: 1,
-      currency: 'EUR',
-      periods: [
+      group_by: 'month',
+      projections: [
         {
-          period: '2026-10',
-          income: '0.00',
-          expenses: '0.00',
-          net_cash_flow: '0.00',
-          projected_balance: '2000.00',
+          currency: 'EUR',
+          starting_balance: '2000.00',
+          periods: [
+            {
+              period: '2026-10',
+              income: '0.00',
+              expenses: '0.00',
+              net_cash_flow: '0.00',
+              projected_balance: '2000.00',
+            },
+          ],
         },
       ],
     };
-    getForecast.mockReturnValue(of(accountForecast));
+    getForecast.mockImplementation(
+      (_from, _to, _groupBy, accountId?: number) => {
+        if (accountId === 1) {
+          return of(accountForecast);
+        }
+        return of(multiCurrencyForecast);
+      },
+    );
 
     const fixture = TestBed.createComponent(Forecast);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(getForecast).not.toHaveBeenCalled();
 
     const root = fixture.nativeElement as HTMLElement;
     const select = root.querySelector(
@@ -577,34 +664,33 @@ describe('Forecast', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const expected = defaultForecastRange();
-    expect(getForecast).toHaveBeenCalledTimes(1);
-    expect(getForecast).toHaveBeenCalledWith(
-      expected.from,
-      expected.to,
-      'month',
-      1,
-    );
-    expect(root.textContent).toContain('2,000.00');
-    expect(root.querySelector('.status-info')).toBeNull();
-    expect(root.querySelector('.data-table')).not.toBeNull();
+    expect(root.querySelectorAll('.currency-projection-panel')).toHaveLength(1);
+    expect(root.textContent).toContain('EUR forecast');
+    expect(root.textContent).not.toContain('USD forecast');
   });
 
   it('should not show stale forecast data when switching accounts quickly', async () => {
     listAccounts.mockReturnValue(of(mixedCurrencyAccounts));
     const slowAccount = new Subject<ForecastResponse>();
     const fastAccount: ForecastResponse = {
-      ...sampleForecast,
+      from_date: '2026-10-05',
+      to_date: '2026-12-31',
       scope: 'account',
       account_id: 2,
-      currency: 'USD',
-      periods: [
+      group_by: 'month',
+      projections: [
         {
-          period: '2026-10',
-          income: '0.00',
-          expenses: '0.00',
-          net_cash_flow: '0.00',
-          projected_balance: '500.00',
+          currency: 'USD',
+          starting_balance: '500.00',
+          periods: [
+            {
+              period: '2026-10',
+              income: '0.00',
+              expenses: '0.00',
+              net_cash_flow: '0.00',
+              projected_balance: '500.00',
+            },
+          ],
         },
       ],
     };
@@ -617,7 +703,7 @@ describe('Forecast', () => {
         if (accountId === 2) {
           return of(fastAccount);
         }
-        return throwError(() => new Error('unexpected household request'));
+        return of(multiCurrencyForecast);
       },
     );
 
@@ -637,16 +723,24 @@ describe('Forecast', () => {
     expect(root.textContent).not.toContain('2,000.00');
 
     slowAccount.next({
-      ...sampleForecast,
+      from_date: '2026-10-05',
+      to_date: '2026-12-31',
       scope: 'account',
       account_id: 1,
-      periods: [
+      group_by: 'month',
+      projections: [
         {
-          period: '2026-10',
-          income: '0.00',
-          expenses: '0.00',
-          net_cash_flow: '0.00',
-          projected_balance: '2000.00',
+          currency: 'EUR',
+          starting_balance: '2000.00',
+          periods: [
+            {
+              period: '2026-10',
+              income: '0.00',
+              expenses: '0.00',
+              net_cash_flow: '0.00',
+              projected_balance: '2000.00',
+            },
+          ],
         },
       ],
     });
@@ -658,14 +752,28 @@ describe('Forecast', () => {
     expect(root.textContent).not.toContain('2,000.00');
   });
 
-  it('should restore the mixed-currency message when returning to All accounts without refetching', async () => {
+  it('should restore household projections when returning to All accounts', async () => {
     listAccounts.mockReturnValue(of(mixedCurrencyAccounts));
-    getForecast.mockReturnValue(
-      of({
-        ...sampleForecast,
-        scope: 'account',
-        account_id: 1,
-      }),
+    getForecast.mockImplementation(
+      (_from, _to, _groupBy, accountId?: number) => {
+        if (accountId === 1) {
+          return of({
+            from_date: '2026-10-05',
+            to_date: '2026-12-31',
+            scope: 'account',
+            account_id: 1,
+            group_by: 'month',
+            projections: [
+              {
+                currency: 'EUR',
+                starting_balance: '2000.00',
+                periods: [],
+              },
+            ],
+          } satisfies ForecastResponse);
+        }
+        return of(multiCurrencyForecast);
+      },
     );
 
     const fixture = TestBed.createComponent(Forecast);
@@ -681,39 +789,14 @@ describe('Forecast', () => {
     select.dispatchEvent(new Event('change'));
     await fixture.whenStable();
     fixture.detectChanges();
-    getForecast.mockClear();
 
     select.value = 'all';
     select.dispatchEvent(new Event('change'));
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(getForecast).not.toHaveBeenCalled();
-    expect(root.textContent).toContain(MIXED_CURRENCY_HOUSEHOLD_MESSAGE);
-    expect(root.querySelector('.data-table')).toBeNull();
-    expect(fixture.componentInstance.loading).toBe(false);
-  });
-
-  it('should use API mixed-currency handling when household request is attempted', async () => {
-    getForecast.mockReturnValue(
-      throwError(
-        () =>
-          new HttpErrorResponse({
-            status: 422,
-            error: { detail: 'mixed currency' },
-          }),
-      ),
-    );
-    const fixture = TestBed.createComponent(Forecast);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const root = fixture.nativeElement as HTMLElement;
-    expect(getForecast).toHaveBeenCalledTimes(1);
-    expect(root.textContent).toContain(MIXED_CURRENCY_HOUSEHOLD_MESSAGE);
-    expect(root.querySelector('.status-info')).not.toBeNull();
-    expect(root.textContent).not.toContain('Unable to load the forecast.');
+    expect(root.querySelectorAll('.currency-projection-panel')).toHaveLength(2);
+    expect(root.textContent).toContain('USD forecast');
   });
 
   it('should show a generic error for unrelated API failures on account scope', async () => {

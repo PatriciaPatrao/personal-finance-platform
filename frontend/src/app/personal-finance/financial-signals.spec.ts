@@ -17,24 +17,29 @@ describe('deriveFinancialSignals', () => {
   const increasingForecast: ForecastResponse = {
     from_date: '2026-10-05',
     to_date: '2026-12-31',
-    currency: 'EUR',
     scope: 'household',
     account_id: null,
     group_by: 'month',
-    periods: [
+    projections: [
       {
-        period: '2026-10',
-        income: '2000.00',
-        expenses: '1250.00',
-        net_cash_flow: '750.00',
-        projected_balance: '5750.00',
-      },
-      {
-        period: '2026-12',
-        income: '2000.00',
-        expenses: '1250.00',
-        net_cash_flow: '750.00',
-        projected_balance: '7250.00',
+        currency: 'EUR',
+        starting_balance: '5000.00',
+        periods: [
+          {
+            period: '2026-10',
+            income: '2000.00',
+            expenses: '1250.00',
+            net_cash_flow: '750.00',
+            projected_balance: '5750.00',
+          },
+          {
+            period: '2026-12',
+            income: '2000.00',
+            expenses: '1250.00',
+            net_cash_flow: '750.00',
+            projected_balance: '7250.00',
+          },
+        ],
       },
     ],
   };
@@ -82,13 +87,19 @@ describe('deriveFinancialSignals', () => {
   it('returns no signals when both sources have nothing to compare', () => {
     const signals = deriveFinancialSignals(emptySummary, {
       ...increasingForecast,
-      periods: [
+      projections: [
         {
-          period: '2026-10',
-          income: '100.00',
-          expenses: '100.00',
-          net_cash_flow: '0.00',
-          projected_balance: '5000.00',
+          currency: 'EUR',
+          starting_balance: '5000.00',
+          periods: [
+            {
+              period: '2026-10',
+              income: '100.00',
+              expenses: '100.00',
+              net_cash_flow: '0.00',
+              projected_balance: '5000.00',
+            },
+          ],
         },
       ],
     });
@@ -99,13 +110,19 @@ describe('deriveFinancialSignals', () => {
   it('returns no scheduled income when every period has zero income', () => {
     const signals = deriveFinancialSignals(emptySummary, {
       ...increasingForecast,
-      periods: [
+      projections: [
         {
-          period: '2026-10',
-          income: '0.00',
-          expenses: '0.00',
-          net_cash_flow: '0.00',
-          projected_balance: '5000.00',
+          currency: 'EUR',
+          starting_balance: '5000.00',
+          periods: [
+            {
+              period: '2026-10',
+              income: '0.00',
+              expenses: '0.00',
+              net_cash_flow: '0.00',
+              projected_balance: '5000.00',
+            },
+          ],
         },
       ],
     });
@@ -118,13 +135,19 @@ describe('deriveFinancialSignals', () => {
   it('describes a quiet month and an unchanged projection', () => {
     const detail = quietCheckDetail(emptySummary, {
       ...increasingForecast,
-      periods: [
+      projections: [
         {
-          period: '2026-10',
-          income: '100.00',
-          expenses: '100.00',
-          net_cash_flow: '0.00',
-          projected_balance: '5000.00',
+          currency: 'EUR',
+          starting_balance: '5000.00',
+          periods: [
+            {
+              period: '2026-10',
+              income: '100.00',
+              expenses: '100.00',
+              net_cash_flow: '0.00',
+              projected_balance: '5000.00',
+            },
+          ],
         },
       ],
     });
