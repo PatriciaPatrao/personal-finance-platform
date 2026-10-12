@@ -33,6 +33,7 @@ def get_forecast(
             from_date=query.from_date,
             to_date=query.to_date,
             group_by=query.group_by,
+            group_by_overrides=query.group_by_overrides,
             account_id=query.account_id,
         )
     except ForecastAccountNotFoundError as error:

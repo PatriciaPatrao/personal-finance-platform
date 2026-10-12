@@ -1,5 +1,6 @@
 """API tests for read-only forecasts."""
 
+import json
 from datetime import date
 from datetime import timedelta
 from decimal import Decimal
@@ -144,6 +145,7 @@ def _forecast(
     group_by: str,
     *,
     account_id: int | None = None,
+    group_by_overrides: str | None = None,
 ) -> dict:
     """Call GET /forecast and return the JSON body."""
     params: dict[str, str | int] = {
@@ -151,6 +153,8 @@ def _forecast(
         "to": _iso(to_date),
         "group_by": group_by,
     }
+    if group_by_overrides is not None:
+        params["group_by_overrides"] = group_by_overrides
     if account_id is not None:
         params["account_id"] = account_id
     response = client.get(
@@ -1218,6 +1222,52 @@ def test_forecast_household_returns_projection_per_currency(
     assert Decimal(usd_period["expenses"]) == Decimal("50.00")
     assert Decimal(eur_period["projected_balance"]) == Decimal("1500.00")
     assert Decimal(usd_period["projected_balance"]) == Decimal("150.00")
+
+
+def test_forecast_household_supports_per_currency_group_by(
+    client: TestClient,
+    today: date,
+) -> None:
+    """Each currency projection can use its own grouping."""
+    eur_account = _create_account(
+        client,
+        name="EUR account",
+        currency="EUR",
+        current_balance=1000,
+    )
+    usd_account = _create_account(
+        client,
+        name="USD account",
+        currency="USD",
+        current_balance=200,
+    )
+    _create_income(
+        client,
+        eur_account["id"],
+        amount=500,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+    _create_expense(
+        client,
+        usd_account["id"],
+        amount=50,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+    body = _forecast(
+        client,
+        today,
+        today,
+        "month",
+        group_by_overrides=json.dumps({"USD": "day"}),
+    )
+    eur = _projection(body, "EUR")
+    usd = _projection(body, "USD")
+    assert eur["group_by"] == "month"
+    assert usd["group_by"] == "day"
+    assert eur["periods"][0]["period"] == _month(today)
+    assert usd["periods"][0]["period"] == _iso(today)
 
 
 def test_forecast_household_matches_sum_of_account_scopes(

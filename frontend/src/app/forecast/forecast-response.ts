@@ -12,6 +12,7 @@ export type ForecastScope = 'household' | 'account';
 
 export interface ForecastCurrencyProjection {
   currency: string;
+  group_by: ForecastGroupBy;
   starting_balance: string;
   periods: ForecastPeriod[];
 }

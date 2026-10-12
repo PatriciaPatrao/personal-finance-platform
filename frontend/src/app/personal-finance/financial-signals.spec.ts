@@ -23,6 +23,7 @@ describe('deriveFinancialSignals', () => {
     projections: [
       {
         currency: 'EUR',
+        group_by: 'month',
         starting_balance: '5000.00',
         periods: [
           {
@@ -90,6 +91,7 @@ describe('deriveFinancialSignals', () => {
       projections: [
         {
           currency: 'EUR',
+          group_by: 'month',
           starting_balance: '5000.00',
           periods: [
             {
@@ -113,6 +115,7 @@ describe('deriveFinancialSignals', () => {
       projections: [
         {
           currency: 'EUR',
+          group_by: 'month',
           starting_balance: '5000.00',
           periods: [
             {
@@ -138,6 +141,7 @@ describe('deriveFinancialSignals', () => {
       projections: [
         {
           currency: 'EUR',
+          group_by: 'month',
           starting_balance: '5000.00',
           periods: [
             {

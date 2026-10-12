@@ -35,6 +35,17 @@ def _as_money(value: Decimal) -> Decimal:
     return Decimal(value).quantize(_ZERO)
 
 
+def _resolve_group_by(
+    currency: str,
+    default: ForecastGroupBy,
+    overrides: dict[str, ForecastGroupBy] | None,
+) -> ForecastGroupBy:
+    """Return grouping for one currency, applying overrides when present."""
+    if overrides and currency in overrides:
+        return overrides[currency]
+    return default
+
+
 def _period_key(occurrence: date, group_by: ForecastGroupBy) -> str:
     """Map an occurrence date to a daily or monthly period label."""
     if group_by == ForecastGroupBy.DAY:
@@ -163,6 +174,7 @@ def _household_projections(
     from_date: date,
     to_date: date,
     group_by: ForecastGroupBy,
+    group_by_overrides: dict[str, ForecastGroupBy] | None,
     as_of: date,
 ) -> list[ForecastCurrencyProjection]:
     """Build one projection per distinct account currency."""
@@ -179,6 +191,7 @@ def _household_projections(
         return [
             ForecastCurrencyProjection(
                 currency=_DEFAULT_CURRENCY,
+                group_by=group_by,
                 starting_balance=_ZERO,
                 periods=periods,
             ),
@@ -209,18 +222,24 @@ def _household_projections(
             for expense in all_expenses
             if expense.account_id in account_ids
         ]
+        currency_group_by = _resolve_group_by(
+            currency,
+            group_by,
+            group_by_overrides,
+        )
         periods = _build_periods(
             starting_balance,
             incomes,
             expenses,
             from_date,
             to_date,
-            group_by,
+            currency_group_by,
             as_of,
         )
         projections.append(
             ForecastCurrencyProjection(
                 currency=currency,
+                group_by=currency_group_by,
                 starting_balance=starting_balance,
                 periods=periods,
             ),
@@ -242,6 +261,7 @@ class ForecastService:
         from_date: date,
         to_date: date,
         group_by: ForecastGroupBy,
+        group_by_overrides: dict[str, ForecastGroupBy] | None = None,
         account_id: int | None = None,
         as_of: date | None = None,
     ) -> ForecastResponse:
@@ -287,6 +307,7 @@ class ForecastService:
                 projections=[
                     ForecastCurrencyProjection(
                         currency=account.currency,
+                        group_by=group_by,
                         starting_balance=starting_balance,
                         periods=periods,
                     ),
@@ -301,6 +322,7 @@ class ForecastService:
             from_date,
             to_date,
             group_by,
+            group_by_overrides,
             as_of,
         )
         return ForecastResponse(

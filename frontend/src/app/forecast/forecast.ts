@@ -102,7 +102,7 @@ export class Forecast implements OnInit {
   to = this.initialRange.to;
   fromDisplay = toEuropeanDate(this.from);
   toDisplay = toEuropeanDate(this.to);
-  groupBy: ForecastGroupBy = 'month';
+  groupByByCurrency: Record<string, ForecastGroupBy> = {};
   accountFilter: 'all' | string = 'all';
 
   accounts: Account[] = [];
@@ -113,6 +113,8 @@ export class Forecast implements OnInit {
   loading = true;
   errorMessage: string | null = null;
   validationMessage: string | null = null;
+  periodsUpdatingByCurrency: Record<string, boolean> = {};
+  periodsErrorByCurrency: Record<string, string> = {};
 
   private loadGeneration = 0;
 
@@ -124,6 +126,10 @@ export class Forecast implements OnInit {
 
   get displayProjections(): ForecastCurrencyProjection[] {
     return this.forecast?.projections ?? [];
+  }
+
+  groupByForCurrency(currency: string): ForecastGroupBy {
+    return this.groupByByCurrency[currency] ?? 'month';
   }
 
   get scopeIntro(): string {
@@ -194,13 +200,25 @@ export class Forecast implements OnInit {
     this.loadForecast();
   }
 
-  onGroupByChange(groupBy: string): void {
+  onGroupByChange(currency: string, groupBy: string): void {
     if (groupBy !== 'day' && groupBy !== 'month') {
       return;
     }
 
-    this.groupBy = groupBy;
-    this.loadForecast();
+    this.groupByByCurrency = {
+      ...this.groupByByCurrency,
+      [currency]: groupBy,
+    };
+    this.loadForecast({ groupingOnly: true, currency });
+    this.changeDetector.markForCheck();
+  }
+
+  isPeriodsUpdating(currency: string): boolean {
+    return this.periodsUpdatingByCurrency[currency] ?? false;
+  }
+
+  periodsErrorForCurrency(currency: string): string | null {
+    return this.periodsErrorByCurrency[currency] ?? null;
   }
 
   onAccountFilterChange(value: string): void {
@@ -244,30 +262,69 @@ export class Forecast implements OnInit {
     this.errorMessage = null;
   }
 
-  private loadForecast(): void {
+  private loadForecast(options?: {
+    groupingOnly?: boolean;
+    currency?: string;
+  }): void {
+    const groupingOnly = options?.groupingOnly ?? false;
+    const currency = options?.currency;
     const generation = ++this.loadGeneration;
-    this.loading = true;
-    this.errorMessage = null;
-    this.forecast = null;
+
+    if (groupingOnly && this.forecast) {
+      if (currency) {
+        this.periodsUpdatingByCurrency = {
+          ...this.periodsUpdatingByCurrency,
+          [currency]: true,
+        };
+        const { [currency]: _removed, ...restErrors } =
+          this.periodsErrorByCurrency;
+        this.periodsErrorByCurrency = restErrors;
+      }
+    } else {
+      this.loading = true;
+      this.errorMessage = null;
+      this.forecast = null;
+      this.periodsUpdatingByCurrency = {};
+      this.periodsErrorByCurrency = {};
+    }
 
     const accountId =
       this.accountFilter === 'all'
         ? undefined
         : Number(this.accountFilter);
 
+    const { groupBy, groupByOverrides } = this.buildGroupByRequest();
+
     this.forecastService
-      .getForecast(this.from, this.to, this.groupBy, accountId)
+      .getForecast(
+        this.from,
+        this.to,
+        groupBy,
+        accountId,
+        groupByOverrides,
+      )
       .subscribe({
         next: (forecast: ForecastResponse) => {
           if (generation !== this.loadGeneration) {
             return;
           }
           this.forecast = forecast;
+          this.syncGroupByFromForecast(forecast);
           this.loading = false;
+          this.clearPeriodsUpdating(currency);
           this.changeDetector.markForCheck();
         },
         error: () => {
           if (generation !== this.loadGeneration) {
+            return;
+          }
+          if (groupingOnly && this.forecast && currency) {
+            this.clearPeriodsUpdating(currency);
+            this.periodsErrorByCurrency = {
+              ...this.periodsErrorByCurrency,
+              [currency]: 'Unable to update this forecast table.',
+            };
+            this.changeDetector.markForCheck();
             return;
           }
           this.forecast = null;
@@ -276,5 +333,56 @@ export class Forecast implements OnInit {
           this.changeDetector.markForCheck();
         },
       });
+  }
+
+  private clearPeriodsUpdating(currency?: string): void {
+    if (!currency) {
+      this.periodsUpdatingByCurrency = {};
+      return;
+    }
+
+    const { [currency]: _removed, ...rest } = this.periodsUpdatingByCurrency;
+    this.periodsUpdatingByCurrency = rest;
+  }
+
+  private buildGroupByRequest(): {
+    groupBy: ForecastGroupBy;
+    groupByOverrides?: Record<string, ForecastGroupBy>;
+  } {
+    const entries = Object.entries(this.groupByByCurrency);
+    if (entries.length === 0) {
+      return { groupBy: 'month' };
+    }
+
+    const groupingValues = new Set(entries.map(([, value]) => value));
+    if (groupingValues.size === 1) {
+      return { groupBy: entries[0][1] };
+    }
+
+    const defaultGroupBy: ForecastGroupBy = 'month';
+    const groupByOverrides: Record<string, ForecastGroupBy> = {};
+    for (const [currency, value] of entries) {
+      if (value !== defaultGroupBy) {
+        groupByOverrides[currency] = value;
+      }
+    }
+
+    return {
+      groupBy: defaultGroupBy,
+      groupByOverrides:
+        Object.keys(groupByOverrides).length > 0
+          ? groupByOverrides
+          : undefined,
+    };
+  }
+
+  private syncGroupByFromForecast(forecast: ForecastResponse): void {
+    const next: Record<string, ForecastGroupBy> = {
+      ...this.groupByByCurrency,
+    };
+    for (const projection of forecast.projections) {
+      next[projection.currency] = projection.group_by;
+    }
+    this.groupByByCurrency = next;
   }
 }

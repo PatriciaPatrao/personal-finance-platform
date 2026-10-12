@@ -46,29 +46,15 @@
     <p class="status status-validation" role="alert">{{ validationMessage }}</p>
   }
 
-  @if (loading) {
+  @if (loading && !forecast) {
     <p class="status status-loading" aria-live="polite">Loading forecast...</p>
   }
 
-  @if (errorMessage) {
+  @if (errorMessage && !forecast) {
     <p class="status status-error" role="alert">{{ errorMessage }}</p>
   }
 
-  @if (!loading && !errorMessage && forecast) {
-    <div class="panel group-by-bar">
-      <label class="field group-by-field">
-        <span class="field-label">Grouping</span>
-        <select
-          name="groupBy"
-          [value]="groupBy"
-          (change)="onGroupByChange($any($event.target).value)"
-        >
-          <option value="month">Monthly</option>
-          <option value="day">Daily</option>
-        </select>
-      </label>
-    </div>
-
+  @if (forecast) {
     @for (
       projection of displayProjections;
       track trackProjection($index, projection)
@@ -118,19 +104,58 @@
         }
 
         @if (projection.periods.length > 0) {
-          <h3 class="periods-subheading">Forecast periods</h3>
-          <p class="table-note">
-            Each projected balance is the running balance after that period.
-          </p>
+          <div class="periods-header">
+            <div class="periods-header-copy">
+              <h3 class="periods-subheading">Forecast periods</h3>
+              <p class="table-note">
+                Each projected balance is the running balance after that
+                period.
+              </p>
 
-          @if (hasZeroSchedule(projection)) {
-            <p class="table-note">
-              No scheduled income or recurring expenses fall within this range,
-              so the projected balance remains unchanged.
+              @if (hasZeroSchedule(projection)) {
+                <p class="table-note">
+                  No scheduled income or recurring expenses fall within this
+                  range, so the projected balance remains unchanged.
+                </p>
+              }
+            </div>
+
+            <label class="field group-by-field">
+              <span class="field-label">Grouping</span>
+              <select
+                [name]="'groupBy-' + projection.currency"
+                [value]="groupByForCurrency(projection.currency)"
+                [disabled]="isPeriodsUpdating(projection.currency)"
+                (change)="
+                  onGroupByChange(
+                    projection.currency,
+                    $any($event.target).value
+                  )
+                "
+              >
+                <option value="month">Monthly</option>
+                <option value="day">Daily</option>
+              </select>
+            </label>
+          </div>
+
+          @if (periodsErrorForCurrency(projection.currency); as periodsError) {
+            <p class="status status-error periods-status" role="alert">
+              {{ periodsError }}
             </p>
           }
 
-          <app-copy-table>
+          <div
+            class="periods-table-wrap"
+            [class.is-updating]="isPeriodsUpdating(projection.currency)"
+            [attr.aria-busy]="isPeriodsUpdating(projection.currency)"
+          >
+            @if (isPeriodsUpdating(projection.currency)) {
+              <p class="periods-loading-label" aria-live="polite">
+                Updating forecast periods...
+              </p>
+            }
+            <app-copy-table>
             <table class="data-table">
               <thead>
                 <tr>
@@ -170,6 +195,7 @@
               </tbody>
             </table>
           </app-copy-table>
+          </div>
         } @else {
           <p class="empty-state">
             No forecast periods returned for this range.

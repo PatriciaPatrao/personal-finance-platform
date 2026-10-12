@@ -38,6 +38,7 @@ describe('ForecastService', () => {
       projections: [
         {
           currency: 'EUR',
+          group_by: 'month',
           starting_balance: '2000.00',
           periods: [
             {
@@ -87,6 +88,7 @@ describe('ForecastService', () => {
       projections: [
         {
           currency: 'EUR',
+          group_by: 'day',
           starting_balance: '1000.00',
           periods: [
             {
@@ -138,6 +140,7 @@ describe('ForecastService', () => {
       projections: [
         {
           currency: 'USD',
+          group_by: 'day',
           starting_balance: '100.00',
           periods: [],
         },

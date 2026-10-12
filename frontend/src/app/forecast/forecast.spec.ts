@@ -40,6 +40,7 @@ describe('Forecast', () => {
     projections: [
       {
         currency: 'EUR',
+        group_by: 'month',
         starting_balance: '2000.00',
         periods: samplePeriods,
       },
@@ -55,6 +56,7 @@ describe('Forecast', () => {
     projections: [
       {
         currency: 'EUR',
+        group_by: 'month',
         starting_balance: '2000.00',
         periods: [
           {
@@ -68,6 +70,7 @@ describe('Forecast', () => {
       },
       {
         currency: 'USD',
+        group_by: 'month',
         starting_balance: '500.00',
         periods: [
           {
@@ -170,7 +173,7 @@ describe('Forecast', () => {
 
     expect(component.from).toBe(expected.from);
     expect(component.to).toBe(expected.to);
-    expect(component.groupBy).toBe('month');
+    expect(component.groupByForCurrency('EUR')).toBe('month');
 
     const [fromYear, fromMonth, fromDay] = expected.from.split('-');
     const [toYear, toMonth, toDay] = expected.to.split('-');
@@ -195,6 +198,7 @@ describe('Forecast', () => {
       expected.from,
       expected.to,
       'month',
+      undefined,
       undefined,
     );
   });
@@ -246,6 +250,7 @@ describe('Forecast', () => {
         projections: [
           {
             currency: 'EUR',
+            group_by: 'month',
             starting_balance: '2000.00',
             periods: [],
           },
@@ -285,6 +290,7 @@ describe('Forecast', () => {
         projections: [
           {
             currency: 'EUR',
+            group_by: 'month',
             starting_balance: '1000.00',
             periods: [
               {
@@ -406,6 +412,7 @@ describe('Forecast', () => {
       projections: [
         {
           currency: 'EUR',
+          group_by: 'month',
           starting_balance: '3350.00',
           periods: [
             {
@@ -441,6 +448,7 @@ describe('Forecast', () => {
       '2026-11-01',
       '2026-11-30',
       'month',
+      undefined,
       undefined,
     );
     expect(text).toContain('2026-11');
@@ -483,11 +491,25 @@ describe('Forecast', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     getForecast.mockClear();
+    getForecast.mockReturnValue(
+      of({
+        ...sampleForecast,
+        group_by: 'day',
+        projections: [
+          {
+            ...sampleForecast.projections[0],
+            group_by: 'day',
+          },
+        ],
+      }),
+    );
 
     const component = fixture.componentInstance;
+    const compiled = fixture.nativeElement as HTMLElement;
     const expected = defaultForecastRange();
-    component.onGroupByChange('day');
+    component.onGroupByChange('EUR', 'day');
     await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(getForecast).toHaveBeenCalledTimes(1);
     expect(getForecast).toHaveBeenCalledWith(
@@ -495,8 +517,38 @@ describe('Forecast', () => {
       expected.to,
       'day',
       undefined,
+      undefined,
     );
-    expect(component.groupBy).toBe('day');
+    expect(component.groupByForCurrency('EUR')).toBe('day');
+    expect(component.forecast).not.toBeNull();
+    expect(component.loading).toBe(false);
+    expect(compiled.textContent).not.toContain('Loading forecast...');
+  });
+
+  it('should keep the forecast visible while a grouping change reloads', async () => {
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(component.forecast).not.toBeNull();
+
+    getForecast.mockReturnValue(new Subject<ForecastResponse>().asObservable());
+    const select = compiled.querySelector(
+      'select[name="groupBy-EUR"]',
+    ) as HTMLSelectElement;
+    select.value = 'day';
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    expect(component.forecast).not.toBeNull();
+    expect(component.loading).toBe(false);
+    expect(component.isPeriodsUpdating('EUR')).toBe(true);
+    expect(compiled.textContent).not.toContain('Loading forecast...');
+    expect(compiled.textContent).toContain('Updating forecast periods...');
+    expect(compiled.textContent).toContain('EUR forecast');
   });
 
   it('should use the last valid date range when grouping changes after a rejected range', async () => {
@@ -507,6 +559,7 @@ describe('Forecast', () => {
       projections: [
         {
           currency: 'EUR',
+          group_by: 'month',
           starting_balance: '3350.00',
           periods: [
             {
@@ -547,7 +600,7 @@ describe('Forecast', () => {
     getForecast.mockClear();
     getForecast.mockReturnValue(of(nextForecast));
 
-    component.onGroupByChange('day');
+    component.onGroupByChange('EUR', 'day');
     await fixture.whenStable();
 
     expect(getForecast).toHaveBeenCalledTimes(1);
@@ -555,6 +608,7 @@ describe('Forecast', () => {
       '2026-11-01',
       '2026-11-30',
       'day',
+      undefined,
       undefined,
     );
     expect(component.from).toBe('2026-11-01');
@@ -582,7 +636,45 @@ describe('Forecast', () => {
       expected.to,
       'month',
       1,
+      undefined,
     );
+  });
+
+  it('should request per-currency grouping overrides for mixed forecasts', async () => {
+    listAccounts.mockReturnValue(of(mixedCurrencyAccounts));
+    getForecast.mockReturnValue(of(multiCurrencyForecast));
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    getForecast.mockClear();
+    getForecast.mockReturnValue(
+      of({
+        ...multiCurrencyForecast,
+        projections: [
+          multiCurrencyForecast.projections[0],
+          {
+            ...multiCurrencyForecast.projections[1],
+            group_by: 'day',
+          },
+        ],
+      }),
+    );
+
+    const component = fixture.componentInstance;
+    const expected = defaultForecastRange();
+    component.onGroupByChange('USD', 'day');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(getForecast).toHaveBeenCalledWith(
+      expected.from,
+      expected.to,
+      'month',
+      undefined,
+      { USD: 'day' },
+    );
+    expect(component.groupByForCurrency('EUR')).toBe('month');
+    expect(component.groupByForCurrency('USD')).toBe('day');
   });
 
   it('should request household forecast on init when accounts use mixed currencies', async () => {
@@ -628,6 +720,7 @@ describe('Forecast', () => {
       projections: [
         {
           currency: 'EUR',
+          group_by: 'month',
           starting_balance: '2000.00',
           periods: [
             {
@@ -681,6 +774,7 @@ describe('Forecast', () => {
       projections: [
         {
           currency: 'USD',
+          group_by: 'month',
           starting_balance: '500.00',
           periods: [
             {
@@ -731,6 +825,7 @@ describe('Forecast', () => {
       projections: [
         {
           currency: 'EUR',
+          group_by: 'month',
           starting_balance: '2000.00',
           periods: [
             {
@@ -766,6 +861,7 @@ describe('Forecast', () => {
             projections: [
               {
                 currency: 'EUR',
+                group_by: 'month',
                 starting_balance: '2000.00',
                 periods: [],
               },

@@ -1,12 +1,14 @@
 """Pydantic schemas for the forecast API."""
 
 import enum
+import json
 from datetime import date
 from decimal import Decimal
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import field_validator
 from pydantic import model_validator
 
 
@@ -32,7 +34,23 @@ class ForecastQuery(BaseModel):
     from_date: date = Field(alias="from")
     to_date: date = Field(alias="to")
     group_by: ForecastGroupBy
+    group_by_overrides: dict[str, ForecastGroupBy] | None = None
     account_id: int | None = None
+
+    @field_validator("group_by_overrides", mode="before")
+    @classmethod
+    def parse_group_by_overrides(
+        cls,
+        value: object,
+    ) -> dict[str, ForecastGroupBy] | None:
+        """Accept JSON or a dict for per-currency grouping."""
+        if value is None or value == "":
+            return None
+        if isinstance(value, dict):
+            return value
+        if isinstance(value, str):
+            return json.loads(value)
+        raise ValueError("group_by_overrides must be a JSON object")
 
     @model_validator(mode="after")
     def validate_date_range(self) -> "ForecastQuery":
@@ -58,6 +76,7 @@ class ForecastCurrencyProjection(BaseModel):
     """Projected cash flow for one currency."""
 
     currency: str
+    group_by: ForecastGroupBy
     starting_balance: Decimal = Field(decimal_places=2)
     periods: list[ForecastPeriod]
 
