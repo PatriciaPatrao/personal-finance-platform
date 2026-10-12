@@ -7,7 +7,7 @@ The codebase remains the source of truth. If this document and the code disagree
 ## Scope delivered
 
 - **Backend:** `incomes` and `recurring_expenses` tables, CRUD-style API (`POST`, `GET`, `PUT`; no DELETE), Pydantic validation, services that do not touch `transactions` or `Account.current_balance`.
-- **Forecast:** `GET /forecast` expands **active** schedules into in-memory occurrences via `generate_occurrences`, sums all account balances as the starting position, and returns projected periods without persisting results.
+- **Forecast:** `GET /forecast` expands **active** schedules into in-memory occurrences via `generate_occurrences`, and returns projected periods without persisting results. Omit `account_id` for household scope (single currency required). Pass `account_id` for one account’s balance and its schedules only. See ADR [002](decisions/002-analysis-vs-forecast.md).
 - **Frontend:** `/personal_finance/schedules` lists salary and recurring expenses (active and inactive), create and edit forms, one-click **Deactivate** / **Activate**, and copy-to-clipboard on data tables elsewhere in the app.
 
 ## Schedules versus transactions versus forecast
@@ -151,7 +151,7 @@ Repeat for: create salary, create recurring expense, edit amount, deactivate, ac
 
 - No automatic materialization of occurrences into transactions.
 - Forecast sums all accounts and labels currency EUR without FX conversion.
-- `account_id` on a schedule is stored but forecast does not allocate occurrences per account.
+- `account_id` on a schedule filters account-scoped forecast; household forecast includes every active schedule when currencies match.
 - `start_date` is not used when generating forecast dates.
 - Pagination and indexing deferred.
 

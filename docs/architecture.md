@@ -72,7 +72,7 @@ Implemented by `Analysis`. It queries `/analysis/summary`, `/analysis/expenses`,
 
 ### Forecast
 
-Implemented by `Forecast`. It queries `GET /forecast` with `from`, `to`, and `group_by` (`day` or `month`). Default range starts today and ends on the last day of the month two months ahead.
+Implemented by `Forecast`. It queries `GET /forecast` with `from`, `to`, optional `account_id`, and `group_by` (`day` or `month`). Default range starts today and ends on the last day of the month two months ahead. The UI offers “All accounts” (household) or a single account.
 
 ### Accounts
 
@@ -146,7 +146,7 @@ It reads persisted `transactions` in `[from, to]`, across every account. It repo
 - active scheduled Income
 - active Recurring Expenses
 
-Occurrences are generated in memory (`generate_occurrences`) when a forecast is requested. Generation starts at `next_occurrence`, stops after an optional inclusive `end_date`, and omits dates before today (`as_of`, defaulting to `date.today()`). `start_date` is stored and validated on the schedule (`start_date` on or before `next_occurrence`, and on or before `end_date` when that is set). It is not an input to occurrence generation. `account_id` is stored on each schedule and is not used to allocate that occurrence to the account; every active schedule is applied to the single summed balance. The Forecast screen defaults grouping to month. Forecast does not write transactions, balances, or period rows.
+Occurrences are generated in memory (`generate_occurrences`) when a forecast is requested. Generation starts at `next_occurrence`, stops after an optional inclusive `end_date`, and omits dates before today (`as_of`, defaulting to `date.today()`). `start_date` is stored and validated on the schedule (`start_date` on or before `next_occurrence`, and on or before `end_date` when that is set). It is not an input to occurrence generation. Without `account_id`, household forecast sums all account balances and all active schedules (single currency only). With `account_id`, only that account’s balance and matching active schedules are included. The Forecast screen defaults grouping to month. Forecast does not write transactions, balances, or period rows.
 
 **Forecast must not depend on historical analysis logic.** Forecast services and repositories do not import Analysis. Analysis does not import Forecast. Similar period-label helpers exist in both services; they are duplicated, not shared as a financial calculation.
 
@@ -161,7 +161,7 @@ It may consume existing data contracts (accounts, analysis summary, forecast, fi
 Today it:
 
 - sums `current_balance` in the client within each currency, and keeps a separate total for every currency
-- derives explainable text signals in `frontend/src/app/personal-finance/financial-signals.ts` (this-month cash-flow sign from analysis summary; missing scheduled income and projected balance direction from forecast periods). A zero net cash flow, or a projected ending balance equal to the starting balance, produces no directional signal. The quiet state names the period that was checked. Those signals are hidden when loaded accounts use more than one currency.
+- derives explainable text signals in `frontend/src/app/personal-finance/financial-signals.ts` (this-month cash-flow sign from analysis summary; missing scheduled income and projected balance direction from forecast periods). A zero net cash flow, or a projected ending balance equal to the starting balance, produces no directional signal. The quiet state names the period that was checked. Those signals are hidden when loaded accounts use more than one currency, and the Dashboard does not request household forecast in that case.
 - lists goals from `GET /financial-goals`, including unavailable progress and allocations whose funded amount is below the designated amount
 
 Those signal rules live in the dashboard feature, not in a backend domain service. They interpret API responses; they do not replace Analysis, Forecast, or Goals. Account, analysis, forecast, and goal requests load and fail independently.
@@ -234,7 +234,7 @@ Occurrence dates for Forecast are computed on request. There is no job that mate
 
 These are **future considerations**. They are not current architecture.
 
-- **Account selection.** Aggregates and forecasts currently include every account (or every active schedule). Filtering by account is not an API concern yet.
+- **Account selection.** Analysis aggregates remain household-wide. Forecast supports optional `account_id` on the API and an account filter on the Forecast page. The Dashboard keeps a household-only forecast when every account shares one currency.
 - **Multi-currency.** The Accounts create form offers EUR, USD, and GBP. That is a UI constraint. The API accepts any 3-character code. There is no FX conversion. The Dashboard shows one stored total per currency and does not show Analysis or Forecast signals when those currencies differ. Forecast still sums balances and labels the result EUR. That Forecast limitation is unchanged. Revisit it if broader multi-currency support becomes a product requirement.
 - **Account-type balance rules.** `current_balance` is one signed stored value for every type. Negative amounts are allowed. Bank overdrafts, cash, credit-card debt, and investment valuation are not modeled separately. Forecast’s starting sum assumes they are comparable.
 - **Background jobs.** Not present. Recurring occurrences are expanded when Forecast is requested.

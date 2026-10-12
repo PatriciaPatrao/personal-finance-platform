@@ -4,13 +4,17 @@ from typing import Annotated
 
 from fastapi import APIRouter
 from fastapi import Depends
+from fastapi import HTTPException
 from fastapi import Query
 
 from app.db.session import Session
 from app.db.session import get_db
 from app.schemas.forecast import ForecastQuery
 from app.schemas.forecast import ForecastResponse
+from app.services.forecast import ForecastAccountNotFoundError
 from app.services.forecast import ForecastService
+from app.services.forecast import MIXED_CURRENCY_HOUSEHOLD_DETAIL
+from app.services.forecast import MixedCurrencyHouseholdForecastError
 
 
 router = APIRouter()
@@ -26,8 +30,20 @@ def get_forecast(
 ) -> ForecastResponse:
     """Return projected income, expenses, and balances."""
     service = ForecastService(session)
-    return service.get_forecast(
-        from_date=query.from_date,
-        to_date=query.to_date,
-        group_by=query.group_by,
-    )
+    try:
+        return service.get_forecast(
+            from_date=query.from_date,
+            to_date=query.to_date,
+            group_by=query.group_by,
+            account_id=query.account_id,
+        )
+    except ForecastAccountNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=str(error),
+        ) from error
+    except MixedCurrencyHouseholdForecastError:
+        raise HTTPException(
+            status_code=422,
+            detail=MIXED_CURRENCY_HOUSEHOLD_DETAIL,
+        ) from None

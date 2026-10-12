@@ -17,6 +17,13 @@ class ForecastGroupBy(enum.Enum):
     MONTH = "month"
 
 
+class ForecastScope(enum.Enum):
+    """Whether the projection covers all accounts or one."""
+
+    HOUSEHOLD = "household"
+    ACCOUNT = "account"
+
+
 class ForecastQuery(BaseModel):
     """Query parameters for a forecast request."""
 
@@ -25,6 +32,7 @@ class ForecastQuery(BaseModel):
     from_date: date = Field(alias="from")
     to_date: date = Field(alias="to")
     group_by: ForecastGroupBy
+    account_id: int | None = None
 
     @model_validator(mode="after")
     def validate_date_range(self) -> "ForecastQuery":
@@ -53,4 +61,6 @@ class ForecastResponse(BaseModel):
     to_date: date
     currency: str
     group_by: ForecastGroupBy
+    scope: ForecastScope
+    account_id: int | None = None
     periods: list[ForecastPeriod]

@@ -1,6 +1,8 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 
+import { AccountService } from '../accounts/account.service';
 import { Forecast } from './forecast';
 import { ForecastResponse } from './forecast-response';
 import { ForecastService } from './forecast.service';
@@ -10,6 +12,8 @@ describe('Forecast', () => {
     from_date: '2026-10-05',
     to_date: '2026-12-31',
     currency: 'EUR',
+    scope: 'household',
+    account_id: null,
     group_by: 'month',
     periods: [
       {
@@ -37,6 +41,7 @@ describe('Forecast', () => {
   };
 
   let getForecast: ReturnType<typeof vi.fn>;
+  let listAccounts: ReturnType<typeof vi.fn>;
 
   function defaultForecastRange(): { from: string; to: string } {
     const today = new Date();
@@ -55,6 +60,18 @@ describe('Forecast', () => {
 
   beforeEach(async () => {
     getForecast = vi.fn().mockReturnValue(of(sampleForecast));
+    listAccounts = vi.fn().mockReturnValue(
+      of([
+        {
+          id: 1,
+          name: 'Main',
+          account_type: 'bank',
+          currency: 'EUR',
+          current_balance: '2000.00',
+          created_at: '2026-01-01T00:00:00',
+        },
+      ]),
+    );
 
     await TestBed.configureTestingModule({
       imports: [Forecast],
@@ -62,6 +79,10 @@ describe('Forecast', () => {
         {
           provide: ForecastService,
           useValue: { getForecast },
+        },
+        {
+          provide: AccountService,
+          useValue: { listAccounts },
         },
       ],
     }).compileComponents();
@@ -113,6 +134,7 @@ describe('Forecast', () => {
       expected.from,
       expected.to,
       'month',
+      undefined,
     );
   });
 
@@ -338,6 +360,7 @@ describe('Forecast', () => {
       '2026-11-01',
       '2026-11-30',
       'month',
+      undefined,
     );
     expect(text).toContain('2026-11');
     expect(text).toContain('4,100.00');
@@ -391,6 +414,7 @@ describe('Forecast', () => {
       expected.from,
       expected.to,
       'day',
+      undefined,
     );
     expect(component.groupBy).toBe('day');
   });
@@ -445,8 +469,53 @@ describe('Forecast', () => {
       '2026-11-01',
       '2026-11-30',
       'day',
+      undefined,
     );
     expect(component.from).toBe('2026-11-01');
     expect(component.to).toBe('2026-11-30');
+  });
+
+  it('should reload the forecast when the account filter changes', async () => {
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    getForecast.mockClear();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const select = compiled.querySelector(
+      'select[name="account"]',
+    ) as HTMLSelectElement;
+    select.value = '1';
+    select.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+
+    const expected = defaultForecastRange();
+    expect(getForecast).toHaveBeenCalledTimes(1);
+    expect(getForecast).toHaveBeenCalledWith(
+      expected.from,
+      expected.to,
+      'month',
+      1,
+    );
+  });
+
+  it('should show a mixed-currency message for household forecast validation errors', async () => {
+    getForecast.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 422,
+            error: { detail: 'mixed currency' },
+          }),
+      ),
+    );
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Household forecast needs every account');
+    expect(text).not.toContain('Unable to load the forecast.');
   });
 });

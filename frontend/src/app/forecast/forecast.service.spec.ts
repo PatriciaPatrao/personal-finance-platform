@@ -33,6 +33,8 @@ describe('ForecastService', () => {
       from_date: '2026-10-05',
       to_date: '2026-12-31',
       currency: 'EUR',
+      scope: 'household',
+      account_id: null,
       group_by: 'month',
       periods: [
         {
@@ -73,6 +75,8 @@ describe('ForecastService', () => {
       from_date: '2026-10-05',
       to_date: '2026-10-06',
       currency: 'EUR',
+      scope: 'household',
+      account_id: null,
       group_by: 'day',
       periods: [
         {
@@ -110,5 +114,30 @@ describe('ForecastService', () => {
     expect(actual).toEqual(expected);
     expect(actual?.group_by).toBe('day');
     expect(actual?.periods).toHaveLength(2);
+  });
+
+  it('should include account_id when requesting an account-scoped forecast', () => {
+    const expected: ForecastResponse = {
+      from_date: '2026-10-05',
+      to_date: '2026-10-05',
+      currency: 'USD',
+      scope: 'account',
+      account_id: 3,
+      group_by: 'day',
+      periods: [],
+    };
+
+    service
+      .getForecast('2026-10-05', '2026-10-05', 'day', 3)
+      .subscribe((forecast) => {
+        expect(forecast).toEqual(expected);
+      });
+
+    const request = httpTesting.expectOne((req) =>
+      req.url.includes('/forecast'),
+    );
+    expect(request.request.params.get('account_id')).toBe('3');
+
+    request.flush(expected);
   });
 });

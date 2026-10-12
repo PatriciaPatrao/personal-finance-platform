@@ -6,6 +6,7 @@
       income and recurring expenses. This is a projection based on scheduled
       data, not a prediction from historical spending.
     </p>
+    <p class="page-intro scope-intro">{{ scopeIntro }}</p>
   </header>
 
   <form class="filters" (submit)="$event.preventDefault(); apply()">
@@ -22,6 +23,20 @@
         [value]="toDisplay"
         (valueChange)="toDisplay = $event"
       />
+      <label class="field account-field">
+        <span class="field-label">Account</span>
+        <select
+          name="account"
+          [value]="accountFilter"
+          [disabled]="accountsLoading"
+          (change)="onAccountFilterChange($any($event.target).value)"
+        >
+          <option value="all">All accounts</option>
+          @for (account of accounts; track account.id) {
+            <option [value]="account.id">{{ account.name }}</option>
+          }
+        </select>
+      </label>
     </div>
 
     <button type="submit" class="apply-button">Apply</button>
@@ -52,14 +67,14 @@
           <article class="metric">
             <h3>Starting balance</h3>
             <p class="metric-value">
-              {{ startingBalance | currency: 'EUR' }}
+              {{ startingBalance | currency: displayCurrency }}
             </p>
             <p class="metric-caption">At the start of the forecast</p>
           </article>
           <article class="metric projected-balance-metric">
             <h3>Ending projected balance</h3>
             <p class="metric-value projected-balance-value">
-              {{ endingProjectedBalance | currency: 'EUR' }}
+              {{ endingProjectedBalance | currency: displayCurrency }}
             </p>
             @if (endingProjectedBalanceDate) {
               <p class="metric-caption">
@@ -114,11 +129,11 @@
             @for (period of forecast.periods; track trackPeriod($index, period)) {
               <tr>
                 <td>{{ period.period }}</td>
-                <td>{{ period.income | currency: 'EUR' }}</td>
-                <td>{{ period.expenses | currency: 'EUR' }}</td>
-                <td>{{ period.net_cash_flow | currency: 'EUR' }}</td>
+                <td>{{ period.income | currency: displayCurrency }}</td>
+                <td>{{ period.expenses | currency: displayCurrency }}</td>
+                <td>{{ period.net_cash_flow | currency: displayCurrency }}</td>
                 <td class="projected-balance-cell">
-                  {{ period.projected_balance | currency: 'EUR' }}
+                  {{ period.projected_balance | currency: displayCurrency }}
                 </td>
               </tr>
             }

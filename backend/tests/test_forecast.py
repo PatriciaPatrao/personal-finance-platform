@@ -38,6 +38,7 @@ def _create_account(
     *,
     name: str = "Conta Principal",
     current_balance: float = 0,
+    currency: str = "EUR",
 ) -> dict:
     """Create an account and return the response body."""
     response = client.post(
@@ -45,6 +46,7 @@ def _create_account(
         json={
             "name": name,
             "account_type": "bank",
+            "currency": currency,
             "current_balance": current_balance,
         },
     )
@@ -115,18 +117,30 @@ def _forecast(
     from_date: date,
     to_date: date,
     group_by: str,
+    *,
+    account_id: int | None = None,
 ) -> dict:
     """Call GET /forecast and return the JSON body."""
+    params: dict[str, str | int] = {
+        "from": _iso(from_date),
+        "to": _iso(to_date),
+        "group_by": group_by,
+    }
+    if account_id is not None:
+        params["account_id"] = account_id
     response = client.get(
         "/forecast",
-        params={
-            "from": _iso(from_date),
-            "to": _iso(to_date),
-            "group_by": group_by,
-        },
+        params=params,
     )
     assert response.status_code == 200
-    return response.json()
+    body = response.json()
+    if account_id is None:
+        assert body["scope"] == "household"
+        assert body["account_id"] is None
+    else:
+        assert body["scope"] == "account"
+        assert body["account_id"] == account_id
+    return body
 
 
 def test_forecast_uses_one_account_current_balance(
@@ -1008,3 +1022,232 @@ def test_historical_transactions_do_not_influence_forecast(
     assert Decimal(period["projected_balance"]) == Decimal(
         "1000.00",
     )
+
+
+def test_forecast_account_scope_isolates_schedules(
+    client: TestClient,
+    today: date,
+) -> None:
+    """Schedules on one account do not affect another account forecast."""
+    account_a = _create_account(
+        client,
+        name="Checking",
+        current_balance=1000,
+    )
+    account_b = _create_account(
+        client,
+        name="Savings",
+        current_balance=5000,
+    )
+    _create_income(
+        client,
+        account_a["id"],
+        amount=2000,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+    body_b = _forecast(
+        client,
+        today,
+        today,
+        "day",
+        account_id=account_b["id"],
+    )
+    period_b = _period(body_b, _iso(today))
+    assert body_b["currency"] == "EUR"
+    assert Decimal(period_b["income"]) == Decimal("0.00")
+    assert Decimal(period_b["projected_balance"]) == Decimal(
+        "5000.00",
+    )
+
+
+def test_forecast_account_scope_excludes_inactive_schedule(
+    client: TestClient,
+    today: date,
+) -> None:
+    """Inactive salary is excluded from an account-scoped forecast."""
+    account = _create_account(client, current_balance=1000)
+    _create_income(
+        client,
+        account["id"],
+        amount=2000,
+        frequency="monthly",
+        next_occurrence=today,
+        active=False,
+    )
+    body = _forecast(
+        client,
+        today,
+        today,
+        "day",
+        account_id=account["id"],
+    )
+    period = _period(body, _iso(today))
+    assert Decimal(period["income"]) == Decimal("0.00")
+    assert Decimal(period["projected_balance"]) == Decimal(
+        "1000.00",
+    )
+
+
+def test_forecast_account_scope_with_no_schedules(
+    client: TestClient,
+    today: date,
+) -> None:
+    """An account without schedules keeps a flat projected balance."""
+    account = _create_account(client, current_balance=750)
+    body = _forecast(
+        client,
+        today,
+        today,
+        "day",
+        account_id=account["id"],
+    )
+    period = _period(body, _iso(today))
+    assert Decimal(period["net_cash_flow"]) == Decimal("0.00")
+    assert Decimal(period["projected_balance"]) == Decimal("750.00")
+
+
+def test_forecast_account_scope_returns_404_for_missing_account(
+    client: TestClient,
+    today: date,
+) -> None:
+    """Unknown account_id is rejected."""
+    response = client.get(
+        "/forecast",
+        params={
+            "from": _iso(today),
+            "to": _iso(today),
+            "group_by": "day",
+            "account_id": 999999,
+        },
+    )
+    assert response.status_code == 404
+
+
+def test_forecast_account_scope_uses_account_currency(
+    client: TestClient,
+    today: date,
+) -> None:
+    """Account-scoped responses label the account currency."""
+    account = _create_account(
+        client,
+        current_balance=100,
+        currency="USD",
+    )
+    body = _forecast(
+        client,
+        today,
+        today,
+        "day",
+        account_id=account["id"],
+    )
+    assert body["currency"] == "USD"
+
+
+def test_forecast_household_rejects_mixed_currencies(
+    client: TestClient,
+    today: date,
+) -> None:
+    """Household forecast is unavailable when currencies differ."""
+    _create_account(client, name="EUR account", currency="EUR")
+    _create_account(client, name="USD account", currency="USD")
+    response = client.get(
+        "/forecast",
+        params={
+            "from": _iso(today),
+            "to": _iso(today),
+            "group_by": "day",
+        },
+    )
+    assert response.status_code == 422
+    assert "same currency" in response.json()["detail"]
+
+
+def test_forecast_household_matches_sum_of_account_scopes(
+    client: TestClient,
+    today: date,
+) -> None:
+    """Household period totals equal the sum of per-account forecasts."""
+    account_a = _create_account(
+        client,
+        name="Main",
+        current_balance=1000,
+    )
+    account_b = _create_account(
+        client,
+        name="Side",
+        current_balance=500,
+    )
+    _create_income(
+        client,
+        account_a["id"],
+        amount=2000,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+    _create_expense(
+        client,
+        account_b["id"],
+        amount=100,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+    household = _forecast(client, today, today, "day")
+    scope_a = _forecast(
+        client,
+        today,
+        today,
+        "day",
+        account_id=account_a["id"],
+    )
+    scope_b = _forecast(
+        client,
+        today,
+        today,
+        "day",
+        account_id=account_b["id"],
+    )
+    assert household["currency"] == "EUR"
+    label = _iso(today)
+    home = _period(household, label)
+    part_a = _period(scope_a, label)
+    part_b = _period(scope_b, label)
+    assert Decimal(home["income"]) == (
+        Decimal(part_a["income"]) + Decimal(part_b["income"])
+    )
+    assert Decimal(home["expenses"]) == (
+        Decimal(part_a["expenses"]) + Decimal(part_b["expenses"])
+    )
+    assert Decimal(home["net_cash_flow"]) == (
+        Decimal(part_a["net_cash_flow"])
+        + Decimal(part_b["net_cash_flow"])
+    )
+    assert Decimal(home["projected_balance"]) == (
+        Decimal(part_a["projected_balance"])
+        + Decimal(part_b["projected_balance"])
+    )
+
+
+def test_forecast_account_scope_matches_household_single_account(
+    client: TestClient,
+    today: date,
+) -> None:
+    """One account with schedules matches household and account scope."""
+    account = _create_account(client, current_balance=2800)
+    _create_income(
+        client,
+        account["id"],
+        amount=2000,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+    household = _forecast(client, today, today, "day")
+    scoped = _forecast(
+        client,
+        today,
+        today,
+        "day",
+        account_id=account["id"],
+    )
+    label = _iso(today)
+    assert _period(household, label) == _period(scoped, label)

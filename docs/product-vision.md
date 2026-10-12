@@ -45,7 +45,7 @@ Those totals are not converted between currencies. The Analysis screen labels th
 - active scheduled salary
 - active recurring expenses with a fixed expected amount
 
-Occurrences are generated when a forecast is requested, starting at each schedule’s next occurrence. A stored start date is not the generation start. Dates before today are omitted, including when the requested range begins earlier. Each schedule belongs to an account; the projection still uses one combined balance and does not post an occurrence to that account. The projection is **not** a model of historical spending and **does not** write transactions.
+Occurrences are generated when a forecast is requested, starting at each schedule’s next occurrence. A stored start date is not the generation start. Dates before today are omitted, including when the requested range begins earlier. Each schedule belongs to an account. Users can view a **household** projection (all accounts, one shared currency) or choose **one account** on the Forecast page so only that balance and its linked active schedules apply. Mixed-currency households cannot get a combined household forecast without FX. The projection is **not** a model of historical spending and **does not** write transactions.
 
 ### Financial Goals
 

@@ -1,6 +1,9 @@
 import { CurrencyPipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 
+import { Account } from '../accounts/account';
+import { AccountService } from '../accounts/account.service';
 import { DateField } from '../analysis/date-field';
 import { CopyTable } from '../copy-table/copy-table';
 import {
@@ -108,6 +111,10 @@ export class Forecast implements OnInit {
   fromDisplay = toEuropeanDate(this.from);
   toDisplay = toEuropeanDate(this.to);
   groupBy: ForecastGroupBy = 'month';
+  accountFilter: 'all' | string = 'all';
+
+  accounts: Account[] = [];
+  accountsLoading = true;
 
   forecast: ForecastResponse | null = null;
 
@@ -116,9 +123,32 @@ export class Forecast implements OnInit {
   validationMessage: string | null = null;
 
   constructor(
+    private accountService: AccountService,
     private forecastService: ForecastService,
     private changeDetector: ChangeDetectorRef,
   ) {}
+
+  get displayCurrency(): string {
+    return this.forecast?.currency ?? 'EUR';
+  }
+
+  get scopeIntro(): string {
+    if (this.accountFilter === 'all') {
+      return (
+        'Household projection across all accounts with the same currency. ' +
+        'If your accounts use different currencies, select one account below.'
+      );
+    }
+
+    const account = this.accounts.find(
+      (item) => String(item.id) === this.accountFilter,
+    );
+    const name = account?.name ?? 'this account';
+    return (
+      `Projection for ${name} using its stored balance and linked ` +
+      'active schedules only.'
+    );
+  }
 
   get startingBalance(): string | null {
     if (!this.forecast || this.forecast.periods.length === 0) {
@@ -162,7 +192,21 @@ export class Forecast implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loadForecast();
+    this.accountsLoading = true;
+    this.accountService.listAccounts().subscribe({
+      next: (accounts) => {
+        this.accounts = accounts;
+        this.accountsLoading = false;
+        this.loadForecast();
+        this.changeDetector.markForCheck();
+      },
+      error: () => {
+        this.accounts = [];
+        this.accountsLoading = false;
+        this.loadForecast();
+        this.changeDetector.markForCheck();
+      },
+    });
   }
 
   apply(): void {
@@ -197,6 +241,11 @@ export class Forecast implements OnInit {
     this.loadForecast();
   }
 
+  onAccountFilterChange(value: string): void {
+    this.accountFilter = value === 'all' ? 'all' : value;
+    this.loadForecast();
+  }
+
   trackPeriod(_index: number, period: ForecastPeriod): string {
     return period.period;
   }
@@ -212,20 +261,40 @@ export class Forecast implements OnInit {
     this.errorMessage = null;
     this.forecast = null;
 
+    const accountId =
+      this.accountFilter === 'all'
+        ? undefined
+        : Number(this.accountFilter);
+
     this.forecastService
-      .getForecast(this.from, this.to, this.groupBy)
+      .getForecast(this.from, this.to, this.groupBy, accountId)
       .subscribe({
         next: (forecast: ForecastResponse) => {
           this.forecast = forecast;
           this.loading = false;
           this.changeDetector.markForCheck();
         },
-        error: () => {
+        error: (error: unknown) => {
           this.forecast = null;
-          this.errorMessage = 'Unable to load the forecast.';
+          this.errorMessage = this.formatLoadError(error);
           this.loading = false;
           this.changeDetector.markForCheck();
         },
       });
+  }
+
+  private formatLoadError(error: unknown): string {
+    if (
+      this.accountFilter === 'all' &&
+      error instanceof HttpErrorResponse &&
+      error.status === 422
+    ) {
+      return (
+        'Household forecast needs every account to use the same currency. ' +
+        'Select an account above to see a projection for that account.'
+      );
+    }
+
+    return 'Unable to load the forecast.';
   }
 }

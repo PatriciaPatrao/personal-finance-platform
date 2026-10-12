@@ -44,6 +44,8 @@ describe('PersonalFinance', () => {
     from_date: '2026-10-05',
     to_date: '2026-12-31',
     currency: 'EUR',
+    scope: 'household',
+    account_id: null,
     group_by: 'month',
     periods: [
       {
@@ -74,6 +76,8 @@ describe('PersonalFinance', () => {
     from_date: '2026-10-05',
     to_date: '2026-12-31',
     currency: 'EUR',
+    scope: 'household',
+    account_id: null,
     group_by: 'month',
     periods: [
       {
@@ -90,6 +94,8 @@ describe('PersonalFinance', () => {
     from_date: '2026-10-05',
     to_date: '2026-12-31',
     currency: 'EUR',
+    scope: 'household',
+    account_id: null,
     group_by: 'month',
     periods: [
       {
@@ -523,6 +529,7 @@ describe('PersonalFinance', () => {
     expect(text).toContain(
       'Analysis and forecast signals are unavailable because your accounts use more than one currency.',
     );
+    expect(getForecast).not.toHaveBeenCalled();
     expect(text).not.toContain('Positive cash flow');
     expect(text).not.toContain('Balance projected to increase');
     expect(text).not.toContain('No directional signals');

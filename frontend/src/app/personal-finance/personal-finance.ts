@@ -223,6 +223,13 @@ export class PersonalFinance implements OnInit {
           this.accounts = [];
           this.currentPosition = null;
         }
+        if (this.signalsSuppressed) {
+          this.forecastLoading = false;
+          this.forecastError = false;
+          this.forecast = null;
+        } else {
+          this.loadHouseholdForecast(forecastRange);
+        }
         this.changeDetector.markForCheck();
       });
 
@@ -236,19 +243,6 @@ export class PersonalFinance implements OnInit {
         this.analysisLoading = false;
         this.analysisError = !summary.ok;
         this.summary = summary.ok ? summary.data : null;
-        this.changeDetector.markForCheck();
-      });
-
-    this.forecastService
-      .getForecast(forecastRange.from, forecastRange.to, 'month')
-      .pipe(
-        map((data): LoadResult<ForecastResponse> => ({ ok: true, data })),
-        catchError(() => of<LoadResult<ForecastResponse>>({ ok: false })),
-      )
-      .subscribe((forecast) => {
-        this.forecastLoading = false;
-        this.forecastError = !forecast.ok;
-        this.forecast = forecast.ok ? forecast.data : null;
         this.changeDetector.markForCheck();
       });
 
@@ -302,6 +296,21 @@ export class PersonalFinance implements OnInit {
         amount: this.sumBalances(groups.get(code) ?? []),
       })),
     };
+  }
+
+  private loadHouseholdForecast(range: { from: string; to: string }): void {
+    this.forecastService
+      .getForecast(range.from, range.to, 'month')
+      .pipe(
+        map((data): LoadResult<ForecastResponse> => ({ ok: true, data })),
+        catchError(() => of<LoadResult<ForecastResponse>>({ ok: false })),
+      )
+      .subscribe((forecast) => {
+        this.forecastLoading = false;
+        this.forecastError = !forecast.ok;
+        this.forecast = forecast.ok ? forecast.data : null;
+        this.changeDetector.markForCheck();
+      });
   }
 
   private sumBalances(accounts: Account[]): string {

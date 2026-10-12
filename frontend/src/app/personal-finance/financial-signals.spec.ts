@@ -18,6 +18,8 @@ describe('deriveFinancialSignals', () => {
     from_date: '2026-10-05',
     to_date: '2026-12-31',
     currency: 'EUR',
+    scope: 'household',
+    account_id: null,
     group_by: 'month',
     periods: [
       {

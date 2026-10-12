@@ -8,10 +8,14 @@ export interface ForecastPeriod {
   projected_balance: string;
 }
 
+export type ForecastScope = 'household' | 'account';
+
 export interface ForecastResponse {
   from_date: string;
   to_date: string;
   currency: string;
+  scope: ForecastScope;
+  account_id: number | null;
   group_by: ForecastGroupBy;
   periods: ForecastPeriod[];
 }

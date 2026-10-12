@@ -35,13 +35,13 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 - expenses grouped by category, including each category’s share of the total. A missing category is reported as Uncategorized
 - cash flow grouped by day or month. The Analysis screen defaults to month
 
-**Forecast.** Read-only projection for a date range, grouped by day or month. The Forecast screen defaults to month. It sums every account’s stored balance, then applies active income and recurring-expense occurrences. That sum treats every account the same way. It may need to change if bank, cash, credit card, and investment balances later mean different things. Each schedule belongs to an account, and the projection does not assign an occurrence to that account. Dates are generated from `next_occurrence` through an optional inclusive end date. Dates before today are omitted, including when `from` is earlier than today. The response currency is EUR, with no conversion when account currencies differ. Forecast does not write balances.
+**Forecast.** Read-only projection for a date range, grouped by day or month. The Forecast screen defaults to month and offers “All accounts” or a single account. Without `account_id`, household scope sums every account balance and every active schedule when all accounts share one currency; mixed currencies return **422**. With `account_id`, only that account’s balance and matching active schedules are used; the response `currency` matches the account. Dates are generated from `next_occurrence` through an optional inclusive end date. Dates before today are omitted. There is no FX conversion. Forecast does not write balances.
 
 **Financial Goals.** The Angular screen at `/personal_finance/goals` lists, creates, and edits future financial objectives, and designates existing Account money through GoalAllocations. Each Goal has a name, a positive target amount, a currency (EUR by default; the form offers EUR, USD, and GBP), and an optional target date. A Goal does not store money. Progress comes from funded allocations: `current_amount` is the sum of funded designation amounts, `progress` is bounded to `[0, 1]`, and `completed` is derived. A Goal with no allocations has those three values null and the screen says progress is unavailable. Allocation writes do not change `Account.current_balance`. An Account may fund many Goals and a Goal may receive allocations from many Accounts of the same currency, as long as designated amounts stay within available capacity. There is no Goal DELETE route; allocations can be reduced or deleted.
 
 **Financial summary.** `GET /financial-summary` returns the same transaction totals as analysis summary, for a date range that may extend into the future. The Analysis page uses the analysis routes.
 
-**Dashboard signals.** From the loaded summary and forecast, the client can report positive or negative cash flow, missing scheduled income, and whether the projected balance rises or falls over the forecast window. Those signals are hidden when accounts use more than one currency. Forecast itself still sums every balance and labels the result EUR. The Dashboard also lists each goal’s target and funded amount in that goal’s currency. Null progress is shown as unavailable.
+**Dashboard signals.** From the loaded summary and forecast, the client can report positive or negative cash flow, missing scheduled income, and whether the projected balance rises or falls over the forecast window. Those signals are hidden when accounts use more than one currency, and the Dashboard skips household forecast in that case. Per-account forecast is available on the Forecast page. The Dashboard also lists each goal’s target and funded amount in that goal’s currency. Null progress is shown as unavailable.
 
 There is no authentication. The Angular UI writes transactions, creates accounts, creates and edits Financial Goals, and creates and edits salary and recurring-expense schedules through the API. Schedule writes do not create transactions or change account balances.
 
@@ -89,7 +89,7 @@ Layout under `backend/app/`: `api`, `services`, `repositories`, `schemas`, `mode
 | GET | `/analysis/summary` | Historical totals; `to` cannot be in the future |
 | GET | `/analysis/expenses` | Historical expenses by category |
 | GET | `/analysis/cash-flow` | Historical cash flow; `group_by` is `day` or `month` |
-| GET | `/forecast` | Projection; `group_by` is `day` or `month` |
+| GET | `/forecast` | Projection; `group_by` is `day` or `month`; optional `account_id`; response includes `scope`, `account_id`, and `currency` |
 
 Date query parameters use the names `from` and `to`.
 

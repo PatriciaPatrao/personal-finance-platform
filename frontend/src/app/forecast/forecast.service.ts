@@ -15,11 +15,15 @@ export class ForecastService {
     from: string,
     to: string,
     groupBy: ForecastGroupBy,
+    accountId?: number,
   ): Observable<ForecastResponse> {
-    const params = new HttpParams()
+    let params = new HttpParams()
       .set('from', from)
       .set('to', to)
       .set('group_by', groupBy);
+    if (accountId !== undefined) {
+      params = params.set('account_id', String(accountId));
+    }
 
     return this.http.get<ForecastResponse>(
       `${environment.apiBaseUrl}/forecast`,
