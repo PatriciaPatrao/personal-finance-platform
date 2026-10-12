@@ -748,7 +748,8 @@ export class Schedules implements OnInit {
     if (amount === null) {
       valid = false;
       if (showErrors) {
-        this.formAmountError = 'Enter an amount greater than zero.';
+        this.formAmountError =
+          'Enter a positive amount with at most two decimal places.';
       }
     }
 

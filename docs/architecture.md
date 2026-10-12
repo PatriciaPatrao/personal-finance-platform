@@ -47,7 +47,7 @@ The shell is `PersonalFinanceLayout` at `/personal_finance`. Navigation is Dashb
 | `/personal_finance` | Dashboard: position by currency, signals, goals, links |
 | `/personal_finance/accounts` | Stored accounts list and create form |
 | `/personal_finance/accounts/:id` | Read-only stored account detail |
-| `/personal_finance/schedules` | Salary and fixed recurring expenses: list, create, edit, deactivate |
+| `/personal_finance/schedules` | Salary and fixed recurring expenses: list, create, edit, deactivate, activate |
 | `/personal_finance/goals` | Financial objectives: list, create, and edit |
 | `/personal_finance/analysis` | Historical analysis of transactions |
 | `/personal_finance/forecast` | Projection from balances and schedules |
@@ -82,7 +82,7 @@ Implemented by `Accounts` and `AccountDetail`. The list page loads `GET /account
 
 ### Schedules
 
-Implemented by `Schedules` at `/personal_finance/schedules`. It loads `GET /incomes`, `GET /recurring-expenses`, and `GET /accounts`, lists salary and fixed recurring-expense records (including inactive ones), and creates and updates them through `POST` and `PUT`. There is no DELETE; deactivation sets `active: false` on a full PUT body that always includes every required field, including `end_date`. Separate sections cover salary and recurring expenses, each with an Active / Inactive / All filter. Dates are entered as DD-MM-YYYY and sent as ISO `YYYY-MM-DD`. The page explains that schedules inform Forecast, are not recorded transactions, do not change `Account.current_balance`, and do not imply a separate projected balance per account. It does not call Transactions, Analysis, or Forecast.
+Implemented by `Schedules` at `/personal_finance/schedules`. It loads `GET /incomes`, `GET /recurring-expenses`, and `GET /accounts`, lists salary and fixed recurring-expense records (including inactive ones), and creates and updates them through `POST` and `PUT`. There is no DELETE; deactivation and activation set `active` on a full PUT body that always includes every required field, including `end_date`. One-click Deactivate and Activate buttons call those updates without opening the edit form. Separate sections cover salary and recurring expenses, each with an Active / Inactive / All filter. Dates are entered as DD-MM-YYYY and sent as ISO `YYYY-MM-DD`. Amount validation requires a positive value with at most two decimal places. The page explains that schedules inform Forecast, are not recorded transactions, do not change `Account.current_balance`, and do not imply a separate projected balance per account. It does not call Transactions, Analysis, or Forecast. See [milestone-recurring-schedules.md](milestone-recurring-schedules.md) for validation and manual test checklists.
 
 ### Goals
 
@@ -200,11 +200,11 @@ Relevant decisions that the current API implements:
 
 pytest plus FastAPI `TestClient` (`httpx`). Tests use the same `DATABASE_URL` as the app, with connection `search_path` set to a PostgreSQL schema named `test` (`backend/tests/conftest.py`). That schema must already exist and contain migrated tables. The suite does not create the schema. Each test deletes rows in `goal_allocations`, `financial_goals`, `accounts`, `transactions`, `recurring_expenses`, and `incomes`.
 
-Coverage is HTTP-level and domain-level: health, CORS preflight, accounts, transactions, account–transaction relationship, incomes, recurring expenses, financial goals, financial summary, analysis, forecast, occurrence helpers, and database session wiring.
+Coverage is HTTP-level and domain-level: health, CORS preflight, accounts, transactions, account–transaction relationship, incomes, recurring expenses, schedule data integrity (no balance or transaction side effects), financial goals, financial summary, analysis, forecast, occurrence helpers, and database session wiring.
 
 ### Frontend
 
-Angular CLI `ng test` runs Vitest. Specs cover routes, the dashboard component, financial signals, analysis component and service, date field, forecast component and service, account service, accounts list/create component, account detail component, the goals component and service, and the transactions component and service. Tests are unit/component tests with HTTP mocked where services call the API. There is no end-to-end browser suite in this repository.
+Angular CLI `ng test` runs Vitest. Specs cover routes, the dashboard component, financial signals, analysis component and service, date field, forecast component and service, account service, accounts list/create component, account detail component, the schedules component, the goals component and service, the transactions component and service, and table copy helpers. Tests are unit/component tests with HTTP mocked where services call the API. There is no end-to-end browser suite in this repository.
 
 ## 10. Seed data
 

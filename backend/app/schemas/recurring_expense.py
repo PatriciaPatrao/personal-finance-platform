@@ -16,7 +16,7 @@ class RecurringExpenseCreate(BaseModel):
 
     account_id: int
     description: str = Field(min_length=1, max_length=255)
-    amount: Decimal = Field(gt=0)
+    amount: Decimal = Field(gt=0, decimal_places=2)
     category: str | None = None
     frequency: RecurringFrequency
     start_date: date
@@ -30,7 +30,7 @@ class RecurringExpenseUpdate(BaseModel):
 
     account_id: int
     description: str = Field(min_length=1, max_length=255)
-    amount: Decimal = Field(gt=0)
+    amount: Decimal = Field(gt=0, decimal_places=2)
     category: str | None
     frequency: RecurringFrequency
     start_date: date
@@ -47,7 +47,7 @@ class RecurringExpenseResponse(BaseModel):
     id: int
     account_id: int
     description: str
-    amount: Decimal = Field(gt=0)
+    amount: Decimal = Field(gt=0, decimal_places=2)
     category: str | None = None
     frequency: RecurringFrequency
     start_date: date

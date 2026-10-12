@@ -348,6 +348,26 @@ def test_create_recurring_expense_rejects_zero_amount(
     assert response.status_code == 422
 
 
+def test_create_recurring_expense_rejects_more_than_two_decimal_places(
+    client: TestClient,
+    account_id: int,
+) -> None:
+    """POST rejects amounts with more than two decimal places."""
+    response = client.post(
+        "/recurring-expenses",
+        json={
+            "account_id": account_id,
+            "description": "Netflix",
+            "amount": 15.999,
+            "frequency": "monthly",
+            "start_date": "2026-10-01",
+            "next_occurrence": "2026-11-01",
+        },
+    )
+
+    assert response.status_code == 422
+
+
 def test_update_recurring_expense_rejects_zero_amount(
     client: TestClient,
     account_id: int,

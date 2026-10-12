@@ -25,7 +25,7 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 
 **Transactions.** Create, read, update, and delete income and expense transactions. Each transaction belongs to an account and may have a category and description. The Angular screen at `/personal_finance/transactions` performs that CRUD. Filters (date range, type, category) run in the client. Category is an optional string. Recording or changing a transaction does not update `Account.current_balance`.
 
-**Income.** Create, read, and update expected salary schedules. Each schedule belongs to an account. Frequency is weekly, monthly, or yearly, with a start date, a next occurrence, an optional end date, and an active flag. The income model is salary only. The start date is stored and checked against the next occurrence and end date. Forecast does not use it to generate dates. The Angular screen at `/personal_finance/schedules` lists, creates, edits, and deactivates salary schedules. Schedule writes do not create transactions or change balances.
+**Income.** Create, read, and update expected salary schedules. Each schedule belongs to an account. Frequency is weekly, monthly, or yearly, with a start date, a next occurrence, an optional end date, and an active flag. The income model is salary only. The start date is stored and checked against the next occurrence and end date. Forecast does not use it to generate dates. The Angular screen at `/personal_finance/schedules` lists, creates, edits, deactivates, and reactivates salary schedules. Schedule writes do not create transactions or change balances.
 
 **Recurring expenses.** Create, read, and update fixed scheduled commitments on an account, with the same frequency, start date, occurrence, and active-flag shape, plus a description and optional category. Each schedule has one fixed amount. The same Schedules screen maintains these records alongside salary.
 
@@ -113,7 +113,7 @@ The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for
 | `/personal_finance` | Dashboard: one stored total per currency, financial signals when currencies match, goal progress, links to Accounts, Schedules, Transactions, Goals, Analysis, and Forecast |
 | `/personal_finance/accounts` | Stored accounts list and create form: name, type, currency, and opening/current balance |
 | `/personal_finance/accounts/:id` | Read-only account detail: stored balance, type, currency, and created date. No update or delete. |
-| `/personal_finance/schedules` | Salary and fixed recurring expenses: list active and inactive records, create, edit, and deactivate. Dates are entered as DD-MM-YYYY. Schedules inform Forecast; they are not transactions and do not change balances. |
+| `/personal_finance/schedules` | Salary and fixed recurring expenses: list active and inactive records, create, edit, deactivate, and activate. Dates are entered as DD-MM-YYYY. Schedules inform Forecast; they are not transactions and do not change balances. |
 | `/personal_finance/goals` | Financial objectives: list, create, and edit; allocate, reduce, or remove designated Account money. Derived progress, no Goal delete. Dates are entered as DD-MM-YYYY. |
 | `/personal_finance/analysis` | Historical summary, expenses by category, and cash flow. Default range is the current month through today. Dates are entered as DD-MM-YYYY. |
 | `/personal_finance/forecast` | Projected income, expenses, net cash flow, and running balance. Default range starts today and ends on the last day of the calendar month two months ahead. Grouping is monthly or daily. |
@@ -212,6 +212,7 @@ The script stops if more than one account is already named Demo Main Account.
 
 - [docs/product-vision.md](docs/product-vision.md) — product boundaries and what is intentionally omitted
 - [docs/architecture.md](docs/architecture.md) — structure of the current application
+- [docs/milestone-recurring-schedules.md](docs/milestone-recurring-schedules.md) — recurring schedule milestone validation, manual checks, and next execution plan
 - [docs/decisions/](docs/decisions/) — modular monolith, Analysis versus Forecast, Dashboard responsibility, and Financial Goals
 - [frontend/README.md](frontend/README.md) — Angular CLI serve, build, and unit-test commands
 - `http://127.0.0.1:8000/docs` — generated OpenAPI for the running API

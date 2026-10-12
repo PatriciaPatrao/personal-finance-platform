@@ -239,7 +239,37 @@ describe('Schedules', () => {
     expect(createIncome).not.toHaveBeenCalled();
     expect(component.formAccountError).toBe('Select an account.');
     expect(component.formAmountError).toBe(
-      'Enter an amount greater than zero.',
+      'Enter a positive amount with at most two decimal places.',
+    );
+  });
+
+  it('should reject zero, negative, and over-precision schedule amounts', async () => {
+    const { fixture, component } = await render();
+    component.startCreateIncome();
+    fillValidIncomeForm(component);
+
+    component.formAmount = '0';
+    component.saveSchedule();
+    fixture.detectChanges();
+    expect(createIncome).not.toHaveBeenCalled();
+    expect(component.formAmountError).toBe(
+      'Enter a positive amount with at most two decimal places.',
+    );
+
+    component.formAmount = '-10';
+    component.saveSchedule();
+    fixture.detectChanges();
+    expect(createIncome).not.toHaveBeenCalled();
+    expect(component.formAmountError).toBe(
+      'Enter a positive amount with at most two decimal places.',
+    );
+
+    component.formAmount = '10.999';
+    component.saveSchedule();
+    fixture.detectChanges();
+    expect(createIncome).not.toHaveBeenCalled();
+    expect(component.formAmountError).toBe(
+      'Enter a positive amount with at most two decimal places.',
     );
   });
 

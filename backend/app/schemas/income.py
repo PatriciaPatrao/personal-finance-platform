@@ -15,7 +15,7 @@ class IncomeCreate(BaseModel):
     """Incoming data for creating an income."""
 
     account_id: int
-    amount: Decimal = Field(gt=0)
+    amount: Decimal = Field(gt=0, decimal_places=2)
     frequency: IncomeFrequency
     start_date: date
     next_occurrence: date
@@ -27,7 +27,7 @@ class IncomeUpdate(BaseModel):
     """Incoming data for fully updating an income."""
 
     account_id: int
-    amount: Decimal = Field(gt=0)
+    amount: Decimal = Field(gt=0, decimal_places=2)
     frequency: IncomeFrequency
     start_date: date
     next_occurrence: date
@@ -42,7 +42,7 @@ class IncomeResponse(BaseModel):
 
     id: int
     account_id: int
-    amount: Decimal = Field(gt=0)
+    amount: Decimal = Field(gt=0, decimal_places=2)
     frequency: IncomeFrequency
     start_date: date
     next_occurrence: date

@@ -945,6 +945,45 @@ def test_forecast_does_not_modify_recurring_expenses(
     assert stored.json() == created
 
 
+def test_forecast_reflects_updated_income_amount(
+    client: TestClient,
+    today: date,
+) -> None:
+    """Editing salary amount changes projected income by the same delta."""
+    account = _create_account(client, current_balance=93000)
+    created = _create_income(
+        client,
+        account["id"],
+        amount=1500,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+    before = _forecast(client, today, today, "day")
+    ending_before = Decimal(
+        _period(before, _iso(today))["projected_balance"],
+    )
+
+    updated = client.put(
+        f"/incomes/{created['id']}",
+        json={
+            "account_id": account["id"],
+            "amount": 500,
+            "frequency": "monthly",
+            "start_date": created["start_date"],
+            "next_occurrence": created["next_occurrence"],
+            "end_date": None,
+            "active": True,
+        },
+    )
+    assert updated.status_code == 200
+
+    after = _forecast(client, today, today, "day")
+    period = _period(after, _iso(today))
+    assert Decimal(period["income"]) == Decimal("500.00")
+    ending_after = Decimal(period["projected_balance"])
+    assert ending_before - ending_after == Decimal("1000.00")
+
+
 def test_historical_transactions_do_not_influence_forecast(
     client: TestClient,
     today: date,
