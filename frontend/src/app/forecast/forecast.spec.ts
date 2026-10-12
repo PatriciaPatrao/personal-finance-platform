@@ -3,7 +3,10 @@ import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 
 import { AccountService } from '../accounts/account.service';
-import { Forecast } from './forecast';
+import {
+  Forecast,
+  MIXED_CURRENCY_HOUSEHOLD_MESSAGE,
+} from './forecast';
 import { ForecastResponse } from './forecast-response';
 import { ForecastService } from './forecast.service';
 
@@ -42,6 +45,25 @@ describe('Forecast', () => {
 
   let getForecast: ReturnType<typeof vi.fn>;
   let listAccounts: ReturnType<typeof vi.fn>;
+
+  const mixedCurrencyAccounts = [
+    {
+      id: 1,
+      name: 'Euro main',
+      account_type: 'bank' as const,
+      currency: 'EUR',
+      current_balance: '2000.00',
+      created_at: '2026-01-01T00:00:00',
+    },
+    {
+      id: 2,
+      name: 'Dollar side',
+      account_type: 'bank' as const,
+      currency: 'USD',
+      current_balance: '500.00',
+      created_at: '2026-01-01T00:00:00',
+    },
+  ];
 
   function defaultForecastRange(): { from: string; to: string } {
     const today = new Date();
@@ -499,7 +521,180 @@ describe('Forecast', () => {
     );
   });
 
-  it('should show a mixed-currency message for household forecast validation errors', async () => {
+  it('should skip the household request on init when accounts use mixed currencies', async () => {
+    listAccounts.mockReturnValue(of(mixedCurrencyAccounts));
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(getForecast).not.toHaveBeenCalled();
+    const root = fixture.nativeElement as HTMLElement;
+    const text = root.textContent ?? '';
+    expect(text).toContain(MIXED_CURRENCY_HOUSEHOLD_MESSAGE);
+    expect(root.querySelector('.status-info')).not.toBeNull();
+    expect(root.querySelector('.status-error')).toBeNull();
+    expect(text).not.toContain('Unable to load the forecast.');
+    expect(
+      (root.querySelector('select[name="account"]') as HTMLSelectElement)
+        .disabled,
+    ).toBe(false);
+    expect(fixture.componentInstance.loading).toBe(false);
+    expect(fixture.componentInstance.forecast).toBeNull();
+  });
+
+  it('should load an account-scoped forecast after mixed-currency household state', async () => {
+    listAccounts.mockReturnValue(of(mixedCurrencyAccounts));
+    const accountForecast: ForecastResponse = {
+      ...sampleForecast,
+      scope: 'account',
+      account_id: 1,
+      currency: 'EUR',
+      periods: [
+        {
+          period: '2026-10',
+          income: '0.00',
+          expenses: '0.00',
+          net_cash_flow: '0.00',
+          projected_balance: '2000.00',
+        },
+      ],
+    };
+    getForecast.mockReturnValue(of(accountForecast));
+
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(getForecast).not.toHaveBeenCalled();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const select = root.querySelector(
+      'select[name="account"]',
+    ) as HTMLSelectElement;
+    select.value = '1';
+    select.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const expected = defaultForecastRange();
+    expect(getForecast).toHaveBeenCalledTimes(1);
+    expect(getForecast).toHaveBeenCalledWith(
+      expected.from,
+      expected.to,
+      'month',
+      1,
+    );
+    expect(root.textContent).toContain('2,000.00');
+    expect(root.querySelector('.status-info')).toBeNull();
+    expect(root.querySelector('.data-table')).not.toBeNull();
+  });
+
+  it('should not show stale forecast data when switching accounts quickly', async () => {
+    listAccounts.mockReturnValue(of(mixedCurrencyAccounts));
+    const slowAccount = new Subject<ForecastResponse>();
+    const fastAccount: ForecastResponse = {
+      ...sampleForecast,
+      scope: 'account',
+      account_id: 2,
+      currency: 'USD',
+      periods: [
+        {
+          period: '2026-10',
+          income: '0.00',
+          expenses: '0.00',
+          net_cash_flow: '0.00',
+          projected_balance: '500.00',
+        },
+      ],
+    };
+
+    getForecast.mockImplementation(
+      (_from: string, _to: string, _groupBy: string, accountId?: number) => {
+        if (accountId === 1) {
+          return slowAccount.asObservable();
+        }
+        if (accountId === 2) {
+          return of(fastAccount);
+        }
+        return throwError(() => new Error('unexpected household request'));
+      },
+    );
+
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const root = fixture.nativeElement as HTMLElement;
+    component.onAccountFilterChange('1');
+    component.onAccountFilterChange('2');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(root.textContent).toContain('500.00');
+    expect(root.textContent).not.toContain('2,000.00');
+
+    slowAccount.next({
+      ...sampleForecast,
+      scope: 'account',
+      account_id: 1,
+      periods: [
+        {
+          period: '2026-10',
+          income: '0.00',
+          expenses: '0.00',
+          net_cash_flow: '0.00',
+          projected_balance: '2000.00',
+        },
+      ],
+    });
+    slowAccount.complete();
+    fixture.detectChanges();
+
+    expect(component.accountFilter).toBe('2');
+    expect(root.textContent).toContain('500.00');
+    expect(root.textContent).not.toContain('2,000.00');
+  });
+
+  it('should restore the mixed-currency message when returning to All accounts without refetching', async () => {
+    listAccounts.mockReturnValue(of(mixedCurrencyAccounts));
+    getForecast.mockReturnValue(
+      of({
+        ...sampleForecast,
+        scope: 'account',
+        account_id: 1,
+      }),
+    );
+
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    const select = root.querySelector(
+      'select[name="account"]',
+    ) as HTMLSelectElement;
+    select.value = '1';
+    select.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    getForecast.mockClear();
+
+    select.value = 'all';
+    select.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(getForecast).not.toHaveBeenCalled();
+    expect(root.textContent).toContain(MIXED_CURRENCY_HOUSEHOLD_MESSAGE);
+    expect(root.querySelector('.data-table')).toBeNull();
+    expect(fixture.componentInstance.loading).toBe(false);
+  });
+
+  it('should use API mixed-currency handling when household request is attempted', async () => {
     getForecast.mockReturnValue(
       throwError(
         () =>
@@ -514,8 +709,36 @@ describe('Forecast', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
-    expect(text).toContain('Household forecast needs every account');
-    expect(text).not.toContain('Unable to load the forecast.');
+    const root = fixture.nativeElement as HTMLElement;
+    expect(getForecast).toHaveBeenCalledTimes(1);
+    expect(root.textContent).toContain(MIXED_CURRENCY_HOUSEHOLD_MESSAGE);
+    expect(root.querySelector('.status-info')).not.toBeNull();
+    expect(root.textContent).not.toContain('Unable to load the forecast.');
+  });
+
+  it('should show a generic error for unrelated API failures on account scope', async () => {
+    listAccounts.mockReturnValue(of(mixedCurrencyAccounts));
+    getForecast.mockImplementation(
+      (_from: string, _to: string, _groupBy: string, accountId?: number) => {
+        if (accountId === 1) {
+          return throwError(() => new Error('network'));
+        }
+        return throwError(() => new Error('unexpected'));
+      },
+    );
+
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    fixture.componentInstance.onAccountFilterChange('1');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.textContent).toContain('Unable to load the forecast.');
+    expect(root.querySelector('.status-error')).not.toBeNull();
+    expect(root.querySelector('.data-table')).toBeNull();
   });
 });

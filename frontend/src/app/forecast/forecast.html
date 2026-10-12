@@ -50,6 +50,12 @@
     <p class="status status-loading" aria-live="polite">Loading forecast...</p>
   }
 
+  @if (mixedCurrencyHouseholdMessage) {
+    <p class="status status-info" role="status">
+      {{ mixedCurrencyHouseholdMessage }}
+    </p>
+  }
+
   @if (errorMessage) {
     <p class="status status-error" role="alert">{{ errorMessage }}</p>
   }

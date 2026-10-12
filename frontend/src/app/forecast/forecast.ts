@@ -97,6 +97,11 @@ function formatMoneyMinorUnits(minorUnits: bigint): string {
   return `${sign}${whole}.${fraction}`;
 }
 
+export const MIXED_CURRENCY_HOUSEHOLD_MESSAGE =
+  'A combined projection for all accounts is unavailable because your ' +
+  'accounts use more than one currency. Select an account below to see ' +
+  'its forecast.';
+
 @Component({
   selector: 'app-forecast',
   imports: [CopyTable, CurrencyPipe, DateField],
@@ -120,7 +125,12 @@ export class Forecast implements OnInit {
 
   loading = true;
   errorMessage: string | null = null;
+  mixedCurrencyHouseholdMessage: string | null = null;
   validationMessage: string | null = null;
+
+  private loadGeneration = 0;
+  private householdMixedCurrencyBlocked = false;
+  private householdBlockedRequestKey: string | null = null;
 
   constructor(
     private accountService: AccountService,
@@ -254,11 +264,14 @@ export class Forecast implements OnInit {
     this.forecast = null;
     this.loading = false;
     this.errorMessage = null;
+    this.mixedCurrencyHouseholdMessage = null;
   }
 
   private loadForecast(): void {
+    const generation = ++this.loadGeneration;
     this.loading = true;
     this.errorMessage = null;
+    this.mixedCurrencyHouseholdMessage = null;
     this.forecast = null;
 
     const accountId =
@@ -266,35 +279,88 @@ export class Forecast implements OnInit {
         ? undefined
         : Number(this.accountFilter);
 
+    if (accountId === undefined && this.shouldSkipHouseholdForecastRequest()) {
+      this.rememberHouseholdMixedCurrencyBlock();
+      this.applyHouseholdMixedCurrencyState(generation);
+      return;
+    }
+
     this.forecastService
       .getForecast(this.from, this.to, this.groupBy, accountId)
       .subscribe({
         next: (forecast: ForecastResponse) => {
+          if (generation !== this.loadGeneration) {
+            return;
+          }
+          if (accountId === undefined) {
+            this.householdMixedCurrencyBlocked = false;
+            this.householdBlockedRequestKey = null;
+          }
           this.forecast = forecast;
           this.loading = false;
           this.changeDetector.markForCheck();
         },
         error: (error: unknown) => {
+          if (generation !== this.loadGeneration) {
+            return;
+          }
           this.forecast = null;
-          this.errorMessage = this.formatLoadError(error);
+          if (
+            accountId === undefined &&
+            this.isMixedCurrencyHouseholdError(error)
+          ) {
+            this.rememberHouseholdMixedCurrencyBlock();
+            this.applyHouseholdMixedCurrencyState(generation);
+            return;
+          }
+          this.errorMessage = 'Unable to load the forecast.';
           this.loading = false;
           this.changeDetector.markForCheck();
         },
       });
   }
 
-  private formatLoadError(error: unknown): string {
-    if (
-      this.accountFilter === 'all' &&
-      error instanceof HttpErrorResponse &&
-      error.status === 422
-    ) {
-      return (
-        'Household forecast needs every account to use the same currency. ' +
-        'Select an account above to see a projection for that account.'
-      );
+  private shouldSkipHouseholdForecastRequest(): boolean {
+    if (this.accountsHaveMixedCurrency()) {
+      return true;
     }
+    return (
+      this.householdMixedCurrencyBlocked &&
+      this.householdBlockedRequestKey === this.householdRequestKey()
+    );
+  }
 
-    return 'Unable to load the forecast.';
+  private accountsHaveMixedCurrency(): boolean {
+    if (this.accounts.length <= 1) {
+      return false;
+    }
+    const currency = this.accounts[0].currency;
+    return !this.accounts.every(
+      (account) => account.currency === currency,
+    );
+  }
+
+  private householdRequestKey(): string {
+    return `${this.from}|${this.to}|${this.groupBy}`;
+  }
+
+  private rememberHouseholdMixedCurrencyBlock(): void {
+    this.householdMixedCurrencyBlocked = true;
+    this.householdBlockedRequestKey = this.householdRequestKey();
+  }
+
+  private applyHouseholdMixedCurrencyState(generation: number): void {
+    if (generation !== this.loadGeneration) {
+      return;
+    }
+    this.forecast = null;
+    this.errorMessage = null;
+    this.mixedCurrencyHouseholdMessage = MIXED_CURRENCY_HOUSEHOLD_MESSAGE;
+    this.loading = false;
+    this.changeDetector.markForCheck();
+  }
+
+  private isMixedCurrencyHouseholdError(error: unknown): boolean {
+    return error instanceof HttpErrorResponse && error.status === 422;
   }
 }
