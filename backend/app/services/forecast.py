@@ -179,10 +179,11 @@ def _household_projections(
 ) -> list[ForecastCurrencyProjection]:
     """Build one projection per distinct account currency."""
     if not accounts:
+        # Schedules require a linked account (FK); with no accounts, none apply.
         periods = _build_periods(
             _ZERO,
-            all_incomes,
-            all_expenses,
+            [],
+            [],
             from_date,
             to_date,
             group_by,

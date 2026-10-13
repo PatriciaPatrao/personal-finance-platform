@@ -194,4 +194,104 @@ describe('deriveFinancialSignals', () => {
 
     expect(detail).toBe('');
   });
+
+  it('derives forecast signals from a single-projection response', () => {
+    const signals = deriveFinancialSignals(emptySummary, increasingForecast);
+    expect(signals.map((signal) => signal.title)).toEqual([
+      'Balance projected to increase',
+    ]);
+  });
+
+  it('does not derive single-currency forecast signals from multi-projection', () => {
+    const multiCurrencyForecast: ForecastResponse = {
+      ...increasingForecast,
+      projections: [
+        increasingForecast.projections[0],
+        {
+          currency: 'USD',
+          group_by: 'month',
+          starting_balance: '100.00',
+          periods: [
+            {
+              period: '2026-10',
+              income: '5000.00',
+              expenses: '0.00',
+              net_cash_flow: '5000.00',
+              projected_balance: '5100.00',
+            },
+            {
+              period: '2026-12',
+              income: '5000.00',
+              expenses: '0.00',
+              net_cash_flow: '5000.00',
+              projected_balance: '10100.00',
+            },
+          ],
+        },
+      ],
+    };
+
+    const signals = deriveFinancialSignals(emptySummary, multiCurrencyForecast);
+    expect(signals.map((signal) => signal.title)).not.toContain(
+      'Balance projected to increase',
+    );
+    expect(signals.map((signal) => signal.title)).not.toContain(
+      'No scheduled income',
+    );
+    expect(signals).toEqual([]);
+  });
+
+  it('handles an empty projection list safely', () => {
+    const emptyProjections: ForecastResponse = {
+      ...increasingForecast,
+      projections: [],
+    };
+
+    expect(deriveFinancialSignals(emptySummary, emptyProjections)).toEqual([]);
+    expect(quietCheckDetail(emptySummary, emptyProjections)).toContain(
+      'no forecast periods were returned',
+    );
+  });
+
+  it('omits a misleading quiet forecast sentence for multi-projection', () => {
+    const multiCurrencyForecast: ForecastResponse = {
+      ...increasingForecast,
+      projections: [
+        {
+          currency: 'EUR',
+          group_by: 'month',
+          starting_balance: '5000.00',
+          periods: [
+            {
+              period: '2026-10',
+              income: '100.00',
+              expenses: '100.00',
+              net_cash_flow: '0.00',
+              projected_balance: '5000.00',
+            },
+          ],
+        },
+        {
+          currency: 'USD',
+          group_by: 'month',
+          starting_balance: '1.00',
+          periods: [
+            {
+              period: '2026-10',
+              income: '1.00',
+              expenses: '0.00',
+              net_cash_flow: '1.00',
+              projected_balance: '2.00',
+            },
+          ],
+        },
+      ],
+    };
+
+    const detail = quietCheckDetail(emptySummary, multiCurrencyForecast);
+    expect(detail).not.toContain('scheduled income is present');
+    expect(detail).toContain(
+      'Checked recorded cash flow from 01-10-2026 to 05-10-2026: no income or expenses were recorded.',
+    );
+  });
 });

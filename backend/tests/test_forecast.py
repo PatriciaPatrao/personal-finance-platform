@@ -1442,3 +1442,137 @@ def test_forecast_household_currency_matches_account_scopes(
     assert Decimal(_projection(household, "USD")["starting_balance"]) == Decimal(
         _projection(usd_scope)["starting_balance"],
     )
+
+
+def _assert_period_equals_aggregated_scopes(
+    home_period: dict,
+    scope_periods: list[dict],
+) -> None:
+    """Assert household period fields equal the sum of account-scoped periods."""
+    for field in ("income", "expenses", "net_cash_flow", "projected_balance"):
+        expected = sum(
+            (Decimal(item[field]) for item in scope_periods),
+            Decimal("0"),
+        )
+        assert Decimal(home_period[field]) == expected
+
+
+def test_forecast_mixed_household_eur_equals_aggregated_account_scopes(
+    client: TestClient,
+    today: date,
+) -> None:
+    """EUR household projection matches both EUR account scopes; USD is isolated."""
+    eur_main = _create_account(
+        client,
+        name="EUR main",
+        currency="EUR",
+        current_balance=1000,
+    )
+    eur_side = _create_account(
+        client,
+        name="EUR side",
+        currency="EUR",
+        current_balance=250,
+    )
+    _create_income(
+        client,
+        eur_main["id"],
+        amount=100,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+    _create_income(
+        client,
+        eur_side["id"],
+        amount=40,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+    _create_expense(
+        client,
+        eur_side["id"],
+        amount=15,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+
+    to_date = today + timedelta(days=2)
+    eur_before_usd = _projection(
+        _forecast(client, today, to_date, "day"),
+        "EUR",
+    )
+
+    usd_account = _create_account(
+        client,
+        name="USD",
+        currency="USD",
+        current_balance=500,
+    )
+    _create_income(
+        client,
+        usd_account["id"],
+        amount=9000,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+    _create_expense(
+        client,
+        usd_account["id"],
+        amount=8000,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+
+    household = _forecast(client, today, to_date, "day")
+    eur_scope_main = _forecast(
+        client,
+        today,
+        to_date,
+        "day",
+        account_id=eur_main["id"],
+    )
+    eur_scope_side = _forecast(
+        client,
+        today,
+        to_date,
+        "day",
+        account_id=eur_side["id"],
+    )
+
+    home_eur = _projection(household, "EUR")
+    assert Decimal(home_eur["starting_balance"]) == (
+        Decimal(_projection(eur_scope_main)["starting_balance"])
+        + Decimal(_projection(eur_scope_side)["starting_balance"])
+    )
+
+    for home_period in home_eur["periods"]:
+        label = home_period["period"]
+        _assert_period_equals_aggregated_scopes(
+            home_period,
+            [
+                _period(eur_scope_main, label),
+                _period(eur_scope_side, label),
+            ],
+        )
+
+    assert _projection(household, "EUR") == eur_before_usd
+
+
+def test_forecast_empty_household_default_currency_no_schedules(
+    client: TestClient,
+    today: date,
+) -> None:
+    """Zero accounts: default EUR projection with no schedule activity.
+
+    Incomes and recurring expenses require account_id (FK to accounts.id), so
+    orphan schedules cannot be stored; with no accounts none are included.
+    """
+    body = _forecast(client, today, today, "day")
+    projection = _projection(body)
+    assert projection["currency"] == "EUR"
+    assert Decimal(projection["starting_balance"]) == Decimal("0")
+    period = projection["periods"][0]
+    assert Decimal(period["income"]) == Decimal("0")
+    assert Decimal(period["expenses"]) == Decimal("0")
+    assert Decimal(period["net_cash_flow"]) == Decimal("0")
+    assert Decimal(period["projected_balance"]) == Decimal("0")

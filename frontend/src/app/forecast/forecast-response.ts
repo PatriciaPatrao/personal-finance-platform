@@ -26,8 +26,20 @@ export interface ForecastResponse {
   projections: ForecastCurrencyProjection[];
 }
 
+/** First projection in API order; not safe for household signals when length !== 1. */
 export function primaryProjection(
   forecast: ForecastResponse,
 ): ForecastCurrencyProjection | null {
   return forecast.projections?.[0] ?? null;
+}
+
+/** Projection used for dashboard forecast signals (exactly one currency only). */
+export function projectionForFinancialSignals(
+  forecast: ForecastResponse,
+): ForecastCurrencyProjection | null {
+  const projections = forecast.projections ?? [];
+  if (projections.length !== 1) {
+    return null;
+  }
+  return projections[0];
 }

@@ -1,7 +1,7 @@
 import { AnalysisSummary } from '../analysis/analysis-summary';
 import {
   ForecastResponse,
-  primaryProjection,
+  projectionForFinancialSignals,
 } from '../forecast/forecast-response';
 
 export interface FinancialSignal {
@@ -56,7 +56,9 @@ function deriveCashFlowSignal(
 function deriveForecastSignals(
   forecast: ForecastResponse | null,
 ): FinancialSignal[] {
-  const projection = forecast ? primaryProjection(forecast) : null;
+  const projection = forecast
+    ? projectionForFinancialSignals(forecast)
+    : null;
   if (!projection || projection.periods.length === 0) {
     return [];
   }
@@ -116,8 +118,16 @@ function analysisQuietSentence(summary: AnalysisSummary): string {
 function forecastQuietSentence(forecast: ForecastResponse): string {
   const range = `${europeanDate(forecast.from_date)} to ${europeanDate(forecast.to_date)}`;
 
-  const projection = primaryProjection(forecast);
-  if (!projection || projection.periods.length === 0) {
+  const projections = forecast.projections ?? [];
+  if (projections.length === 0) {
+    return `Checked the forecast from ${range}: no forecast periods were returned.`;
+  }
+  if (projections.length !== 1) {
+    return '';
+  }
+
+  const projection = projections[0];
+  if (projection.periods.length === 0) {
     return `Checked the forecast from ${range}: no forecast periods were returned.`;
   }
 
