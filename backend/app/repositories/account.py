@@ -61,3 +61,11 @@ class AccountRepository:
             .with_for_update()
         )
         return self._session.scalars(statement).one_or_none()
+
+    def apply_balance_delta(
+        self,
+        account: Account,
+        delta: Decimal,
+    ) -> None:
+        """Adjust stored balance on a locked or session-bound account row."""
+        account.current_balance = account.current_balance + delta

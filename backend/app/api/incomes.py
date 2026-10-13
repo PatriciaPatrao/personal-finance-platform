@@ -10,9 +10,16 @@ from app.db.session import get_db
 from app.schemas.income import IncomeCreate
 from app.schemas.income import IncomeResponse
 from app.schemas.income import IncomeUpdate
+from app.api.schedule_execution_helpers import schedule_execution_response
+from app.schemas.schedule_execution import ScheduleExecutionCreate
+from app.schemas.schedule_execution import ScheduleExecutionResponse
 from app.services.income import AccountNotFoundError
 from app.services.income import IncomeService
 from app.services.income import InvalidIncomeDatesError
+from app.services.schedule_execution import OccurrenceNotEligibleError
+from app.services.schedule_execution import ScheduleExecutionService
+from app.services.schedule_execution import ScheduleInactiveError
+from app.services.schedule_execution import ScheduleNotFoundError
 
 
 router = APIRouter()
@@ -108,3 +115,37 @@ def update_income(
             detail="Income not found",
         )
     return IncomeResponse.model_validate(income)
+
+
+@router.post(
+    "/incomes/{income_id}/executions",
+    response_model=ScheduleExecutionResponse,
+)
+def execute_income_occurrence(
+    income_id: int,
+    data: ScheduleExecutionCreate,
+    session: Session = Depends(get_db),
+):
+    """Materialize one income occurrence as a transaction."""
+    service = ScheduleExecutionService(session)
+    try:
+        result = service.execute_income(
+            income_id,
+            data.occurrence_date,
+        )
+    except ScheduleNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Income not found",
+        )
+    except ScheduleInactiveError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        )
+    except OccurrenceNotEligibleError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        )
+    return schedule_execution_response(result)

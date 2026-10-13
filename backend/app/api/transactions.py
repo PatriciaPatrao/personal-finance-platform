@@ -11,6 +11,7 @@ from app.schemas.transaction import TransactionCreate
 from app.schemas.transaction import TransactionResponse
 from app.schemas.transaction import TransactionUpdate
 from app.services.transaction import AccountNotFoundError
+from app.services.transaction import TransactionLinkedToScheduleError
 from app.services.transaction import TransactionService
 
 
@@ -86,6 +87,11 @@ def update_transaction(
     service = TransactionService(session)
     try:
         transaction = service.update(transaction_id, data)
+    except TransactionLinkedToScheduleError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        )
     except AccountNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -109,7 +115,13 @@ def delete_transaction(
 ) -> None:
     """Remove a transaction from the database."""
     service = TransactionService(session)
-    deleted = service.delete(transaction_id)
+    try:
+        deleted = service.delete(transaction_id)
+    except TransactionLinkedToScheduleError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        )
     if deleted is False:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

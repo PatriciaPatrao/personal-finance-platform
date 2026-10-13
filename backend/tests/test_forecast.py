@@ -440,19 +440,18 @@ def _freeze_forecast_today(
     monkeypatch: pytest.MonkeyPatch,
     frozen: date,
 ) -> None:
-    """Make ForecastService treat frozen as today."""
+    """Make Forecast and execution use a fixed current domain date."""
 
-    class FrozenDate(date):
-        """date subclass whose today() is fixed."""
-
-        @classmethod
-        def today(cls) -> date:
-            """Return the frozen application date."""
-            return frozen
+    def _frozen() -> date:
+        return frozen
 
     monkeypatch.setattr(
-        "app.services.forecast.date",
-        FrozenDate,
+        "app.services.domain_date.current_domain_date",
+        _frozen,
+    )
+    monkeypatch.setattr(
+        "app.services.forecast.current_domain_date",
+        _frozen,
     )
 
 
@@ -1051,9 +1050,10 @@ def test_historical_transactions_do_not_influence_forecast(
     period = _period(body, _iso(today))
     assert Decimal(period["income"]) == Decimal("0.00")
     assert Decimal(period["expenses"]) == Decimal("0.00")
-    assert Decimal(period["projected_balance"]) == Decimal(
-        "1000.00",
+    assert Decimal(_projection(body)["starting_balance"]) == Decimal(
+        "1.00",
     )
+    assert Decimal(period["projected_balance"]) == Decimal("1.00")
 
 
 def test_forecast_account_scope_isolates_schedules(
@@ -1576,3 +1576,40 @@ def test_forecast_empty_household_default_currency_no_schedules(
     assert Decimal(period["expenses"]) == Decimal("0")
     assert Decimal(period["net_cash_flow"]) == Decimal("0")
     assert Decimal(period["projected_balance"]) == Decimal("0")
+
+
+def test_forecast_excludes_executed_occurrence(
+    client: TestClient,
+    today: date,
+) -> None:
+    """Executed schedule occurrence is omitted from forecast income."""
+    account = _create_account(client, current_balance=1000)
+    income = _create_income(
+        client,
+        account["id"],
+        amount=200,
+        frequency="monthly",
+        next_occurrence=today,
+    )
+    before = _forecast(client, today, today, "day")
+    label = _iso(today)
+    assert Decimal(_period(before, label)["income"]) == Decimal(
+        "200.00",
+    )
+    execute = client.post(
+        f"/incomes/{income['id']}/executions",
+        json={"occurrence_date": _iso(today)},
+    )
+    assert execute.status_code == 201
+    after = _forecast(client, today, today, "day")
+    assert Decimal(_period(after, label)["income"]) == Decimal("0")
+    assert Decimal(_projection(after)["starting_balance"]) == Decimal(
+        "1200.00",
+    )
+    assert Decimal(_period(after, label)["projected_balance"]) == (
+        Decimal("1200.00")
+    )
+    stored = client.get(f"/accounts/{account['id']}")
+    assert Decimal(stored.json()["current_balance"]) == Decimal(
+        "1200.00",
+    )

@@ -8,6 +8,8 @@ from decimal import Decimal
 from app.db.session import Session
 from app.models.income import Income
 from app.models.recurring_expense import RecurringExpense
+from app.models.schedule_execution import ScheduleSourceType
+from app.repositories.schedule_execution import ScheduleExecutionRepository
 from app.repositories.account import AccountRepository
 from app.repositories.income import IncomeRepository
 from app.repositories.recurring_expense import (
@@ -18,6 +20,7 @@ from app.schemas.forecast import ForecastGroupBy
 from app.schemas.forecast import ForecastPeriod
 from app.schemas.forecast import ForecastResponse
 from app.schemas.forecast import ForecastScope
+from app.services.domain_date import current_domain_date
 from app.services.occurrence import add_months
 from app.services.occurrence import generate_occurrences
 
@@ -76,6 +79,20 @@ def _monthly_periods(from_date: date, to_date: date) -> list[str]:
     return labels
 
 
+def _executed_occurrence_keys(
+    executions: list,
+) -> set[tuple[ScheduleSourceType, int, date]]:
+    """Build lookup keys for materialized schedule occurrences."""
+    return {
+        (
+            item.source_type,
+            item.source_id,
+            item.occurrence_date,
+        )
+        for item in executions
+    }
+
+
 def _accumulate_schedule_amounts(
     incomes: list[Income],
     expenses: list[RecurringExpense],
@@ -83,6 +100,7 @@ def _accumulate_schedule_amounts(
     to_date: date,
     group_by: ForecastGroupBy,
     as_of: date,
+    executed: set[tuple[ScheduleSourceType, int, date]],
 ) -> tuple[dict[str, Decimal], dict[str, Decimal]]:
     """Sum income and expense amounts into period buckets."""
     income_by_period: dict[str, Decimal] = defaultdict(
@@ -102,6 +120,12 @@ def _accumulate_schedule_amounts(
             to_date,
             as_of,
         ):
+            if (
+                ScheduleSourceType.INCOME,
+                income.id,
+                occurrence,
+            ) in executed:
+                continue
             key = _period_key(occurrence, group_by)
             income_by_period[key] = (
                 income_by_period[key] + income.amount
@@ -117,6 +141,12 @@ def _accumulate_schedule_amounts(
             to_date,
             as_of,
         ):
+            if (
+                ScheduleSourceType.RECURRING_EXPENSE,
+                expense.id,
+                occurrence,
+            ) in executed:
+                continue
             key = _period_key(occurrence, group_by)
             expense_by_period[key] = (
                 expense_by_period[key] + expense.amount
@@ -132,6 +162,7 @@ def _build_periods(
     to_date: date,
     group_by: ForecastGroupBy,
     as_of: date,
+    executed: set[tuple[ScheduleSourceType, int, date]],
 ) -> list[ForecastPeriod]:
     """Return projected periods for schedules and a starting balance."""
     income_by_period, expense_by_period = _accumulate_schedule_amounts(
@@ -141,6 +172,7 @@ def _build_periods(
         to_date,
         group_by,
         as_of,
+        executed,
     )
     if group_by == ForecastGroupBy.DAY:
         period_labels = _daily_periods(from_date, to_date)
@@ -176,6 +208,7 @@ def _household_projections(
     group_by: ForecastGroupBy,
     group_by_overrides: dict[str, ForecastGroupBy] | None,
     as_of: date,
+    executed: set[tuple[ScheduleSourceType, int, date]],
 ) -> list[ForecastCurrencyProjection]:
     """Build one projection per distinct account currency."""
     if not accounts:
@@ -188,6 +221,7 @@ def _household_projections(
             to_date,
             group_by,
             as_of,
+            executed,
         )
         return [
             ForecastCurrencyProjection(
@@ -236,6 +270,7 @@ def _household_projections(
             to_date,
             currency_group_by,
             as_of,
+            executed,
         )
         projections.append(
             ForecastCurrencyProjection(
@@ -256,6 +291,7 @@ class ForecastService:
         self._accounts = AccountRepository(session)
         self._incomes = IncomeRepository(session)
         self._expenses = RecurringExpenseRepository(session)
+        self._executions = ScheduleExecutionRepository(session)
 
     def get_forecast(
         self,
@@ -268,10 +304,13 @@ class ForecastService:
     ) -> ForecastResponse:
         """Return projected periods for the requested range."""
         if as_of is None:
-            as_of = date.today()
+            as_of = current_domain_date()
 
         all_incomes = self._incomes.list_all()
         all_expenses = self._expenses.list_all()
+        executed = _executed_occurrence_keys(
+            self._executions.list_all(),
+        )
 
         if account_id is not None:
             account = self._accounts.get_by_id(account_id)
@@ -298,6 +337,7 @@ class ForecastService:
                 to_date,
                 group_by,
                 as_of,
+                executed,
             )
             return ForecastResponse(
                 from_date=from_date,
@@ -325,6 +365,7 @@ class ForecastService:
             group_by,
             group_by_overrides,
             as_of,
+            executed,
         )
         return ForecastResponse(
             from_date=from_date,

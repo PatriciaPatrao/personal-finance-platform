@@ -17,7 +17,7 @@ class TransactionRepository:
         """Bind the repository to one database session."""
         self._session = session
 
-    def create(
+    def add(
         self,
         account_id: int,
         amount: Decimal,
@@ -26,7 +26,7 @@ class TransactionRepository:
         description: str | None = None,
         category: str | None = None,
     ) -> Transaction:
-        """Insert a transaction and return it with generated fields."""
+        """Insert a transaction in the current session without committing."""
         transaction = Transaction(
             account_id=account_id,
             description=description,
@@ -36,6 +36,26 @@ class TransactionRepository:
             category=category,
         )
         self._session.add(transaction)
+        return transaction
+
+    def create(
+        self,
+        account_id: int,
+        amount: Decimal,
+        transaction_type: TransactionType,
+        occurred_on: date,
+        description: str | None = None,
+        category: str | None = None,
+    ) -> Transaction:
+        """Insert a transaction and commit (legacy callers)."""
+        transaction = self.add(
+            account_id=account_id,
+            amount=amount,
+            transaction_type=transaction_type,
+            occurred_on=occurred_on,
+            description=description,
+            category=category,
+        )
         self._session.commit()
         self._session.refresh(transaction)
         return transaction
@@ -55,6 +75,25 @@ class TransactionRepository:
         )
         return self._session.scalars(statement).one_or_none()
 
+    def update_fields(
+        self,
+        transaction: Transaction,
+        account_id: int,
+        amount: Decimal,
+        transaction_type: TransactionType,
+        occurred_on: date,
+        description: str | None = None,
+        category: str | None = None,
+    ) -> Transaction:
+        """Update editable fields on a session-bound transaction."""
+        transaction.account_id = account_id
+        transaction.description = description
+        transaction.amount = amount
+        transaction.transaction_type = transaction_type
+        transaction.occurred_on = occurred_on
+        transaction.category = category
+        return transaction
+
     def update(
         self,
         transaction_id: int,
@@ -65,26 +104,44 @@ class TransactionRepository:
         description: str | None = None,
         category: str | None = None,
     ) -> Transaction | None:
-        """Update editable fields on a transaction and return it."""
+        """Update editable fields on a transaction and commit."""
         transaction = self.get_by_id(transaction_id)
         if transaction is None:
             return None
-        transaction.account_id = account_id
-        transaction.description = description
-        transaction.amount = amount
-        transaction.transaction_type = transaction_type
-        transaction.occurred_on = occurred_on
-        transaction.category = category
+        self.update_fields(
+            transaction,
+            account_id=account_id,
+            amount=amount,
+            transaction_type=transaction_type,
+            occurred_on=occurred_on,
+            description=description,
+            category=category,
+        )
         self._session.commit()
         self._session.refresh(transaction)
         return transaction
 
+    def delete_row(self, transaction: Transaction) -> None:
+        """Remove a session-bound transaction without committing."""
+        self._session.delete(transaction)
+
     def delete(self, transaction_id: int) -> bool:
         """Remove a transaction from the database."""
-        # TODO: consider soft delete because financial transactions may need an audit trail
         transaction = self.get_by_id(transaction_id)
         if transaction is None:
             return False
-        self._session.delete(transaction)
+        self.delete_row(transaction)
         self._session.commit()
         return True
+
+    def commit(self) -> None:
+        """Commit the current session."""
+        self._session.commit()
+
+    def rollback(self) -> None:
+        """Roll back the current session."""
+        self._session.rollback()
+
+    def refresh(self, transaction: Transaction) -> None:
+        """Refresh a transaction from the database."""
+        self._session.refresh(transaction)

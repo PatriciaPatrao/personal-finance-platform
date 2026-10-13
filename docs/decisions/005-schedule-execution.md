@@ -12,7 +12,7 @@ Recurring salary (`incomes`) and recurring expenses (`recurring_expenses`) are *
 
 Recorded history lives in `transactions` (`occurred_on`, `transaction_type`, `amount`, optional `description` and `category`).
 
-**Current codebase (pre-implementation):** `TransactionService.create`, `update`, and `delete` persist transaction rows and do **not** update `Account.current_balance`. `TransactionRepository` commits per method without touching `accounts`. Schedule execution is not implemented. This ADR defines the **target contract** implementation must satisfy.
+**Implementation status:** Manual transaction CRUD and schedule execution update `Account.current_balance` atomically via `TransactionService` (`persist_new_with_balance` / update / delete). Execution is exposed as `POST /incomes/{id}/executions` and `POST /recurring-expenses/{id}/executions`. Idempotent replay returns **200**; first success returns **201**. Current domain date is `app.services.domain_date.current_domain_date()` (`date.today()`), shared by Forecast `as_of` and execution eligibility.
 
 The architecture audit concluded that materializing a schedule occurrence requires persisted idempotency, one database transaction wrapping execution + transaction + balance, and Forecast read-path exclusion of executed occurrences.
 
@@ -216,7 +216,7 @@ Documentation-only list of what the codebase must change to meet this ADR:
 
 | Detail | Impact |
 | --- | --- |
-| HTTP status for idempotent execution replay | Client/tests only; must pick one convention |
+| HTTP status for idempotent execution replay | **Resolved:** 201 created, 200 idempotent replay |
 | Exact `schedule_executions` column and enum names | Migration; must match §1 constraints |
 | Polymorphic schedule reference in DB | Service validation required either way |
 | Forecast after future reversal | Cancellation milestone |

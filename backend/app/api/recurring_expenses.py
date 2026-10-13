@@ -17,6 +17,13 @@ from app.services.recurring_expense import (
     InvalidRecurringExpenseDatesError,
 )
 from app.services.recurring_expense import RecurringExpenseService
+from app.api.schedule_execution_helpers import schedule_execution_response
+from app.schemas.schedule_execution import ScheduleExecutionCreate
+from app.schemas.schedule_execution import ScheduleExecutionResponse
+from app.services.schedule_execution import OccurrenceNotEligibleError
+from app.services.schedule_execution import ScheduleExecutionService
+from app.services.schedule_execution import ScheduleInactiveError
+from app.services.schedule_execution import ScheduleNotFoundError
 
 
 router = APIRouter()
@@ -123,3 +130,37 @@ def update_recurring_expense(
     return RecurringExpenseResponse.model_validate(
         recurring_expense,
     )
+
+
+@router.post(
+    "/recurring-expenses/{recurring_expense_id}/executions",
+    response_model=ScheduleExecutionResponse,
+)
+def execute_recurring_expense_occurrence(
+    recurring_expense_id: int,
+    data: ScheduleExecutionCreate,
+    session: Session = Depends(get_db),
+):
+    """Materialize one recurring expense occurrence as a transaction."""
+    service = ScheduleExecutionService(session)
+    try:
+        result = service.execute_recurring_expense(
+            recurring_expense_id,
+            data.occurrence_date,
+        )
+    except ScheduleNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Recurring expense not found",
+        )
+    except ScheduleInactiveError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        )
+    except OccurrenceNotEligibleError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        )
+    return schedule_execution_response(result)
