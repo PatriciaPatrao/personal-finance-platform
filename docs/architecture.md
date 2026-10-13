@@ -78,7 +78,7 @@ Implemented by `Forecast`. It queries `GET /forecast` with `from`, `to`, optiona
 
 Implemented by `Accounts` and `AccountDetail`. The list page loads `GET /accounts` through `AccountService.listAccounts()`, lists every stored account in API order, and shows each account’s name, type, currency, and stored `current_balance`. It creates accounts through `AccountService.createAccount()` with name, type, currency, and optional opening balance. The create form offers EUR, USD, and GBP. That list is a UI constraint, not a domain rule: the API accepts any 3-character currency code and does not convert between them. The detail page at `/personal_finance/accounts/:id` loads one account through `AccountService.getAccount(id)` and shows the stored fields read-only, each balance in that account’s own currency. The Accounts screens do not sum balances across accounts and do not derive them from transactions. There is no update or delete path. `AccountService` is also used by the Dashboard, by the Transactions account picker, by the Goals account picker, and by the Schedules account picker.
 
-`current_balance` is a stored signed amount. Negative values are allowed for every account type. That rule is intentionally simple for the MVP. It is not derived from the transaction list as a whole; manual transaction CRUD does not modify it. Schedule occurrence execution updates it atomically (ADR 005). Type-specific meaning is future product work, not current behaviour: bank overdrafts, cash (where a negative amount may not make sense), credit-card debt, and investment valuation. Do not add those rules until that work is specified. Forecast still starts from the sum of every stored balance; that simplification may also need to change if those types stop meaning the same kind of position.
+`current_balance` is a stored signed amount maintained **by the system** (ADR [005](decisions/005-schedule-execution.md)). Negative values are allowed for every account type. Every effective transaction create, update, and delete must apply the corresponding balance delta in the **same database transaction** as the `transactions` row. Account create may set an initial balance without a transaction. Schedule CRUD and Goal allocations do not modify it. **Today’s code** does not yet update balance on manual transaction CRUD; implementation must align with ADR 005 before or with schedule execution. Type-specific meaning is future product work. Forecast starts from stored balances per currency.
 
 ### Schedules
 
@@ -90,7 +90,7 @@ Implemented by `Goals` at `/personal_finance/goals`. It loads `GET /financial-go
 
 ### Transactions
 
-Implemented by `Transactions`. It loads `GET /transactions` and `GET /accounts`, lists historical income and expense events, and creates, updates, and deletes them through the existing write routes (until execution-linked rows are protected per ADR 005). Filters (inclusive date range, type, category) run in the client because the list endpoint has no query parameters. Category is an optional string. Manual transaction CRUD does not update `Account.current_balance`. Schedule execution is initiated from Schedules (planned). The page does not call Analysis or Forecast and does not paginate.
+Implemented by `Transactions`. It loads `GET /transactions` and `GET /accounts`, lists historical income and expense events, and creates, updates, and deletes them through the write routes. Execution-linked rows will reject PUT/DELETE (ADR 005). Filters run in the client. Per ADR 005, each write must update `current_balance` atomically (not yet implemented in the backend). Schedule execution is initiated from Schedules (planned). The page does not call Analysis or Forecast and does not paginate.
 
 ## 4. Backend domain boundaries
 
@@ -132,7 +132,7 @@ API: `POST /financial-goals`, `GET /financial-goals`, `GET /financial-goals/{goa
 
 `GET /financial-summary` is a separate route that returns the same transaction totals as analysis summary. Analysis summary reuses `FinancialSummaryService`. The Analysis page and Dashboard use `/analysis/summary`, not `/financial-summary`. `/financial-summary` does not reject a `to` date in the future (see [API design principles](#8-api-design-principles)).
 
-Transaction writes through the normal CRUD API validate that the account exists. They do **not** update `Account.current_balance`. **Schedule occurrence execution** (ADR [005](decisions/005-schedule-execution.md)) is the approved path that atomically creates a `schedule_executions` row, a linked `Transaction`, and updates `current_balance` in one database transaction.
+Transaction writes validate that the account exists. ADR [005](decisions/005-schedule-execution.md) requires that **all** effective transaction creates, updates, and deletes update `Account.current_balance` in the same database transaction. **Schedule occurrence execution** additionally creates a `schedule_executions` row, reuses the shared transaction+balance path, and allows execution only when `occurrence_date` equals the current domain date (same notion as Forecast `as_of`).
 
 ## 5. Analysis vs Forecast
 
@@ -170,7 +170,7 @@ Those signal rules live in the dashboard feature, not in a backend domain servic
 
 | Fact | Source of truth |
 | --- | --- |
-| Actual current account balance | `Account.current_balance` (stored signed column). Negative values are allowed. Updated atomically on **schedule execution** (ADR 005). Normal transaction CRUD does not recalculate it. Not type-specific yet. |
+| Actual current account balance | `Account.current_balance` (stored signed column). System-maintained: every effective transaction write updates it atomically with the row (ADR 005). Opening balance on account create is the initial exception. Not type-specific yet. |
 | Historical financial events | `Transaction` rows (`occurred_on`, type, amount, optional category). |
 | Executed schedule occurrences | `schedule_executions` (planned): links schedule identity, `occurrence_date`, and `transaction_id`. |
 | Scheduled future inflows (pending) | Active `Income` rows minus executed occurrences in Forecast aggregation. |
@@ -180,7 +180,7 @@ Those signal rules live in the dashboard feature, not in a backend domain servic
 | Calculated forecast periods | Not persisted. Produced on each `GET /forecast`. |
 | Historical analysis totals | Not persisted. Produced on each `/analysis/*` request. |
 
-Demo seed data sets `current_balance` independently of the seeded transaction totals. That matches this ownership split.
+Demo seed data today sets `current_balance` independently of seeded transaction totals. Reconcile seed when ADR 005 balance rules are implemented.
 
 ## 8. API design principles
 

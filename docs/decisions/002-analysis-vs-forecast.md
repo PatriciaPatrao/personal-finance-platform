@@ -8,9 +8,9 @@ Accepted
 
 The product answers two different questions with two different sources of truth.
 
-Historical events live in `transactions` (`occurred_on`, type, amount, optional category). Recording a transaction does not update `Account.current_balance`. Scheduled future inflows live in active `incomes` (salary). Scheduled future outflows live in active `recurring_expenses` (one fixed amount). Current position is the stored `Account.current_balance`, not a sum of transactions.
+Historical events live in `transactions` (`occurred_on`, type, amount, optional category). Scheduled future inflows live in active `incomes` (salary). Scheduled future outflows live in active `recurring_expenses` (one fixed amount). Current position is the stored `Account.current_balance`. ADR [005](005-schedule-execution.md) requires that **every effective transaction** (manual and schedule-generated) update `current_balance` atomically with the transaction row; the codebase does not yet implement that for manual CRUD.
 
-Demo seed data follows the same split: `current_balance` is set independently of seeded transaction totals.
+Demo seed data today sets `current_balance` independently of seeded transaction totals; reconcile seed when balance rules are implemented.
 
 ## Decision
 
@@ -28,7 +28,7 @@ Occurrences are generated in memory when `GET /forecast` is requested, from `nex
 
 Historical transactions are not extrapolated into future Forecast values. Past spending is not a forecast input.
 
-**Schedule execution (ADR [005](005-schedule-execution.md)).** When a schedule occurrence is executed, a `Transaction` is created and the occurrence is recorded in `schedule_executions`. Forecast remains read-only: it **excludes** executed `(source_type, source_id, occurrence_date)` keys from schedule aggregation so pending scheduled cash flow is not double-counted alongside materialized history. Analysis continues to use transactions only. Execution updates `Account.current_balance` atomically with the transaction; manual transaction CRUD does not.
+**Schedule execution (ADR [005](005-schedule-execution.md)).** When a schedule occurrence is executed on the **current domain date**, a `Transaction` is created and recorded in `schedule_executions`. Forecast remains read-only and **excludes** executed keys from schedule aggregation. Analysis continues to use transactions only. Transaction writes and balance updates share one atomic unit of work for manual and schedule-generated transactions.
 
 ## Consequences
 

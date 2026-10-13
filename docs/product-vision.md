@@ -25,7 +25,7 @@ These are implemented in the application today.
 
 The dashboard reports **stored account balances**. When every account uses the same currency, it shows a single total across accounts. When currencies differ, it shows one total per currency and does not add those totals together.
 
-That total is **current position, not a forecast**. Account `current_balance` is stored on the account. Recording a transaction does not recalculate it.
+That total is **current position, not a forecast**. Account `current_balance` is stored and **system-maintained** (ADR 005): every effective transaction must update it atomically with the transaction row. Implementation is pending; manual CRUD does not yet do this in code.
 
 ### Historical financial analysis
 
@@ -63,7 +63,7 @@ Whether a negative balance means an overdraft, impossible cash, credit-card debt
 
 ### Transactions
 
-Transactions are recorded movements of money: income or expense, amount, date, optional description and category. They are the source of truth for historical analysis. The Angular Transactions screen records, edits, and deletes those events. Category remains an optional string. Account balances are not derived from the transaction list.
+Transactions are recorded movements of money: income or expense, amount, date, optional description and category. They are the source of truth for historical analysis. The Angular Transactions screen records, edits, and deletes those events. Category remains an optional string. Balances are updated by the system when transactions change (ADR 005); they are not recomputed from a full replay of history on each read.
 
 ### Scheduled income
 
@@ -109,7 +109,7 @@ These are omitted on purpose, not missing by accident:
 
 - **No arbitrary financial-health score.**
 - **No ML** in the current application.
-- **No automatic generation of transactions** from recurring records or salary schedules. Forecast calculates occurrences in memory and does not persist them as transactions. **Planned (ADR 005):** explicit user execution of one occurrence at a time, with atomic balance update and Forecast exclusion of executed dates—not yet implemented.
+- **No automatic generation of transactions** from recurring records or salary schedules. Forecast calculates occurrences in memory and does not persist them as transactions. **Planned (ADR 005):** explicit user execution on the **current domain date only**, shared atomic transaction+balance rules for manual and schedule-generated rows, and Forecast exclusion of executed dates—not yet implemented.
 - **No unnecessary multi-currency complexity.** Currency defaults to EUR. The dashboard will not invent a single balance across mixed currencies. Forecast returns separate projections per currency. Full FX conversion is out of scope.
 - **No premature background-job infrastructure.** Occurrence dates are computed on forecast request.
 - **Salary-only scheduled income.** Other recurring income types are a later concern.

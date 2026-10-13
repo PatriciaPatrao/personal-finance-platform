@@ -66,7 +66,7 @@ Example:
 
 ### Invariants
 
-1. `Account.current_balance` remains the single source of truth for actual account money.
+1. `Account.current_balance` remains the single source of truth for actual account money. Effective transaction writes update it per ADR [005](005-schedule-execution.md); allocation writes still do not.
 2. A Goal never stores an independent monetary balance. Derived fields such as `current_amount`, `progress`, and `completed` are not persisted on FinancialGoal.
 3. Goal progress comes from allocations from Accounts, never from treating a whole Account balance as one Goal’s money.
 4. Every GoalAllocation references an existing Account and an existing Goal.

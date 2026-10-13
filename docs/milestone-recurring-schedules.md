@@ -16,7 +16,7 @@ The codebase remains the source of truth. If this document and the code disagree
 | --- | --- | --- | --- |
 | Salary schedule (`Income`) | Yes | No | No |
 | Recurring expense | Yes | No | No |
-| Transaction | Yes | No (MVP) | Yes (it is the event) |
+| Transaction | Yes | Yes (ADR 005 — system-maintained; not yet in code) | Yes (it is the event) |
 | Forecast period / occurrence | No (computed per request) | No | No |
 
 **Deactivated schedules** remain in the database and in list responses with `active: false`. Forecast skips them. Historical transactions are unchanged.
@@ -164,10 +164,10 @@ Summary of accepted behaviour:
 | Topic | Decision |
 | --- | --- |
 | Trigger | Explicit user action; **one occurrence per request**; no worker or batch |
-| Balance | Update `Account.current_balance` **atomically** with execution record and `Transaction` |
+| Balance | **System-maintained** `current_balance` for **all** effective transactions (manual + execution), one atomic DB transaction per write; execution reuses shared transaction logic |
+| Eligibility | `occurrence_date` **must equal** current domain date (same as Forecast `as_of`); no early or late execution |
 | Idempotency | `schedule_executions` with **`UNIQUE (source_type, source_id, occurrence_date)`** |
 | Forecast | Read-only; **exclude** executed occurrences from schedule aggregation |
-| Past due | **Deferred** — MVP rejects `occurrence_date` before today |
 | Corrections | No DELETE/PUT on execution-linked transactions; **cancellation/reversal** is a **later milestone** |
 
 Implementation order and acceptance criteria are listed in ADR 005. After shipping, update the table in [Schedules versus transactions versus forecast](#schedules-versus-transactions-versus-forecast) and extend automated tests beyond `test_schedule_data_integrity.py`.
