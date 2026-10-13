@@ -89,6 +89,14 @@ function parseMoneyMinorUnits(value: string): bigint {
   return sign * (whole * 100n + BigInt(fraction));
 }
 
+function formatMoneyMinorUnits(minorUnits: bigint): string {
+  const sign = minorUnits < 0n ? '-' : '';
+  const absolute = minorUnits < 0n ? -minorUnits : minorUnits;
+  const whole = absolute / 100n;
+  const fraction = absolute % 100n;
+  return `${sign}${whole}.${String(fraction).padStart(2, '0')}`;
+}
+
 @Component({
   selector: 'app-forecast',
   imports: [CopyTable, CurrencyPipe, DateField],
@@ -242,6 +250,27 @@ export class Forecast implements OnInit {
     }
 
     return projection.periods[projection.periods.length - 1].projected_balance;
+  }
+
+  netIncome(projection: ForecastCurrencyProjection): string | null {
+    const ending = this.endingProjectedBalance(projection);
+    if (ending === null) {
+      return null;
+    }
+
+    const netMinorUnits =
+      parseMoneyMinorUnits(ending) -
+      parseMoneyMinorUnits(projection.starting_balance);
+    return formatMoneyMinorUnits(netMinorUnits);
+  }
+
+  isNetIncomePositive(projection: ForecastCurrencyProjection): boolean {
+    const net = this.netIncome(projection);
+    if (net === null) {
+      return false;
+    }
+
+    return parseMoneyMinorUnits(net) > 0n;
   }
 
   hasZeroSchedule(projection: ForecastCurrencyProjection): boolean {

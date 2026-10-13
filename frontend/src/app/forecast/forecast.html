@@ -100,6 +100,19 @@
                 </p>
               }
             </article>
+            <article
+              class="metric net-income-metric"
+              [class.net-income-positive]="isNetIncomePositive(projection)"
+              [class.net-income-negative]="!isNetIncomePositive(projection)"
+            >
+              <h3>Net income</h3>
+              <p class="metric-value">
+                {{
+                  netIncome(projection) | currency: projection.currency
+                }}
+              </p>
+              <p class="metric-caption">Over the forecast range</p>
+            </article>
           </div>
         }
 

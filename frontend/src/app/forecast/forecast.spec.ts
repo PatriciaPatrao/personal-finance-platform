@@ -225,6 +225,40 @@ describe('Forecast', () => {
     );
   });
 
+  it('should show net income with positive and negative styling', async () => {
+    listAccounts.mockReturnValue(of(mixedCurrencyAccounts));
+    getForecast.mockReturnValue(of(multiCurrencyForecast));
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const root = fixture.nativeElement as HTMLElement;
+    const panels = root.querySelectorAll('.currency-projection-panel');
+
+    expect(component.netIncome(multiCurrencyForecast.projections[0])).toBe(
+      '100.00',
+    );
+    expect(
+      component.isNetIncomePositive(multiCurrencyForecast.projections[0]),
+    ).toBe(true);
+    expect(component.netIncome(multiCurrencyForecast.projections[1])).toBe(
+      '-50.00',
+    );
+    expect(
+      component.isNetIncomePositive(multiCurrencyForecast.projections[1]),
+    ).toBe(false);
+
+    const eurNetIncome = panels[0]?.querySelector('.net-income-metric');
+    const usdNetIncome = panels[1]?.querySelector('.net-income-metric');
+    expect(eurNetIncome?.classList.contains('net-income-positive')).toBe(true);
+    expect(usdNetIncome?.classList.contains('net-income-negative')).toBe(true);
+    expect(root.textContent).toContain('Net income');
+    expect(eurNetIncome?.textContent).toContain('100.00');
+    expect(usdNetIncome?.textContent).toMatch(/-?\$50\.00/);
+  });
+
   it('should derive starting balance from the first period', async () => {
     const fixture = TestBed.createComponent(Forecast);
     fixture.detectChanges();
