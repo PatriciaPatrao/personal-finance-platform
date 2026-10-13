@@ -78,7 +78,7 @@ Implemented by `Forecast`. It queries `GET /forecast` with `from`, `to`, optiona
 
 Implemented by `Accounts` and `AccountDetail`. The list page loads `GET /accounts` through `AccountService.listAccounts()`, lists every stored account in API order, and shows each account’s name, type, currency, and stored `current_balance`. It creates accounts through `AccountService.createAccount()` with name, type, currency, and optional opening balance. The create form offers EUR, USD, and GBP. That list is a UI constraint, not a domain rule: the API accepts any 3-character currency code and does not convert between them. The detail page at `/personal_finance/accounts/:id` loads one account through `AccountService.getAccount(id)` and shows the stored fields read-only, each balance in that account’s own currency. The Accounts screens do not sum balances across accounts and do not derive them from transactions. There is no update or delete path. `AccountService` is also used by the Dashboard, by the Transactions account picker, by the Goals account picker, and by the Schedules account picker.
 
-`current_balance` is a stored signed amount. Negative values are allowed for every account type. That rule is intentionally simple for the MVP. It is not calculated from transactions, and transaction writes do not modify it. Type-specific meaning is future product work, not current behaviour: bank overdrafts, cash (where a negative amount may not make sense), credit-card debt, and investment valuation. Do not add those rules until that work is specified. Forecast still starts from the sum of every stored balance; that simplification may also need to change if those types stop meaning the same kind of position.
+`current_balance` is a stored signed amount. Negative values are allowed for every account type. That rule is intentionally simple for the MVP. It is not derived from the transaction list as a whole; manual transaction CRUD does not modify it. Schedule occurrence execution updates it atomically (ADR 005). Type-specific meaning is future product work, not current behaviour: bank overdrafts, cash (where a negative amount may not make sense), credit-card debt, and investment valuation. Do not add those rules until that work is specified. Forecast still starts from the sum of every stored balance; that simplification may also need to change if those types stop meaning the same kind of position.
 
 ### Schedules
 
@@ -90,7 +90,7 @@ Implemented by `Goals` at `/personal_finance/goals`. It loads `GET /financial-go
 
 ### Transactions
 
-Implemented by `Transactions`. It loads `GET /transactions` and `GET /accounts`, lists historical income and expense events, and creates, updates, and deletes them through the existing write routes. Filters (inclusive date range, type, category) run in the client because the list endpoint has no query parameters. Category is an optional string. The page does not update `Account.current_balance`, does not call Analysis or Forecast, and does not paginate.
+Implemented by `Transactions`. It loads `GET /transactions` and `GET /accounts`, lists historical income and expense events, and creates, updates, and deletes them through the existing write routes (until execution-linked rows are protected per ADR 005). Filters (inclusive date range, type, category) run in the client because the list endpoint has no query parameters. Category is an optional string. Manual transaction CRUD does not update `Account.current_balance`. Schedule execution is initiated from Schedules (planned). The page does not call Analysis or Forecast and does not paginate.
 
 ## 4. Backend domain boundaries
 
@@ -132,7 +132,7 @@ API: `POST /financial-goals`, `GET /financial-goals`, `GET /financial-goals/{goa
 
 `GET /financial-summary` is a separate route that returns the same transaction totals as analysis summary. Analysis summary reuses `FinancialSummaryService`. The Analysis page and Dashboard use `/analysis/summary`, not `/financial-summary`. `/financial-summary` does not reject a `to` date in the future (see [API design principles](#8-api-design-principles)).
 
-Transaction writes validate that the account exists. They do **not** update `Account.current_balance`.
+Transaction writes through the normal CRUD API validate that the account exists. They do **not** update `Account.current_balance`. **Schedule occurrence execution** (ADR [005](decisions/005-schedule-execution.md)) is the approved path that atomically creates a `schedule_executions` row, a linked `Transaction`, and updates `current_balance` in one database transaction.
 
 ## 5. Analysis vs Forecast
 
@@ -146,11 +146,11 @@ It reads persisted `transactions` in `[from, to]`, across every account. It repo
 - active scheduled Income
 - active Recurring Expenses
 
-Occurrences are generated in memory (`generate_occurrences`) when a forecast is requested. Generation starts at `next_occurrence`, stops after an optional inclusive `end_date`, and omits dates before today (`as_of`, defaulting to `date.today()`). `start_date` is stored and validated on the schedule (`start_date` on or before `next_occurrence`, and on or before `end_date` when that is set). It is not an input to occurrence generation. Without `account_id`, household forecast returns one projection per account currency (`projections[]` with `starting_balance` and `periods`). With `account_id`, a single projection for that account is returned. The Forecast screen defaults grouping to month. Forecast does not write transactions, balances, or period rows.
+Occurrences are generated in memory (`generate_occurrences`) when a forecast is requested. Generation starts at `next_occurrence`, stops after an optional inclusive `end_date`, and omits dates before today (`as_of`, defaulting to `date.today()`). `start_date` is stored and validated on the schedule (`start_date` on or before `next_occurrence`, and on or before `end_date` when that is set). It is not an input to occurrence generation. Occurrence dates that already have a `schedule_executions` row for that schedule are excluded from schedule totals (see ADR 005). Without `account_id`, household forecast returns one projection per account currency (`projections[]` with `starting_balance` and `periods`). With `account_id`, a single projection for that account is returned. The Forecast screen defaults grouping to month. Forecast does not write transactions, balances, or period rows.
 
 **Forecast must not depend on historical analysis logic.** Forecast services and repositories do not import Analysis. Analysis does not import Forecast. Similar period-label helpers exist in both services; they are duplicated, not shared as a financial calculation.
 
-Forecast response currency is the string `EUR`. The service does not convert currencies or skip mixed-currency accounts. It adds every `current_balance` as the same kind of starting position. Revisit that sum if account types later represent overdraft, cash, credit-card debt, or investment value differently.
+Household forecast returns one projection per account currency (ADR 002). There is no FX conversion and no cross-currency totals. Revisit starting-balance semantics if account types later represent overdraft, cash, credit-card debt, or investment value differently.
 
 ## 6. Dashboard responsibility
 
@@ -170,10 +170,11 @@ Those signal rules live in the dashboard feature, not in a backend domain servic
 
 | Fact | Source of truth |
 | --- | --- |
-| Actual current account balance | `Account.current_balance` (stored signed column). Negative values are allowed. Not derived from transactions. Not type-specific yet. |
+| Actual current account balance | `Account.current_balance` (stored signed column). Negative values are allowed. Updated atomically on **schedule execution** (ADR 005). Normal transaction CRUD does not recalculate it. Not type-specific yet. |
 | Historical financial events | `Transaction` rows (`occurred_on`, type, amount, optional category). |
-| Scheduled future inflows | Active `Income` rows (salary). |
-| Scheduled future outflows | Active `RecurringExpense` rows (fixed amount). |
+| Executed schedule occurrences | `schedule_executions` (planned): links schedule identity, `occurrence_date`, and `transaction_id`. |
+| Scheduled future inflows (pending) | Active `Income` rows minus executed occurrences in Forecast aggregation. |
+| Scheduled future outflows (pending) | Active `RecurringExpense` rows minus executed occurrences in Forecast aggregation. |
 | Financial objective and target | `FinancialGoal` rows (`target_amount`, optional `target_date`). Designated funding is `GoalAllocation`. |
 | Goal current amount, progress, completion | Not persisted. Derived on each Goal API response from the linked Account when present. |
 | Calculated forecast periods | Not persisted. Produced on each `GET /forecast`. |

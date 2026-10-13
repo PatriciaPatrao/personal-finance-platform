@@ -147,83 +147,30 @@ Repeat for: create salary, create recurring expense, edit amount, deactivate, ac
 
 **Note:** The Transactions screen already uses the message *Enter a positive amount with at most two decimal places.* Schedules now use the same wording for amount errors.
 
-## Known limitations (unchanged)
+## Known limitations (until execution ships)
 
-- No automatic materialization of occurrences into transactions.
-- Forecast sums all accounts and labels currency EUR without FX conversion.
-- `account_id` on a schedule filters account-scoped forecast; household forecast includes every active schedule when currencies match.
+- No automatic materialization of occurrences into transactions (execution is explicit user action only; see ADR 005).
+- Household forecast returns one projection per currency; no FX conversion (ADR 002).
+- `account_id` on a schedule filters account-scoped forecast.
 - `start_date` is not used when generating forecast dates.
 - Pagination and indexing deferred.
 
-## Next milestone proposal: Executing recurring occurrences
+## Next milestone: Executing recurring occurrences
 
-**Do not implement until this plan is reviewed.** Goal: turn a due schedule occurrence into a **recorded transaction** without duplicating money movement or silently changing balances.
+**Status:** Product and architecture decisions are **accepted** in [005-schedule-execution.md](decisions/005-schedule-execution.md). **Implementation has not started;** wait for explicit go-ahead after this documentation is reviewed.
 
-### Product decision required
+Summary of accepted behaviour:
 
-Choose one primary trigger (or combine explicitly):
-
-1. **Explicit user action** — “Record this occurrence” on Schedules or Transactions (simplest audit trail).
-2. **Scheduled job** — daily worker finds due occurrences (needs idempotency and ops).
-3. **Hybrid** — job proposes, user confirms (not in initial execution slice unless required).
-
-Recommendation for MVP **after** this milestone: start with **explicit user action** or a **manual “Run due schedules for date D”** admin endpoint, because there is no job infrastructure today (`docs/architecture.md` §11). Add a background worker only when unattended execution is a firm requirement.
-
-### Domain concepts to add
-
-| Concept | Purpose |
+| Topic | Decision |
 | --- | --- |
-| **Schedule occurrence identity** | Stable key: `(source_type, source_id, occurrence_date)` where `source_type` ∈ `income` \| `recurring_expense`. |
-| **Execution record** | Row proving an occurrence was materialized (links to `transaction_id`, timestamp, status). |
-| **Materialized transaction** | Normal `Transaction` row (`occurred_on` = occurrence date, amount from schedule, type income/expense, description/category from schedule). |
+| Trigger | Explicit user action; **one occurrence per request**; no worker or batch |
+| Balance | Update `Account.current_balance` **atomically** with execution record and `Transaction` |
+| Idempotency | `schedule_executions` with **`UNIQUE (source_type, source_id, occurrence_date)`** |
+| Forecast | Read-only; **exclude** executed occurrences from schedule aggregation |
+| Past due | **Deferred** — MVP rejects `occurrence_date` before today |
+| Corrections | No DELETE/PUT on execution-linked transactions; **cancellation/reversal** is a **later milestone** |
 
-### Idempotency and concurrency
-
-- **Unique constraint** on `(source_type, source_id, occurrence_date)` in an `schedule_executions` (name TBD) table.
-- **Transaction creation** inside a DB transaction: insert execution row → insert transaction; rollback on conflict.
-- **Retries:** Second attempt for the same occurrence returns existing transaction (409 or 200 with same body), never a second transaction.
-- **Concurrent requests:** Row-level lock on execution insert or `ON CONFLICT DO NOTHING` + fetch existing.
-
-### Balance consistency (MVP tension)
-
-Today, **transactions do not update `current_balance`**. Execution must follow the same rule until a deliberate “balance follows transactions” milestone exists. Otherwise:
-
-- Option A: Execution only creates transactions (consistent with current MVP).
-- Option B: Execution creates transactions **and** updates `current_balance` (requires a single documented rule and migration of user expectations).
-
-The plan should pick one and test it; mixing rules would break audit clarity.
-
-### Handling edge cases
-
-| Case | Behaviour |
-| --- | --- |
-| **Missed occurrence** | User or job passes `as_of`; generate occurrences ≤ `as_of` not yet executed; optionally cap backlog. |
-| **End date passed** | No new executions after inclusive end. |
-| **Deactivated schedule** | No execution; existing execution rows remain historical. |
-| **Edit amount after execution** | Past executions immutable; future occurrences use new amount. |
-| **Failure mid-flight** | DB transaction rolls back; no partial execution row. |
-
-### Forecast transition
-
-After execution, the occurrence is **historical** (transaction) and should **not** double-count in forecast. Options:
-
-- Forecast excludes dates on or before `as_of` that already have an execution record for that schedule; or
-- Forecast always projects from schedules, and Analysis shows actuals — product must define whether forecast is “pure schedule” or “schedule minus executed”. Prefer **subtract executed occurrences** for the same `(source, date)` to avoid double counting.
-
-### Likely implementation steps (future)
-
-1. Alembic migration: `schedule_executions` (+ optional `execution_status`).
-2. Service: `execute_occurrence(source, date)` with idempotency.
-3. API: `POST /incomes/{id}/executions` or batch `POST /schedule-executions/run?date=`.
-4. Frontend: action on schedule card or post-execution indicator.
-5. Tests: idempotency, concurrency simulation, no balance change (or defined balance change), forecast adjustment rules.
-6. Documentation update in README and this file.
-
-### Out of scope for execution milestone v1
-
-- Multi-currency execution rules.
-- Goal allocation side effects.
-- Automatic balance reconciliation from all historical transactions.
+Implementation order and acceptance criteria are listed in ADR 005. After shipping, update the table in [Schedules versus transactions versus forecast](#schedules-versus-transactions-versus-forecast) and extend automated tests beyond `test_schedule_data_integrity.py`.
 
 ---
 

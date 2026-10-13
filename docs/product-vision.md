@@ -109,7 +109,7 @@ These are omitted on purpose, not missing by accident:
 
 - **No arbitrary financial-health score.**
 - **No ML** in the current application.
-- **No automatic generation of transactions** from recurring records or salary schedules. Forecast calculates occurrences in memory and does not persist them as transactions.
+- **No automatic generation of transactions** from recurring records or salary schedules. Forecast calculates occurrences in memory and does not persist them as transactions. **Planned (ADR 005):** explicit user execution of one occurrence at a time, with atomic balance update and Forecast exclusion of executed dates—not yet implemented.
 - **No unnecessary multi-currency complexity.** Currency defaults to EUR. The dashboard will not invent a single balance across mixed currencies. Forecast returns separate projections per currency. Full FX conversion is out of scope.
 - **No premature background-job infrastructure.** Occurrence dates are computed on forecast request.
 - **Salary-only scheduled income.** Other recurring income types are a later concern.

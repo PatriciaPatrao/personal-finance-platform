@@ -213,7 +213,7 @@ The script stops if more than one account is already named Demo Main Account.
 - [docs/product-vision.md](docs/product-vision.md) — product boundaries and what is intentionally omitted
 - [docs/architecture.md](docs/architecture.md) — structure of the current application
 - [docs/milestone-recurring-schedules.md](docs/milestone-recurring-schedules.md) — recurring schedule milestone validation, manual checks, and next execution plan
-- [docs/decisions/](docs/decisions/) — modular monolith, Analysis versus Forecast, Dashboard responsibility, and Financial Goals
+- [docs/decisions/](docs/decisions/) — modular monolith, Analysis versus Forecast, Dashboard responsibility, Financial Goals, and schedule occurrence execution (ADR 005)
 - [frontend/README.md](frontend/README.md) — Angular CLI serve, build, and unit-test commands
 - `http://127.0.0.1:8000/docs` — generated OpenAPI for the running API
 

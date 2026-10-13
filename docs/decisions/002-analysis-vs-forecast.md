@@ -28,6 +28,8 @@ Occurrences are generated in memory when `GET /forecast` is requested, from `nex
 
 Historical transactions are not extrapolated into future Forecast values. Past spending is not a forecast input.
 
+**Schedule execution (ADR [005](005-schedule-execution.md)).** When a schedule occurrence is executed, a `Transaction` is created and the occurrence is recorded in `schedule_executions`. Forecast remains read-only: it **excludes** executed `(source_type, source_id, occurrence_date)` keys from schedule aggregation so pending scheduled cash flow is not double-counted alongside materialized history. Analysis continues to use transactions only. Execution updates `Account.current_balance` atomically with the transaction; manual transaction CRUD does not.
+
 ## Consequences
 
 - A number is either observed (transactions) or assumed from an explicit schedule. The two are not blended.
@@ -37,6 +39,7 @@ Historical transactions are not extrapolated into future Forecast values. Past s
 - The response includes `scope` (`household` or `account`), `account_id` (null for household), and `projections`.
 - Period-label helpers are duplicated in the two services. Both use `add_months` from `app.services.occurrence` as a calendar helper. That shared helper is not a shared financial calculation.
 - `GET /financial-summary` returns the same transaction totals as analysis summary but does not reject a future `to` date. The Analysis page and Dashboard call `/analysis/summary`, which does enforce the historical bound.
+- After execution, projected schedule totals omit occurrences that already have an execution record; stored starting balance reflects execution-driven balance updates.
 
 ## Alternatives considered
 
