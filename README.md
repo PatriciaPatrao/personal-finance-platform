@@ -188,7 +188,7 @@ cd backend
 python scripts/seed_demo_data.py
 ```
 
-It creates or reuses one bank account, **Demo Main Account**, in EUR. A new account, or an existing demo account whose balance is zero, is given a current balance of 5000.00. That balance is stored directly. It is not the sum of the seeded transactions.
+It creates or reuses one bank account, **Demo Main Account**, in EUR. On a **first run** (new account or existing demo account with no historical transactions), it inserts the transaction rows below and sets `current_balance` from those rows using the same balance rules as the API (net **4040.00** for this dataset). **Re-runs** leave existing transactions and balances unchanged; only missing forecast schedule rows are added. An **empty** demo account (no transactions, balance zero) is given **5000.00** as a forecast-only placeholder. **Legacy** databases seeded before this behaviour may still show **5000.00** alongside historical transactions; re-seeding does not rewrite them.
 
 Historical transactions cover 2026-01-01 through 2026-09-30 (125 rows). Each month has 2000.00 of income. Expense totals are:
 

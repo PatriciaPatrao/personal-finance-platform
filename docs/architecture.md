@@ -211,7 +211,7 @@ Angular CLI `ng test` runs Vitest. Specs cover routes, the dashboard component, 
 
 `backend/scripts/seed_demo_data.py` loads a **deterministic local dataset** so Dashboard, Analysis, Forecast, and Transactions have something to show. It is optional and is safe to run more than once: existing historical transactions for the demo account are left in place; missing forecast seed rows are inserted without duplicates.
 
-It creates or reuses one bank account named **Demo Main Account** (EUR). A new account, or an existing demo account with balance zero, is given `current_balance` 5000.00. Historical transactions cover 2026-01-01 through 2026-09-30. Forecast seed is one active monthly salary of 2000.00 and three active monthly expenses (Rent, Utilities, Household / Groceries).
+It creates or reuses one bank account named **Demo Main Account** (EUR). On a first run it inserts historical transactions for 2026-01-01 through 2026-09-30 and sets `current_balance` from those rows (net **4040.00** for the embedded dataset). Re-runs leave existing transactions and balances unchanged. An empty demo account (no transactions, zero balance) gets `current_balance` **5000.00** as a forecast-only placeholder; legacy demo databases may still show 5000.00 with history from an older seed. Forecast seed is one active monthly salary of 2000.00 and three active monthly expenses (Rent, Utilities, Household / Groceries).
 
 **Seed data is not a migration.** Alembic revisions under `backend/alembic/versions/` change schema (tables, enums, columns such as `current_balance`). The seed script inserts application rows into an already-migrated database. Schema changes belong in Alembic; sample household data belongs in the seed script.
 

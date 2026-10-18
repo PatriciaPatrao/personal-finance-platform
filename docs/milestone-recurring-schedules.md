@@ -89,6 +89,7 @@ Automated test: `test_forecast_reflects_updated_income_amount` in `backend/tests
 | Forecast | Active vs inactive, end dates, grouping, starting balance, no DB writes |
 | Occurrence helpers | Monthly stepping, `as_of`, inclusive `end_date` |
 | **Data integrity** | `test_schedule_data_integrity.py` — balances and transaction ids unchanged across create/update/deactivate/activate; rejected create leaves DB unchanged |
+| **Schedule execution** | `test_schedule_execution.py` — eligibility, idempotency, balance updates, forecast exclusion, guards on execution-linked transactions |
 
 ### Frontend (Vitest / `ng test`)
 
@@ -148,9 +149,9 @@ Repeat for: create salary, create recurring expense, edit amount, deactivate, ac
 
 **Note:** The Transactions screen already uses the message *Enter a positive amount with at most two decimal places.* Schedules now use the same wording for amount errors.
 
-## Known limitations (until execution ships)
+## Known limitations
 
-- No automatic materialization of occurrences into transactions (execution is explicit user action only; see ADR 005).
+- Occurrences materialize only through explicit execution API calls (no worker, batch, or frontend execute UI yet; see ADR 005).
 - Household forecast returns one projection per currency; no FX conversion (ADR 002).
 - `account_id` on a schedule filters account-scoped forecast.
 - `start_date` is not used when generating forecast dates.
@@ -171,8 +172,8 @@ Summary of accepted behaviour:
 | Forecast | Read-only; **exclude** executed occurrences from schedule aggregation |
 | Corrections | No DELETE/PUT on execution-linked transactions; **cancellation/reversal** is a **later milestone** |
 
-Implementation order and acceptance criteria are listed in ADR 005. After shipping, update the table in [Schedules versus transactions versus forecast](#schedules-versus-transactions-versus-forecast) and extend automated tests beyond `test_schedule_data_integrity.py`.
+Implementation order and acceptance criteria are listed in ADR 005.
 
 ---
 
-**Milestone status:** Implementation complete pending your manual test 9 run on your environment. Automated suites must pass on each candidate build before merge.
+**Milestone status:** **Closed** for backend schedule execution (ADR 005): API, migration, balance rules, forecast exclusion, and automated tests are in place. Recurring-schedule manual test 9 remains a useful environment check but is not a merge blocker. Out of scope for this closure: frontend execute UI, cancellation/reversal, batch/background execution.
