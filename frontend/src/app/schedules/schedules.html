@@ -6,7 +6,9 @@
       occurrences from the next occurrence, not from the start date.
       Creating or editing a schedule does not add a transaction, including
       when the start date is already in the past, and it does not change
-      account balances.       Choosing an account links the commitment to that account. Use the
+      account balances. Use Execute occurrence on an active schedule to
+      materialize today's eligible occurrence as a transaction.
+      Choosing an account links the commitment to that account. Use the
       Forecast page account filter to project that account alone.
     </p>
   </header>
@@ -75,7 +77,12 @@
             <button
               type="button"
               class="create-schedule-button"
-              [disabled]="!hasAccounts || accountsLoadFailed || saving"
+              [disabled]="
+                !hasAccounts ||
+                accountsLoadFailed ||
+                saving ||
+                executingKey !== null
+              "
               (click)="startCreateIncome()"
             >
               Create salary
@@ -172,7 +179,10 @@
                     type="button"
                     class="edit-button"
                     [disabled]="
-                      !hasAccounts || accountsLoadFailed || saving
+                      !hasAccounts ||
+                      accountsLoadFailed ||
+                      saving ||
+                      executingKey !== null
                     "
                     (click)="startEditIncome(income)"
                   >
@@ -182,7 +192,7 @@
                     <button
                       type="button"
                       class="secondary-button"
-                      [disabled]="saving"
+                      [disabled]="saving || executingKey !== null"
                       (click)="deactivateIncome(income)"
                     >
                       Deactivate
@@ -191,13 +201,24 @@
                     <button
                       type="button"
                       class="secondary-button"
-                      [disabled]="saving"
+                      [disabled]="saving || executingKey !== null"
                       (click)="activateIncome(income)"
                     >
                       Activate
                     </button>
                   }
                 </div>
+                @if (income.active) {
+                  <ng-container
+                    *ngTemplateOutlet="
+                      executionPanel;
+                      context: {
+                        kind: 'income',
+                        scheduleId: income.id,
+                      }
+                    "
+                  />
+                }
               }
             </li>
           }
@@ -231,7 +252,12 @@
             <button
               type="button"
               class="create-schedule-button"
-              [disabled]="!hasAccounts || accountsLoadFailed || saving"
+              [disabled]="
+                !hasAccounts ||
+                accountsLoadFailed ||
+                saving ||
+                executingKey !== null
+              "
               (click)="startCreateExpense()"
             >
               Create recurring expense
@@ -332,7 +358,10 @@
                     type="button"
                     class="edit-button"
                     [disabled]="
-                      !hasAccounts || accountsLoadFailed || saving
+                      !hasAccounts ||
+                      accountsLoadFailed ||
+                      saving ||
+                      executingKey !== null
                     "
                     (click)="startEditExpense(expense)"
                   >
@@ -342,7 +371,7 @@
                     <button
                       type="button"
                       class="secondary-button"
-                      [disabled]="saving"
+                      [disabled]="saving || executingKey !== null"
                       (click)="deactivateExpense(expense)"
                     >
                       Deactivate
@@ -351,13 +380,24 @@
                     <button
                       type="button"
                       class="secondary-button"
-                      [disabled]="saving"
+                      [disabled]="saving || executingKey !== null"
                       (click)="activateExpense(expense)"
                     >
                       Activate
                     </button>
                   }
                 </div>
+                @if (expense.active) {
+                  <ng-container
+                    *ngTemplateOutlet="
+                      executionPanel;
+                      context: {
+                        kind: 'expense',
+                        scheduleId: expense.id,
+                      }
+                    "
+                  />
+                }
               }
             </li>
           }
@@ -617,6 +657,44 @@
   @if (formError) {
     <p class="status status-error" role="alert">{{ formError }}</p>
   }
+</ng-template>
+
+<ng-template
+  #executionPanel
+  let-kind="kind"
+  let-scheduleId="scheduleId"
+>
+  <div class="execution-panel">
+    <p class="execution-hint">
+      Execute an occurrence as a transaction. Only
+      {{ currentDomainDateDisplay() }} (today) is eligible.
+    </p>
+    <div class="field">
+      <app-date-field
+        label="Occurrence date"
+        [name]="'execution-' + kind + '-' + scheduleId"
+        [value]="executionDateDisplay(kind, scheduleId)"
+        (valueChange)="onExecutionDateChange(kind, scheduleId, $event)"
+      />
+    </div>
+    <button
+      type="button"
+      class="execute-button"
+      [disabled]="!canExecuteSchedule(kind, scheduleId)"
+      (click)="executeFromPanel(kind, scheduleId)"
+    >
+      @if (isExecutingSchedule(kind, scheduleId)) {
+        Executing...
+      } @else {
+        Execute occurrence
+      }
+    </button>
+    @if (executionError(kind, scheduleId); as executionMessage) {
+      <p class="field-error execution-error" role="alert">
+        {{ executionMessage }}
+      </p>
+    }
+  </div>
 </ng-template>
 
 <ng-template #scheduleActions>

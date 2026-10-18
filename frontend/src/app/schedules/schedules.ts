@@ -17,6 +17,7 @@ import { RecurringExpenseService } from './recurring-expense.service';
 export type ScheduleFormKind = 'income' | 'expense';
 export type ScheduleFormMode = 'create' | 'edit';
 export type ActiveFilter = 'all' | 'active' | 'inactive';
+type ExecutionKind = 'income' | 'expense';
 
 const DESCRIPTION_MAX_LENGTH = 255;
 const CATEGORY_MAX_LENGTH = 100;
@@ -108,9 +109,23 @@ function fieldLabel(field: string): string {
       return 'End date';
     case 'active':
       return 'Active';
+    case 'occurrence_date':
+      return 'Occurrence date';
     default:
       return field;
   }
+}
+
+function todayIsoDate(): string {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function todayEuropeanDate(): string {
+  return toEuropeanDate(todayIsoDate());
 }
 
 function toEuropeanDate(isoDate: string): string {
@@ -179,6 +194,9 @@ export class Schedules implements OnInit {
   formMode: ScheduleFormMode | null = null;
   editingId: number | null = null;
   saving = false;
+  executingKey: string | null = null;
+  private executionDateDisplays = new Map<string, string>();
+  private executionErrors = new Map<string, string>();
 
   formAccountId = '';
   formDescription = '';
@@ -207,7 +225,12 @@ export class Schedules implements OnInit {
   ) {}
 
   get canSubmit(): boolean {
-    if (this.saving || this.formKind === null || this.formMode === null) {
+    if (
+      this.saving ||
+      this.executingKey !== null ||
+      this.formKind === null ||
+      this.formMode === null
+    ) {
       return false;
     }
 
@@ -252,6 +275,89 @@ export class Schedules implements OnInit {
     }
 
     return toEuropeanDate(isoDate);
+  }
+
+  currentDomainDateDisplay(): string {
+    return todayEuropeanDate();
+  }
+
+  executionDateDisplay(kind: ExecutionKind, scheduleId: number): string {
+    const key = this.executionKey(kind, scheduleId);
+    const existing = this.executionDateDisplays.get(key);
+    if (existing !== undefined) {
+      return existing;
+    }
+
+    const initial = todayEuropeanDate();
+    this.executionDateDisplays.set(key, initial);
+    return initial;
+  }
+
+  executionError(kind: ExecutionKind, scheduleId: number): string | null {
+    return this.executionErrors.get(this.executionKey(kind, scheduleId)) ?? null;
+  }
+
+  isExecutingSchedule(kind: ExecutionKind, scheduleId: number): boolean {
+    return this.executingKey === this.executionKey(kind, scheduleId);
+  }
+
+  canExecuteSchedule(kind: ExecutionKind, scheduleId: number): boolean {
+    if (
+      this.loading ||
+      this.errorMessage !== null ||
+      this.saving ||
+      this.executingKey !== null
+    ) {
+      return false;
+    }
+
+    const iso = parseEuropeanDate(
+      this.executionDateDisplay(kind, scheduleId),
+    );
+    return iso === todayIsoDate();
+  }
+
+  onExecutionDateChange(
+    kind: ExecutionKind,
+    scheduleId: number,
+    value: string,
+  ): void {
+    const key = this.executionKey(kind, scheduleId);
+    this.executionDateDisplays.set(key, value);
+    this.executionErrors.delete(key);
+  }
+
+  executeIncomeSchedule(income: Income): void {
+    this.executeSchedule('income', income.id, () =>
+      this.incomeService.executeIncome(
+        income.id,
+        this.resolveExecutionIsoDate('income', income.id),
+      ),
+    );
+  }
+
+  executeExpenseSchedule(expense: RecurringExpense): void {
+    this.executeSchedule('expense', expense.id, () =>
+      this.recurringExpenseService.executeRecurringExpense(
+        expense.id,
+        this.resolveExecutionIsoDate('expense', expense.id),
+      ),
+    );
+  }
+
+  executeFromPanel(kind: ExecutionKind, scheduleId: number): void {
+    if (kind === 'income') {
+      const income = this.incomes.find((row) => row.id === scheduleId);
+      if (income !== undefined) {
+        this.executeIncomeSchedule(income);
+      }
+      return;
+    }
+
+    const expense = this.expenses.find((row) => row.id === scheduleId);
+    if (expense !== undefined) {
+      this.executeExpenseSchedule(expense);
+    }
   }
 
   frequencyLabel(frequency: ScheduleFrequency): string {
@@ -343,7 +449,7 @@ export class Schedules implements OnInit {
   }
 
   cancelForm(): void {
-    if (this.saving) {
+    if (this.saving || this.executingKey !== null) {
       return;
     }
 
@@ -385,7 +491,12 @@ export class Schedules implements OnInit {
   }
 
   private setIncomeActive(income: Income, active: boolean): void {
-    if (this.saving || this.loading || this.errorMessage !== null) {
+    if (
+      this.saving ||
+      this.executingKey !== null ||
+      this.loading ||
+      this.errorMessage !== null
+    ) {
       return;
     }
 
@@ -428,7 +539,12 @@ export class Schedules implements OnInit {
   }
 
   private setExpenseActive(expense: RecurringExpense, active: boolean): void {
-    if (this.saving || this.loading || this.errorMessage !== null) {
+    if (
+      this.saving ||
+      this.executingKey !== null ||
+      this.loading ||
+      this.errorMessage !== null
+    ) {
       return;
     }
 
@@ -475,7 +591,12 @@ export class Schedules implements OnInit {
   }
 
   saveSchedule(): void {
-    if (this.saving || this.formKind === null || this.formMode === null) {
+    if (
+      this.saving ||
+      this.executingKey !== null ||
+      this.formKind === null ||
+      this.formMode === null
+    ) {
       return;
     }
 
@@ -577,7 +698,12 @@ export class Schedules implements OnInit {
   }
 
   private canOpenForm(): boolean {
-    if (this.loading || this.errorMessage !== null || this.saving) {
+    if (
+      this.loading ||
+      this.errorMessage !== null ||
+      this.saving ||
+      this.executingKey !== null
+    ) {
       return false;
     }
 
@@ -844,6 +970,83 @@ export class Schedules implements OnInit {
       nextOccurrence,
       endDate,
     };
+  }
+
+  private executionKey(kind: ExecutionKind, scheduleId: number): string {
+    return `${kind}:${scheduleId}`;
+  }
+
+  private resolveExecutionIsoDate(
+    kind: ExecutionKind,
+    scheduleId: number,
+  ): string {
+    const iso = parseEuropeanDate(
+      this.executionDateDisplay(kind, scheduleId),
+    );
+    return iso ?? '';
+  }
+
+  private executeSchedule(
+    kind: ExecutionKind,
+    scheduleId: number,
+    request: () => ReturnType<IncomeService['executeIncome']>,
+  ): void {
+    const key = this.executionKey(kind, scheduleId);
+    if (
+      this.executingKey !== null ||
+      this.saving ||
+      this.loading ||
+      this.errorMessage !== null
+    ) {
+      return;
+    }
+
+    const iso = parseEuropeanDate(this.executionDateDisplay(kind, scheduleId));
+    if (iso === null) {
+      this.executionErrors.set(
+        key,
+        'Enter the occurrence date as DD-MM-YYYY.',
+      );
+      this.changeDetector.detectChanges();
+      return;
+    }
+
+    if (iso !== todayIsoDate()) {
+      this.executionErrors.set(
+        key,
+        `Only today's date (${todayEuropeanDate()}) can be executed.`,
+      );
+      this.changeDetector.detectChanges();
+      return;
+    }
+
+    this.executingKey = key;
+    this.executionErrors.delete(key);
+    this.actionError = null;
+    this.successMessage = null;
+    this.changeDetector.markForCheck();
+
+    request().subscribe({
+      next: (result) => {
+        this.executingKey = null;
+        this.successMessage = result.created
+          ? 'Occurrence executed. A transaction was created and the account balance was updated.'
+          : 'This occurrence was already executed. No new transaction was created.';
+        this.changeDetector.markForCheck();
+        this.loadPage({ keepSuccessMessage: true });
+      },
+      error: (error: unknown) => {
+        this.executingKey = null;
+        this.executionErrors.set(
+          key,
+          formatApiError(
+            error,
+            'Unable to execute this occurrence.',
+          ),
+        );
+        this.changeDetector.markForCheck();
+      },
+    });
   }
 
   private loadPage(options?: { keepSuccessMessage?: boolean }): void {

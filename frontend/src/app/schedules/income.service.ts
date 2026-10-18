@@ -1,9 +1,13 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 
 import { environment } from '../../environments/environment';
 import { Income, IncomeWrite } from './income';
+import {
+  ScheduleExecution,
+  ScheduleExecutionOutcome,
+} from './schedule-execution';
 
 @Injectable({
   providedIn: 'root',
@@ -23,5 +27,23 @@ export class IncomeService {
 
   updateIncome(incomeId: number, data: IncomeWrite): Observable<Income> {
     return this.http.put<Income>(`${this.incomesUrl}/${incomeId}`, data);
+  }
+
+  executeIncome(
+    incomeId: number,
+    occurrenceDate: string,
+  ): Observable<ScheduleExecutionOutcome> {
+    return this.http
+      .post<ScheduleExecution>(
+        `${this.incomesUrl}/${incomeId}/executions`,
+        { occurrence_date: occurrenceDate },
+        { observe: 'response' },
+      )
+      .pipe(
+        map((response) => ({
+          execution: response.body as ScheduleExecution,
+          created: response.status === 201,
+        })),
+      );
   }
 }

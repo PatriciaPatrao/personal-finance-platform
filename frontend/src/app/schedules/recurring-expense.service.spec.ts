@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { HttpResponse, provideHttpClient } from '@angular/common/http';
 import {
   HttpTestingController,
   provideHttpClientTesting,
@@ -125,5 +125,38 @@ describe('RecurringExpenseService', () => {
     });
     expect(actual?.active).toBe(false);
     expect(actual?.category).toBeNull();
+  });
+
+  it('should execute a recurring expense occurrence', () => {
+    let created: boolean | undefined;
+    service
+      .executeRecurringExpense(5, '2026-02-01')
+      .subscribe((outcome) => {
+        created = outcome.created;
+      });
+
+    const request = httpMock.expectOne(
+      'http://127.0.0.1:8000/recurring-expenses/5/executions',
+    );
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ occurrence_date: '2026-02-01' });
+    request.event(
+      new HttpResponse({
+        status: 201,
+        body: {
+          id: 2,
+          source_type: 'recurring_expense',
+          source_id: 5,
+          occurrence_date: '2026-02-01',
+          transaction_id: 12,
+          created_at: '2026-02-01T12:00:00',
+          transaction_account_id: 2,
+          transaction_amount: '900.00',
+          transaction_type: 'expense',
+          transaction_occurred_on: '2026-02-01',
+        },
+      }),
+    );
+    expect(created).toBe(true);
   });
 });

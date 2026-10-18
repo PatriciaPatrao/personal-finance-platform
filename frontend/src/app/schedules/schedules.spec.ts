@@ -80,6 +80,8 @@ describe('Schedules', () => {
   let listRecurringExpenses: ReturnType<typeof vi.fn>;
   let createRecurringExpense: ReturnType<typeof vi.fn>;
   let updateRecurringExpense: ReturnType<typeof vi.fn>;
+  let executeIncome: ReturnType<typeof vi.fn>;
+  let executeRecurringExpense: ReturnType<typeof vi.fn>;
   let listAccounts: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
@@ -89,6 +91,8 @@ describe('Schedules', () => {
     listRecurringExpenses = vi.fn().mockReturnValue(of([activeExpense]));
     createRecurringExpense = vi.fn().mockReturnValue(of(activeExpense));
     updateRecurringExpense = vi.fn().mockReturnValue(of(activeExpense));
+    executeIncome = vi.fn();
+    executeRecurringExpense = vi.fn();
     listAccounts = vi.fn().mockReturnValue(of(sampleAccounts));
 
     await TestBed.configureTestingModule({
@@ -96,7 +100,12 @@ describe('Schedules', () => {
       providers: [
         {
           provide: IncomeService,
-          useValue: { listIncomes, createIncome, updateIncome },
+          useValue: {
+            listIncomes,
+            createIncome,
+            updateIncome,
+            executeIncome,
+          },
         },
         {
           provide: RecurringExpenseService,
@@ -104,6 +113,7 @@ describe('Schedules', () => {
             listRecurringExpenses,
             createRecurringExpense,
             updateRecurringExpense,
+            executeRecurringExpense,
           },
         },
         {
@@ -654,5 +664,168 @@ describe('Schedules', () => {
     ).toBeUndefined();
     expect(listAccounts).toHaveBeenCalled();
     expect(listAccounts.mock.calls[0]).toEqual([]);
+  });
+
+  it('should execute an eligible salary occurrence and show success', async () => {
+    vi.setSystemTime(new Date(2026, 1, 15));
+    const eligibleIncome = {
+      ...activeIncome,
+      next_occurrence: '2026-02-15',
+    };
+    listIncomes.mockReturnValue(of([eligibleIncome]));
+    executeIncome.mockReturnValue(
+      of({
+        created: true,
+        execution: {
+          id: 1,
+          source_type: 'income',
+          source_id: 10,
+          occurrence_date: '2026-02-15',
+          transaction_id: 99,
+          created_at: '2026-02-15T00:00:00',
+          transaction_account_id: 1,
+          transaction_amount: '2500.00',
+          transaction_type: 'income',
+          transaction_occurred_on: '2026-02-15',
+        },
+      }),
+    );
+
+    const { fixture, compiled, component } = await render();
+    fixture.detectChanges();
+
+    const executeButton = compiled.querySelector(
+      '.execute-button',
+    ) as HTMLButtonElement;
+    expect(executeButton.disabled).toBe(false);
+    executeButton.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(executeIncome).toHaveBeenCalledWith(10, '2026-02-15');
+    expect(compiled.textContent).toContain(
+      'Occurrence executed. A transaction was created',
+    );
+    expect(component.executingKey).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('should explain idempotent execution replay without implying a new transaction', async () => {
+    vi.setSystemTime(new Date(2026, 1, 15));
+    const eligibleIncome = {
+      ...activeIncome,
+      next_occurrence: '2026-02-15',
+    };
+    listIncomes.mockReturnValue(of([eligibleIncome]));
+    executeIncome.mockReturnValue(
+      of({
+        created: false,
+        execution: {
+          id: 1,
+          source_type: 'income',
+          source_id: 10,
+          occurrence_date: '2026-02-15',
+          transaction_id: 99,
+          created_at: '2026-02-15T00:00:00',
+          transaction_account_id: 1,
+          transaction_amount: '2500.00',
+          transaction_type: 'income',
+          transaction_occurred_on: '2026-02-15',
+        },
+      }),
+    );
+
+    const { fixture, compiled, component } = await render();
+    component.executeIncomeSchedule(eligibleIncome);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain('already executed');
+    expect(compiled.textContent).toContain('No new transaction');
+    vi.useRealTimers();
+  });
+
+  it('should surface execution rejection from the API', async () => {
+    vi.setSystemTime(new Date(2026, 1, 15));
+    const eligibleIncome = {
+      ...activeIncome,
+      next_occurrence: '2026-02-15',
+    };
+    listIncomes.mockReturnValue(of([eligibleIncome]));
+    executeIncome.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 422,
+            error: { detail: 'Occurrence date is not eligible for execution' },
+          }),
+      ),
+    );
+
+    const { fixture, compiled, component } = await render();
+    component.executeIncomeSchedule(eligibleIncome);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(compiled.textContent).toContain(
+      'Occurrence date is not eligible for execution',
+    );
+    expect(component.executingKey).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('should block duplicate execution submissions while a request is pending', async () => {
+    vi.setSystemTime(new Date(2026, 1, 15));
+    const eligibleIncome = {
+      ...activeIncome,
+      next_occurrence: '2026-02-15',
+    };
+    listIncomes.mockReturnValue(of([eligibleIncome]));
+    const pending = new Subject<{
+      created: boolean;
+      execution: { id: number };
+    }>();
+    executeIncome.mockReturnValue(pending.asObservable());
+
+    const { fixture, component } = await render();
+    fixture.detectChanges();
+
+    component.executeIncomeSchedule(eligibleIncome);
+    expect(component.executingKey).toBe('income:10');
+    expect(executeIncome).toHaveBeenCalledTimes(1);
+    expect(component.canExecuteSchedule('income', 10)).toBe(false);
+
+    component.executeIncomeSchedule(eligibleIncome);
+    expect(executeIncome).toHaveBeenCalledTimes(1);
+
+    pending.next({
+      created: true,
+      execution: { id: 1 },
+    });
+    pending.complete();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    vi.useRealTimers();
+  });
+
+  it('should reject client-side execution when the date is not today', async () => {
+    vi.setSystemTime(new Date(2026, 1, 15));
+    const eligibleIncome = {
+      ...activeIncome,
+      next_occurrence: '2026-02-15',
+    };
+    listIncomes.mockReturnValue(of([eligibleIncome]));
+
+    const { fixture, compiled, component } = await render();
+    component.onExecutionDateChange('income', 10, '16-02-2026');
+    component.executeIncomeSchedule(eligibleIncome);
+    fixture.detectChanges();
+
+    expect(executeIncome).not.toHaveBeenCalled();
+    expect(compiled.textContent).toContain("Only today's date");
+    vi.useRealTimers();
   });
 });

@@ -1,4 +1,5 @@
 import { provideHttpClient } from '@angular/common/http';
+import { HttpResponse } from '@angular/common/http';
 import {
   HttpTestingController,
   provideHttpClientTesting,
@@ -101,5 +102,63 @@ describe('IncomeService', () => {
     ]);
     request.flush({ ...sampleIncome, ...deactivatePayload, amount: '2600.00' });
     expect(actual?.active).toBe(false);
+  });
+
+  it('should execute an income occurrence and report created status', () => {
+    let created: boolean | undefined;
+    service.executeIncome(1, '2026-02-01').subscribe((outcome) => {
+      created = outcome.created;
+    });
+
+    const request = httpMock.expectOne(
+      'http://127.0.0.1:8000/incomes/1/executions',
+    );
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ occurrence_date: '2026-02-01' });
+    request.flush(
+      {
+        id: 5,
+        source_type: 'income',
+        source_id: 1,
+        occurrence_date: '2026-02-01',
+        transaction_id: 9,
+        created_at: '2026-02-01T12:00:00',
+        transaction_account_id: 2,
+        transaction_amount: '2500.00',
+        transaction_type: 'income',
+        transaction_occurred_on: '2026-02-01',
+      },
+      { status: 201, statusText: 'Created' },
+    );
+    expect(created).toBe(true);
+  });
+
+  it('should treat idempotent execution replay as not created', () => {
+    let created: boolean | undefined;
+    service.executeIncome(1, '2026-02-01').subscribe((outcome) => {
+      created = outcome.created;
+    });
+
+    const request = httpMock.expectOne(
+      'http://127.0.0.1:8000/incomes/1/executions',
+    );
+    request.event(
+      new HttpResponse({
+        status: 200,
+        body: {
+          id: 5,
+          source_type: 'income',
+          source_id: 1,
+          occurrence_date: '2026-02-01',
+          transaction_id: 9,
+          created_at: '2026-02-01T12:00:00',
+          transaction_account_id: 2,
+          transaction_amount: '2500.00',
+          transaction_type: 'income',
+          transaction_occurred_on: '2026-02-01',
+        },
+      }),
+    );
+    expect(created).toBe(false);
   });
 });
