@@ -34,6 +34,7 @@ from app.models.transaction import Transaction
 from app.models.transaction import TransactionType
 from app.schemas.income import IncomeCreate
 from app.schemas.recurring_expense import RecurringExpenseCreate
+from app.services.balance_effect import balance_delta
 from app.services.income import IncomeService
 from app.services.occurrence import next_after
 from app.services.recurring_expense import RecurringExpenseService
@@ -1252,7 +1253,7 @@ def seed_demo_data() -> int:
                 name=DEMO_ACCOUNT_NAME,
                 account_type=AccountType.BANK,
                 currency=DEMO_CURRENCY,
-                current_balance=DEMO_FORECAST_BALANCE,
+                current_balance=_ZERO,
             )
             session.add(account)
             session.flush()
@@ -1276,8 +1277,16 @@ def seed_demo_data() -> int:
                         category=category,
                     ),
                 )
+                account.current_balance = _as_money(
+                    account.current_balance
+                    + balance_delta(txn_type, amount),
+                )
 
-        if _as_money(account.current_balance) == _ZERO:
+        if (
+            not created_transactions
+            and _count_transactions(session, account.id) == 0
+            and _as_money(account.current_balance) == _ZERO
+        ):
             account.current_balance = DEMO_FORECAST_BALANCE
 
         (

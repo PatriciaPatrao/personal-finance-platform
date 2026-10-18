@@ -16,7 +16,8 @@ The codebase remains the source of truth. If this document and the code disagree
 | --- | --- | --- | --- |
 | Salary schedule (`Income`) | Yes | No | No |
 | Recurring expense | Yes | No | No |
-| Transaction | Yes | Yes (ADR 005 — system-maintained; not yet in code) | Yes (it is the event) |
+| Transaction | Yes | Yes (ADR 005 — system-maintained) | Yes (it is the event) |
+| Schedule execution | Yes | Yes (via linked transaction) | Yes (creates transaction + execution row) |
 | Forecast period / occurrence | No (computed per request) | No | No |
 
 **Deactivated schedules** remain in the database and in list responses with `active: false`. Forecast skips them. Historical transactions are unchanged.
@@ -157,7 +158,7 @@ Repeat for: create salary, create recurring expense, edit amount, deactivate, ac
 
 ## Next milestone: Executing recurring occurrences
 
-**Status:** Product and architecture decisions are **accepted** in [005-schedule-execution.md](decisions/005-schedule-execution.md). **Implementation has not started;** wait for explicit go-ahead after this documentation is reviewed.
+**Status:** **Implemented** per [005-schedule-execution.md](decisions/005-schedule-execution.md) (backend API, migration, balance rules, Forecast exclusion). Frontend execute UI and cancellation/reversal remain out of scope.
 
 Summary of accepted behaviour:
 

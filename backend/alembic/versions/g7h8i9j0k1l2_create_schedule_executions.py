@@ -1,5 +1,10 @@
 """create schedule_executions
 
+Creates the schedule_executions table to track recurring income and expense
+occurrences executed as real transactions. Supports execution history,
+prevents duplicate execution of the same occurrence, and links each execution
+to its resulting transaction.
+
 Revision ID: g7h8i9j0k1l2
 Revises: f6a7b8c9d0e1
 Create Date: 2026-10-13 12:00:00.000000
