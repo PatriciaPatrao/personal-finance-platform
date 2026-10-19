@@ -1,6 +1,9 @@
 import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+
+import { pageTitle } from '../app-page-titles';
 
 import { Account, accountTypeLabel } from './account';
 import { AccountService } from './account.service';
@@ -30,6 +33,7 @@ export class AccountDetail implements OnInit {
     private route: ActivatedRoute,
     private accountService: AccountService,
     private changeDetector: ChangeDetectorRef,
+    private title: Title,
   ) {}
 
   ngOnInit(): void {
@@ -68,6 +72,7 @@ export class AccountDetail implements OnInit {
     this.accountService.getAccount(accountId).subscribe({
       next: (account) => {
         this.account = account;
+        this.title.setTitle(pageTitle(account.name));
         this.loading = false;
         this.changeDetector.markForCheck();
       },

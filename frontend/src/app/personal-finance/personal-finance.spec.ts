@@ -864,11 +864,48 @@ describe('PersonalFinance', () => {
     ].map((el) => el.getAttribute('href'));
 
     expect(hrefs).toEqual([
-      '/personal_finance/accounts',
       '/personal_finance/transactions',
+      '/personal_finance/accounts',
       '/personal_finance/schedules',
-      '/personal_finance/goals',
       '/personal_finance/forecast',
+      '/personal_finance/analysis',
+      '/personal_finance/goals',
+    ]);
+  });
+
+  it('should navigate to Analysis from quick access', async () => {
+    const fixture = TestBed.createComponent(PersonalFinance);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const link = (fixture.nativeElement as HTMLElement).querySelector(
+      'a.quick-link[href="/personal_finance/analysis"]',
+    ) as HTMLAnchorElement | null;
+    expect(link?.textContent).toContain('Analysis');
+
+    link?.click();
+    await fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/personal_finance/analysis');
+  });
+
+  it('should render dashboard sections in the intended hierarchy', async () => {
+    const fixture = TestBed.createComponent(PersonalFinance);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const headings = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll(
+        '.dashboard-page h2',
+      ),
+    ].map((el) => el.id);
+
+    expect(headings).toEqual([
+      'position-heading',
+      'signals-heading',
+      'goals-heading',
+      'quick-heading',
     ]);
   });
 });

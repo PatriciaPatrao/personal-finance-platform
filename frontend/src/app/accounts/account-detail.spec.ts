@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
+import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 
+import { pageTitle } from '../app-page-titles';
 import { Account } from './account';
 import { AccountDetail } from './account-detail';
 import { AccountService } from './account.service';
@@ -46,6 +48,7 @@ describe('AccountDetail', () => {
     compiled: HTMLElement;
     component: AccountDetail;
   }> {
+    TestBed.inject(Title).setTitle(pageTitle('Account'));
     const fixture = TestBed.createComponent(AccountDetail);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -70,6 +73,9 @@ describe('AccountDetail', () => {
       'Current balance is the stored account position',
     );
     expect(compiled.textContent).not.toContain('credit_card');
+    expect(TestBed.inject(Title).getTitle()).toBe(
+      'Travel Card — Personal Finance Platform',
+    );
   });
 
   it('should format a negative balance with the account currency', async () => {
@@ -106,6 +112,9 @@ describe('AccountDetail', () => {
 
     const { compiled, component } = await render();
 
+    expect(TestBed.inject(Title).getTitle()).toBe(
+      'Account — Personal Finance Platform',
+    );
     expect(component.account).toBeNull();
     expect(compiled.querySelector('h1')).toBeNull();
     expect(compiled.textContent).toContain('Unable to load this account.');

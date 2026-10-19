@@ -128,11 +128,12 @@ export class PersonalFinance implements OnInit {
   hasActiveScheduleOccurrenceToday = false;
 
   readonly quickLinks = [
-    { label: 'Accounts', route: '/personal_finance/accounts' },
     { label: 'Transactions', route: '/personal_finance/transactions' },
+    { label: 'Accounts', route: '/personal_finance/accounts' },
     { label: 'Schedules', route: '/personal_finance/schedules' },
-    { label: 'Goals', route: '/personal_finance/goals' },
     { label: 'Forecast', route: '/personal_finance/forecast' },
+    { label: 'Analysis', route: '/personal_finance/analysis' },
+    { label: 'Goals', route: '/personal_finance/goals' },
   ] as const;
 
   constructor(

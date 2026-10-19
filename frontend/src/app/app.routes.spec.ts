@@ -1,11 +1,13 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { Title } from '@angular/platform-browser';
 import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 
 import { AccountService } from './accounts/account.service';
 import { AnalysisService } from './analysis/analysis.service';
+import { pageTitle } from './app-page-titles';
 import { App } from './app';
 import { routes } from './app.routes';
 import { ForecastService } from './forecast/forecast.service';
@@ -168,6 +170,72 @@ describe('App routing', () => {
     expect(compiled.querySelector('main h1')?.textContent).toContain(
       'Dashboard',
     );
+  });
+
+  it('should expose a skip link to the main content landmark', async () => {
+    const { compiled } = await renderAt('/personal_finance');
+    const skipLink = compiled.querySelector(
+      'a.skip-link',
+    ) as HTMLAnchorElement | null;
+    const main = compiled.querySelector('main#main-content');
+
+    expect(skipLink?.getAttribute('href')).toBe('#main-content');
+    expect(skipLink?.textContent).toContain('Skip to main content');
+    expect(main).toBeTruthy();
+    expect(main?.getAttribute('tabindex')).toBe('-1');
+  });
+
+  it('should label primary navigation for assistive technologies', async () => {
+    const { compiled } = await renderAt('/personal_finance');
+    expect(compiled.querySelector('nav[aria-label="Primary"]')).toBeTruthy();
+  });
+
+  it('should set a meaningful document title on the Dashboard', async () => {
+    await renderAt('/personal_finance');
+    expect(TestBed.inject(Title).getTitle()).toBe(
+      'Dashboard — Personal Finance Platform',
+    );
+  });
+
+  it('should set route-specific document titles', async () => {
+    await renderAt('/personal_finance/analysis');
+    expect(TestBed.inject(Title).getTitle()).toBe(
+      'Analysis — Personal Finance Platform',
+    );
+
+    await renderAt('/personal_finance/transactions');
+    expect(TestBed.inject(Title).getTitle()).toBe(
+      'Transactions — Personal Finance Platform',
+    );
+  });
+
+  it('should set the account name in the document title on account detail', async () => {
+    await renderAt('/personal_finance/accounts/1');
+    expect(TestBed.inject(Title).getTitle()).toBe(
+      'Demo Main Account — Personal Finance Platform',
+    );
+  });
+
+  it('should set document titles for every child route', async () => {
+    const cases: [string, string][] = [
+      ['/personal_finance', 'Dashboard'],
+      ['/personal_finance/accounts', 'Accounts'],
+      ['/personal_finance/schedules', 'Schedules'],
+      ['/personal_finance/goals', 'Goals'],
+      ['/personal_finance/analysis', 'Analysis'],
+      ['/personal_finance/forecast', 'Forecast'],
+      ['/personal_finance/transactions', 'Transactions'],
+    ];
+
+    for (const [url, screen] of cases) {
+      await renderAt(url);
+      expect(TestBed.inject(Title).getTitle()).toBe(pageTitle(screen));
+    }
+  });
+
+  it('should set the Dashboard title after the root redirect', async () => {
+    await renderAt('/');
+    expect(TestBed.inject(Title).getTitle()).toBe(pageTitle('Dashboard'));
   });
 
   it('renders the Personal Finance dashboard at /personal_finance', async () => {
