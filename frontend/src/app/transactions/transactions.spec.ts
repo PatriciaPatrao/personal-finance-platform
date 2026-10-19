@@ -161,8 +161,8 @@ describe('Transactions', () => {
     expect(compiled.textContent).not.toContain('Loading transactions...');
   });
 
-  it('should display loaded transactions with account names and EUR amounts', async () => {
-    const { compiled } = await render();
+  it('should display loaded transactions with account names and formatted amounts', async () => {
+    const { compiled, component } = await render();
     const text = compiled.textContent ?? '';
 
     expect(compiled.querySelector('.data-table')).toBeTruthy();
@@ -182,10 +182,78 @@ describe('Transactions', () => {
     expect(text).toContain('12.00');
     expect(text).not.toContain('-52.40');
     expect(text).not.toContain('-12.00');
+    expect(component.accountCurrency(1)).toBe('EUR');
+    expect(component.accountCurrency(2)).toBe('EUR');
+    expect(text).toContain('€');
 
     const amountCells = compiled.querySelectorAll('.amount-cell');
     expect(amountCells[0]?.classList.contains('amount-expense')).toBe(true);
     expect(amountCells[2]?.classList.contains('amount-income')).toBe(true);
+  });
+
+  it('should format transaction amounts using a non-EUR account currency', async () => {
+    listAccounts.mockReturnValue(
+      of([
+        ...sampleAccounts,
+        {
+          id: 5,
+          name: 'USD Savings',
+          account_type: 'bank',
+          currency: 'USD',
+          current_balance: '500.00',
+          created_at: '2026-01-03T00:00:00',
+        },
+      ]),
+    );
+    listTransactions.mockReturnValue(
+      of([
+        {
+          id: 50,
+          account_id: 5,
+          description: 'Transfer',
+          amount: '99.00',
+          transaction_type: 'income',
+          occurred_on: '2026-10-07',
+          category: null,
+          created_at: '2026-10-07T00:00:00',
+          linked_to_schedule_execution: false,
+        },
+      ]),
+    );
+
+    const { compiled, component } = await render();
+    expect(component.accountCurrency(5)).toBe('USD');
+    expect(compiled.textContent).toContain('$99.00');
+    expect(compiled.textContent).not.toContain('Currency unavailable');
+  });
+
+  it('should not invent EUR when accounts fail to load', async () => {
+    listAccounts.mockReturnValue(
+      throwError(() => new Error('Internal Server Error')),
+    );
+
+    const { compiled, component } = await render();
+    expect(component.accountCurrency(1)).toBeNull();
+    expect(compiled.textContent).toContain('Currency unavailable');
+    expect(compiled.textContent).toContain('12.00');
+    expect(compiled.textContent).not.toContain('€');
+  });
+
+  it('should not invent EUR when the transaction account is unavailable', async () => {
+    listTransactions.mockReturnValue(
+      of([
+        {
+          ...sampleTransactions[0],
+          account_id: 99,
+        },
+      ]),
+    );
+
+    const { compiled, component } = await render();
+    expect(component.accountCurrency(99)).toBeNull();
+    expect(compiled.textContent).toContain('Currency unavailable');
+    expect(compiled.textContent).toContain('12.00');
+    expect(compiled.textContent).not.toContain('€');
   });
 
   it('should show an empty state when no transactions are recorded', async () => {
@@ -540,6 +608,45 @@ describe('Transactions', () => {
     );
     expect(deleteTransaction).not.toHaveBeenCalled();
     expect(compiled.querySelectorAll('tbody tr')).toHaveLength(3);
+  });
+
+  it('should format the delete confirmation amount using the account currency', async () => {
+    listAccounts.mockReturnValue(
+      of([
+        {
+          id: 5,
+          name: 'USD Wallet',
+          account_type: 'cash',
+          currency: 'USD',
+          current_balance: '80.00',
+          created_at: '2026-01-01T00:00:00',
+        },
+      ]),
+    );
+    listTransactions.mockReturnValue(
+      of([
+        {
+          id: 7,
+          account_id: 5,
+          description: null,
+          amount: '12.00',
+          transaction_type: 'expense',
+          occurred_on: '2026-10-05',
+          category: null,
+          created_at: '2026-10-05T00:00:00',
+          linked_to_schedule_execution: false,
+        },
+      ]),
+    );
+
+    const { fixture, compiled } = await render();
+    openDelete(compiled, fixture);
+
+    expect(compiled.textContent).toContain('$12.00');
+    expect(compiled.textContent).toContain(
+      'This removes the recorded event and reverses its impact on the account balance.',
+    );
+    expect(compiled.textContent).not.toContain('€12.00');
   });
 
   it('should leave the transaction in place when deletion is cancelled', async () => {

@@ -72,7 +72,14 @@
         <span>{{ displayText(pendingDelete.description) }}</span>
         <span>{{ accountName(pendingDelete.account_id) }}</span>
         <span>{{ displayType(pendingDelete.transaction_type) }}</span>
-        <span>{{ pendingDelete.amount | currency: 'EUR' }}</span>
+        <span class="delete-amount">
+          @if (accountCurrency(pendingDelete.account_id); as currency) {
+            {{ pendingDelete.amount | currency: currency }}
+          } @else {
+            {{ pendingDelete.amount }}
+            <span class="currency-unavailable">Currency unavailable</span>
+          }
+        </span>
       </p>
       <p class="delete-note">
         This removes the recorded event and reverses its impact on the account balance.
@@ -241,7 +248,14 @@
                   transaction.transaction_type === 'expense'
                 "
               >
-                {{ transaction.amount | currency: 'EUR' }}
+                @if (accountCurrency(transaction.account_id); as currency) {
+                  {{ transaction.amount | currency: currency }}
+                } @else {
+                  {{ transaction.amount }}
+                  <span class="currency-unavailable">
+                    Currency unavailable
+                  </span>
+                }
               </td>
               <td class="row-actions">
                 @if (isScheduleLinked(transaction)) {

@@ -177,6 +177,7 @@ export class Transactions implements OnInit {
   allTransactions: Transaction[] = [];
   accounts: Account[] = [];
   private accountNames = new Map<number, string>();
+  private accountCurrencies = new Map<number, string>();
   accountsLoadFailed = false;
 
   loading = true;
@@ -256,7 +257,7 @@ export class Transactions implements OnInit {
         id: selectedId,
         name: this.accountName(selectedId),
         account_type: 'bank',
-        currency: 'EUR',
+        currency: '',
         current_balance: '0.00',
         created_at: '',
       });
@@ -326,6 +327,10 @@ export class Transactions implements OnInit {
 
   accountName(accountId: number): string {
     return this.accountNames.get(accountId) ?? `Account ${accountId}`;
+  }
+
+  accountCurrency(accountId: number): string | null {
+    return this.accountCurrencies.get(accountId) ?? null;
   }
 
   displayText(value: string | null): string {
@@ -663,6 +668,9 @@ export class Transactions implements OnInit {
         this.accountNames = new Map(
           accounts.map((account) => [account.id, account.name]),
         );
+        this.accountCurrencies = new Map(
+          accounts.map((account) => [account.id, account.currency]),
+        );
         this.loaded = true;
         this.loading = false;
         this.changeDetector.markForCheck();
@@ -671,6 +679,7 @@ export class Transactions implements OnInit {
         this.allTransactions = [];
         this.accounts = [];
         this.accountNames = new Map();
+        this.accountCurrencies = new Map();
         this.loaded = false;
         this.errorMessage = 'Unable to load transactions.';
         this.loading = false;
