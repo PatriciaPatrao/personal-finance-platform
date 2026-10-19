@@ -224,25 +224,11 @@ export class PersonalFinance implements OnInit {
           this.currentPosition = null;
         }
         if (this.signalsSuppressed) {
-          this.forecastLoading = false;
-          this.forecastError = false;
-          this.forecast = null;
+          this.skipFinancialSignals();
         } else {
+          this.loadAnalysis(analysisRange);
           this.loadHouseholdForecast(forecastRange);
         }
-        this.changeDetector.markForCheck();
-      });
-
-    this.analysisService
-      .getSummary(analysisRange.from, analysisRange.to)
-      .pipe(
-        map((data): LoadResult<AnalysisSummary> => ({ ok: true, data })),
-        catchError(() => of<LoadResult<AnalysisSummary>>({ ok: false })),
-      )
-      .subscribe((summary) => {
-        this.analysisLoading = false;
-        this.analysisError = !summary.ok;
-        this.summary = summary.ok ? summary.data : null;
         this.changeDetector.markForCheck();
       });
 
@@ -298,7 +284,37 @@ export class PersonalFinance implements OnInit {
     };
   }
 
+  private skipFinancialSignals(): void {
+    this.analysisLoading = false;
+    this.analysisError = false;
+    this.summary = null;
+    this.forecastLoading = false;
+    this.forecastError = false;
+    this.forecast = null;
+  }
+
+  private loadAnalysis(range: { from: string; to: string }): void {
+    this.analysisLoading = true;
+    this.analysisError = false;
+    this.summary = null;
+    this.analysisService
+      .getSummary(range.from, range.to)
+      .pipe(
+        map((data): LoadResult<AnalysisSummary> => ({ ok: true, data })),
+        catchError(() => of<LoadResult<AnalysisSummary>>({ ok: false })),
+      )
+      .subscribe((summary) => {
+        this.analysisLoading = false;
+        this.analysisError = !summary.ok;
+        this.summary = summary.ok ? summary.data : null;
+        this.changeDetector.markForCheck();
+      });
+  }
+
   private loadHouseholdForecast(range: { from: string; to: string }): void {
+    this.forecastLoading = true;
+    this.forecastError = false;
+    this.forecast = null;
     this.forecastService
       .getForecast(range.from, range.to, 'month')
       .pipe(

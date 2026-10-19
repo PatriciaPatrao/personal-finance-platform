@@ -223,9 +223,10 @@ describe('PersonalFinance', () => {
     expect(compiled.querySelector('h1')?.textContent).toContain('Dashboard');
   });
 
-  it('should request accounts, analysis summary, and forecast on init', () => {
+  it('should request accounts, analysis summary, and forecast on init', async () => {
     const fixture = TestBed.createComponent(PersonalFinance);
     fixture.detectChanges();
+    await fixture.whenStable();
     const analysisRange = currentMonthRange();
     const forecastRange = defaultForecastRange();
 
@@ -555,9 +556,67 @@ describe('PersonalFinance', () => {
       'Analysis and forecast signals are unavailable because your accounts use more than one currency.',
     );
     expect(getForecast).not.toHaveBeenCalled();
+    expect(getSummary).not.toHaveBeenCalled();
     expect(text).not.toContain('Positive cash flow');
     expect(text).not.toContain('Balance projected to increase');
     expect(text).not.toContain('No directional signals');
+    expect(text).not.toContain(
+      'Unable to load recorded cash flow for the current month.',
+    );
+    expect(text).not.toContain('Unable to load the scheduled forecast.');
+  });
+
+  it('should not request analysis when signals are suppressed', async () => {
+    listAccounts.mockReturnValue(
+      of([
+        sampleAccounts[0],
+        {
+          ...sampleAccounts[0],
+          id: 2,
+          name: 'USD account',
+          currency: 'USD',
+          current_balance: '100.00',
+        },
+      ]),
+    );
+    getSummary.mockReturnValue(
+      throwError(() => new Error('network')),
+    );
+
+    const fixture = TestBed.createComponent(PersonalFinance);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(getSummary).not.toHaveBeenCalled();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain(
+      'Analysis and forecast signals are unavailable because your accounts use more than one currency.',
+    );
+    expect(text).not.toContain(
+      'Unable to load recorded cash flow for the current month.',
+    );
+  });
+
+  it('should still request analysis when accounts fail to load', async () => {
+    listAccounts.mockReturnValue(
+      throwError(() => new Error('network')),
+    );
+    getSummary.mockReturnValue(
+      throwError(() => new Error('network')),
+    );
+
+    const fixture = TestBed.createComponent(PersonalFinance);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(getSummary).toHaveBeenCalledTimes(1);
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Unable to load your current balance.');
+    expect(text).toContain(
+      'Unable to load recorded cash flow for the current month.',
+    );
   });
 
   it('should keep the forecast signal when analysis fails', async () => {

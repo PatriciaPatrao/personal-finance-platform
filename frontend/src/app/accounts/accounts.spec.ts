@@ -90,6 +90,20 @@ describe('Accounts', () => {
     expect(compiled.querySelector('h1')?.textContent).toContain('Accounts');
   });
 
+  it('should explain that transactions update stored balances', async () => {
+    const { compiled } = await render();
+    const text = compiled.textContent ?? '';
+    expect(text).toContain(
+      'the system updates when you record, edit or delete transactions',
+    );
+    expect(text).toContain(
+      'do not change balances until you execute an eligible occurrence',
+    );
+    expect(text).not.toContain(
+      'Recording a transaction does not change that balance',
+    );
+  });
+
   it('should request accounts on init', async () => {
     await render();
     expect(listAccounts).toHaveBeenCalledTimes(1);

@@ -109,18 +109,18 @@
             <p>{{ quietCheckText }}</p>
           </article>
         }
-      }
 
-      @if (analysisError) {
-        <p class="status status-error" role="alert">
-          Unable to load recorded cash flow for the current month.
-        </p>
-      }
+        @if (analysisError) {
+          <p class="status status-error" role="alert">
+            Unable to load recorded cash flow for the current month.
+          </p>
+        }
 
-      @if (forecastError) {
-        <p class="status status-error" role="alert">
-          Unable to load the scheduled forecast.
-        </p>
+        @if (forecastError) {
+          <p class="status status-error" role="alert">
+            Unable to load the scheduled forecast.
+          </p>
+        }
       }
     </section>
 
