@@ -80,9 +80,11 @@ Layout under `backend/app/`: `api`, `services`, `repositories`, `schemas`, `mode
 | --- | --- | --- |
 | GET | `/`, `/health` | Process status |
 | POST, GET | `/accounts`, `/accounts/{id}` | Accounts |
-| POST, GET, PUT, DELETE | `/transactions`, `/transactions/{id}` | Transactions |
+| POST, GET, PUT, DELETE | `/transactions`, `/transactions/{id}` | Transactions; each response includes `linked_to_schedule_execution` |
 | POST, GET, PUT | `/incomes`, `/incomes/{id}` | Salary schedules |
+| POST | `/incomes/{income_id}/executions` | Materialise one salary occurrence as a transaction (ADR 005) |
 | POST, GET, PUT | `/recurring-expenses`, `/recurring-expenses/{id}` | Fixed recurring expenses |
+| POST | `/recurring-expenses/{recurring_expense_id}/executions` | Materialise one recurring-expense occurrence as a transaction (ADR 005) |
 | POST, GET, PUT | `/financial-goals`, `/financial-goals/{id}` | Financial objectives; no Goal DELETE |
 | POST, PUT, DELETE | `/financial-goals/{id}/allocations`, `.../{allocation_id}` | Designate existing Account money toward a Goal |
 | GET | `/financial-summary` | Transaction totals for `from` and `to` |
@@ -90,6 +92,10 @@ Layout under `backend/app/`: `api`, `services`, `repositories`, `schemas`, `mode
 | GET | `/analysis/expenses` | Historical expenses by category |
 | GET | `/analysis/cash-flow` | Historical cash flow; `group_by` is `day` or `month` |
 | GET | `/forecast` | Projection; `group_by` is `day` or `month`; optional `account_id`; response includes `scope`, `account_id`, and `projections[]` |
+
+**Schedule execution.** One explicit POST per occurrence; there is no GET or list route for execution history. Request body: `{ "occurrence_date": "<ISO date>" }`. The date must equal the API current domain date, the schedule must be active, and the occurrence must be eligible on the schedule grid (ADR 005; same date notion as Forecast `as_of`). First success returns **201**; an idempotent replay of the same occurrence returns **200** with the same `transaction_id` and no extra balance movement. **404** when the schedule id does not exist. **422** when the schedule is inactive or the occurrence date is not eligible (including past or future dates). A successful response body is `ScheduleExecutionResponse` (execution id, schedule identity, `transaction_id`, and selected transaction fields). In one database commit the API creates the `schedule_executions` row, creates the transaction through the shared balance path, and updates `Account.current_balance`.
+
+**Transaction linkage.** `TransactionResponse` includes `linked_to_schedule_execution` (boolean, default `false`). It is `true` only when a `schedule_executions` row references that transaction. Manual transactions stay editable and deletable. When `linked_to_schedule_execution` is `true`, `PUT` and `DELETE` on `/transactions/{id}` return **409 Conflict** (`Schedule-generated transactions cannot be edited or deleted`) so execution history and balances stay consistent until a future cancellation/reversal milestone (ADR 005).
 
 Date query parameters use the names `from` and `to`.
 
