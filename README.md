@@ -101,7 +101,7 @@ Date query parameters use the names `from` and `to`.
 - Standalone components and lazy-loaded routes
 - Vitest, through the Angular CLI
 
-The development client calls `http://127.0.0.1:8000` (`frontend/src/environments/environment.development.ts`). The production environment file still has a placeholder API base URL.
+The development client calls `http://127.0.0.1:8000` (`frontend/src/environments/environment.development.ts`). Production builds require `NG_APP_API_BASE_URL` (see **Production deployment** below).
 
 ## Application routes
 
@@ -131,11 +131,14 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Create `backend/.env`:
+Copy `backend/.env.example` to `backend/.env` and set at least:
 
 ```text
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE
+APP_ENV=development
 ```
+
+Optional in development: `CORS_ORIGINS` (comma-separated). When unset, the API allows `http://localhost:4200` for the Angular dev server.
 
 Apply migrations (default schema is `public`). Alembic loads `DATABASE_URL` through the same settings as the API: `backend/.env`, overridden by the process environment when that variable is set:
 
@@ -158,6 +161,47 @@ npm start
 ```
 
 Open `http://localhost:4200/`. The browser is allowed to call the API from that origin.
+
+## Production deployment
+
+Configure the API and the built frontend separately. Replace placeholder values with your real deployment URLs and origins.
+
+### Backend
+
+Set environment variables (or `backend/.env` on the server):
+
+| Variable | Development | Production |
+| --- | --- | --- |
+| `DATABASE_URL` | Required | Required |
+| `APP_ENV` | `development` (default) | `production` |
+| `CORS_ORIGINS` | Optional; defaults to `http://localhost:4200` | **Required.** Comma-separated list of frontend origins, e.g. `https://app.example.com` |
+
+When `APP_ENV=production`, the process **refuses to start** unless `CORS_ORIGINS` lists every browser origin that may call the API. Wildcard `*` is not permitted.
+
+Start the API with `uvicorn app.main:app` (or your process manager) after migrations.
+
+### Frontend
+
+Production builds inject the public API base URL at compile time. **`npm run build` fails** if `NG_APP_API_BASE_URL` is missing or still a documentation placeholder.
+
+PowerShell:
+
+```powershell
+cd frontend
+$env:NG_APP_API_BASE_URL = "https://YOUR-API-ORIGIN.example"
+npm run build
+```
+
+Unix:
+
+```bash
+cd frontend
+NG_APP_API_BASE_URL=https://YOUR-API-ORIGIN.example npm run build
+```
+
+Use the API origin **without** a trailing slash (for example `https://api.example.com`). Static files are emitted under `frontend/dist/frontend`.
+
+Development (`npm start`) is unchanged and does not use `NG_APP_API_BASE_URL`.
 
 ## Tests
 

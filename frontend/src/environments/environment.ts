@@ -1,4 +1,8 @@
+import { resolveProductionApiBaseUrl } from './api-base-url';
+
+declare const NG_APP_API_BASE_URL: string;
+
 export const environment = {
   production: true,
-  apiBaseUrl: 'REPLACE_WITH_API_BASE_URL',
+  apiBaseUrl: resolveProductionApiBaseUrl(NG_APP_API_BASE_URL),
 };

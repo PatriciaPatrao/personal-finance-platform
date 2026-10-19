@@ -9,37 +9,46 @@ from app.api.forecast import router as forecast_router
 from app.api.incomes import router as incomes_router
 from app.api.recurring_expenses import router as recurring_expenses_router
 from app.api.transactions import router as transactions_router
-
-app = FastAPI(
-    title="Personal Finance Platform API",
-    version="0.1.0",
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:4200"],
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-)
-
-app.include_router(accounts_router)
-app.include_router(analysis_router)
-app.include_router(financial_goals_router)
-app.include_router(financial_summary_router)
-app.include_router(forecast_router)
-app.include_router(incomes_router)
-app.include_router(recurring_expenses_router)
-app.include_router(transactions_router)
+from app.core.config import Settings
+from app.core.config import settings
 
 
-@app.get("/")
-def root():
-    return {
-        "name": "Personal Finance Platform API",
-        "version": "0.1.0",
-        "status": "running",
-    }
+def build_app(config: Settings | None = None) -> FastAPI:
+    """Create the FastAPI application with routers and middleware."""
+    cfg = config or settings
+    application = FastAPI(
+        title="Personal Finance Platform API",
+        version="0.1.0",
+    )
+
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=cfg.resolved_cors_origins(),
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    )
+
+    application.include_router(accounts_router)
+    application.include_router(analysis_router)
+    application.include_router(financial_goals_router)
+    application.include_router(financial_summary_router)
+    application.include_router(forecast_router)
+    application.include_router(incomes_router)
+    application.include_router(recurring_expenses_router)
+    application.include_router(transactions_router)
+
+    @application.get("/")
+    def root():
+        return {
+            "name": "Personal Finance Platform API",
+            "version": "0.1.0",
+            "status": "running",
+        }
+
+    @application.get("/health")
+    def health_check():
+        return {"status": "ok"}
+
+    return application
 
 
-@app.get("/health")
-def health_check():
-    return {"status": "ok"}
+app = build_app()

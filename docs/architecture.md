@@ -18,7 +18,7 @@ Repositories / SQLAlchemy
 PostgreSQL
 ```
 
-The Angular client is a standalone Angular 21 application. It talks to one FastAPI process over HTTP. CORS on the API allows origin `http://localhost:4200` and methods `GET`, `POST`, `PUT`, `DELETE`, and `OPTIONS`.
+The Angular client is a standalone Angular 21 application. It talks to one FastAPI process over HTTP. CORS allowed origins come from `CORS_ORIGINS` (comma-separated) and `APP_ENV` in backend settings: development defaults to `http://localhost:4200` when unset; production requires explicit origins. Methods allowed: `GET`, `POST`, `PUT`, `DELETE`, and `OPTIONS`.
 
 FastAPI request handlers live under `backend/app/api/`. They construct a service for the current SQLAlchemy session, call application logic, and return Pydantic schemas. Services live under `backend/app/services/`. Repositories under `backend/app/repositories/` issue queries. Models under `backend/app/models/` map tables. PostgreSQL is reached through `DATABASE_URL` and the psycopg2 driver.
 
