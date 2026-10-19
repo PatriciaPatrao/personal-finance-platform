@@ -35,7 +35,7 @@ That total is **current position, not a forecast**. Account `current_balance` is
 - expenses grouped by category, with a missing category shown as Uncategorized
 - cash flow over time, grouped by day or month
 
-Those totals are not converted between currencies. The Analysis screen labels them EUR. Scheduled salary and recurring expenses are out of this view. Past spending is not used to predict the future.
+Those totals are grouped by account currency without FX conversion or a combined household total. The Analysis screen shows one block per currency. Scheduled salary and recurring expenses are out of this view. Past spending is not used to predict the future.
 
 ### Future scheduled cash-flow projection
 

@@ -29,11 +29,11 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 
 **Recurring expenses.** Create, read, and update fixed scheduled commitments on an account, with the same frequency, start date, occurrence, and active-flag shape, plus a description and optional category. Each schedule has one fixed amount. The same Schedules screen maintains these records and supports execution for active rows.
 
-**Analysis.** Read-only historical queries over every account’s transactions for a date range that cannot end in the future. Amounts are not converted between currencies. The Analysis screen labels them EUR. The API response has no currency field.
+**Analysis.** Read-only historical queries over every account’s transactions for a date range that cannot end in the future. Amounts are grouped by the transaction account’s currency; there is no FX conversion and no household total across currencies. The Analysis screen renders one block per currency returned by the API.
 
-- income, expenses, and net cash flow
-- expenses grouped by category, including each category’s share of the total. A missing category is reported as Uncategorized
-- cash flow grouped by day or month. The Analysis screen defaults to month
+- `/analysis/summary` and `/financial-summary`: `by_currency[]` with income, expenses, and net cash flow per code
+- `/analysis/expenses`: `currencies[]` with category breakdowns; each category’s percentage is its share of **that currency’s** expenses. A missing category is reported as Uncategorized
+- `/analysis/cash-flow`: `currencies[]` with day or month periods per currency. The Analysis screen defaults to month
 
 **Forecast.** Read-only projection for a date range, grouped by day or month. The Forecast screen defaults to month and offers “All accounts” or a single account. `GET /forecast` returns `projections[]`: each item has `currency`, `starting_balance`, and `periods`. Household scope returns one projection per account currency (sorted by currency code), never combining unlike currencies. Account scope (`account_id`) returns one projection for that account. Dates are generated from `next_occurrence` through an optional inclusive end date. Dates before today are omitted. There is no FX conversion. Forecast does not write balances.
 

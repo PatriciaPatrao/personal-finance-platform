@@ -908,6 +908,119 @@ def test_analysis_summary_multi_currency(
     assert Decimal(usd["net_cash_flow"]) == Decimal("100.00")
 
 
+def test_analysis_multi_currency_expenses_and_cash_flow(
+    client: TestClient,
+    today: date,
+) -> None:
+    """Expenses and cash-flow keep EUR and USD separate with correct maths."""
+    eur_account = client.post(
+        "/accounts",
+        json={
+            "name": "EUR Audit",
+            "account_type": "bank",
+            "currency": "EUR",
+        },
+    ).json()["id"]
+    usd_account = client.post(
+        "/accounts",
+        json={
+            "name": "USD Audit",
+            "account_type": "bank",
+            "currency": "USD",
+        },
+    ).json()["id"]
+    day_one = today - timedelta(days=2)
+    day_two = today - timedelta(days=1)
+    from_date = day_one
+    to_date = today
+
+    _create_transaction(
+        client,
+        eur_account,
+        amount=300.00,
+        transaction_type="income",
+        occurred_on=_iso(day_one),
+    )
+    _create_transaction(
+        client,
+        eur_account,
+        amount=80.00,
+        transaction_type="expense",
+        occurred_on=_iso(day_two),
+        category="Food",
+    )
+    _create_transaction(
+        client,
+        eur_account,
+        amount=20.00,
+        transaction_type="expense",
+        occurred_on=_iso(to_date),
+        category="Housing",
+    )
+    _create_transaction(
+        client,
+        usd_account,
+        amount=50.00,
+        transaction_type="expense",
+        occurred_on=_iso(to_date),
+        category="Transport",
+    )
+
+    summary = client.get(
+        "/analysis/summary",
+        params={"from": _iso(from_date), "to": _iso(to_date)},
+    ).json()
+    eur_summary = _summary_block(summary, "EUR")
+    usd_summary = _summary_block(summary, "USD")
+    assert Decimal(eur_summary["total_income"]) == Decimal("300.00")
+    assert Decimal(eur_summary["total_expenses"]) == Decimal("100.00")
+    assert Decimal(eur_summary["net_cash_flow"]) == Decimal("200.00")
+    assert Decimal(usd_summary["total_income"]) == Decimal("0.00")
+    assert Decimal(usd_summary["total_expenses"]) == Decimal("50.00")
+    assert Decimal(usd_summary["net_cash_flow"]) == Decimal("-50.00")
+
+    expenses = client.get(
+        "/analysis/expenses",
+        params={"from": _iso(from_date), "to": _iso(to_date)},
+    ).json()
+    eur_expenses = _expenses_block(expenses, "EUR")
+    usd_expenses = _expenses_block(expenses, "USD")
+    assert Decimal(eur_expenses["total_expenses"]) == Decimal("100.00")
+    assert [c["category"] for c in eur_expenses["categories"]] == [
+        "Food",
+        "Housing",
+    ]
+    assert Decimal(eur_expenses["categories"][0]["amount"]) == Decimal(
+        "80.00",
+    )
+    assert Decimal(eur_expenses["categories"][0]["percentage"]) == Decimal(
+        "80.00",
+    )
+    assert Decimal(eur_expenses["categories"][1]["percentage"]) == Decimal(
+        "20.00",
+    )
+    assert Decimal(usd_expenses["total_expenses"]) == Decimal("50.00")
+    assert usd_expenses["categories"][0]["category"] == "Transport"
+    assert Decimal(usd_expenses["categories"][0]["percentage"]) == Decimal(
+        "100.00",
+    )
+
+    cash_flow = client.get(
+        "/analysis/cash-flow",
+        params={
+            "from": _iso(from_date),
+            "to": _iso(to_date),
+            "group_by": "day",
+        },
+    ).json()
+    eur_day_one = _period(cash_flow, _iso(day_one), "EUR")
+    eur_day_two = _period(cash_flow, _iso(day_two), "EUR")
+    usd_today = _period(cash_flow, _iso(to_date), "USD")
+    assert Decimal(eur_day_one["net_cash_flow"]) == Decimal("300.00")
+    assert Decimal(eur_day_two["net_cash_flow"]) == Decimal("-80.00")
+    assert Decimal(usd_today["net_cash_flow"]) == Decimal("-50.00")
+
+
 def test_analysis_cash_flow_rejects_from_after_to(
     client: TestClient,
     today: date,
