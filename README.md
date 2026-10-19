@@ -182,7 +182,9 @@ Start the API with `uvicorn app.main:app` (or your process manager) after migrat
 
 ### Frontend
 
-Production builds inject the public API base URL at compile time. **`npm run build` fails** if `NG_APP_API_BASE_URL` is missing or still a documentation placeholder.
+Use **`npm run build`** as the supported production build command. It runs `frontend/scripts/build-production.mjs`, which validates `NG_APP_API_BASE_URL` and then invokes `ng build` with that value injected at compile time. **`npm run build` fails** if `NG_APP_API_BASE_URL` is missing or still a documentation placeholder.
+
+Do **not** use `npx ng build` (or `ng build` alone) as a substitute: the Angular CLI does not run the project validation script, so a direct CLI build can bypass the required URL check and is not the documented production procedure.
 
 PowerShell:
 

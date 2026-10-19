@@ -192,7 +192,7 @@ Relevant decisions that the current API implements:
 - **Historical Analysis cannot use a future end date.** Analysis query schemas reject `to` after today. `to` equal to today is allowed.
 - **Forecast includes empty periods.** For `group_by=day` or `month`, the response includes every period in the range, with zeros when nothing is scheduled. Analysis cash-flow does the same for historical buckets. `group_by` is required on both cash-flow and forecast requests.
 - **No persistence for calculated Forecast data.** Periods, projected balances, and generated occurrence dates are response-only.
-- **CORS from the Angular origin.** The API allows `GET`, `POST`, `PUT`, `DELETE`, and `OPTIONS` from `http://localhost:4200`. Other origins are rejected.
+- **CORS from configured browser origins.** Allowed origins come from `CORS_ORIGINS` (comma-separated). In development, when unset, the API defaults to `http://localhost:4200`. When `APP_ENV=production`, explicit origins are required at startup; wildcard `*` is rejected. Methods: `GET`, `POST`, `PUT`, `DELETE`, and `OPTIONS`. Unlisted origins are rejected.
 
 `GET /financial-summary` shares the transaction-total calculation with analysis summary but only validates `from <= to`. It does **not** apply the historical `to` constraint.
 
@@ -222,11 +222,11 @@ Infrastructure that exists:
 
 - PostgreSQL, accessed with SQLAlchemy 2 and psycopg2
 - Alembic (`backend/alembic`), with `ALEMBIC_SCHEMA` (default `public`) for the version table and `search_path`
-- Pydantic settings: `DATABASE_URL` from `backend/.env`
+- Pydantic settings: `DATABASE_URL`, `APP_ENV`, and `CORS_ORIGINS` from `backend/.env` (see `backend/.env.example`)
 - Uvicorn as the process that serves FastAPI
-- CORS for `http://localhost:4200` with `GET`, `POST`, `PUT`, `DELETE`, and `OPTIONS`
+- CORS: configurable origins via `CORS_ORIGINS`; development defaults to `http://localhost:4200` when unset; production requires explicit origins; methods `GET`, `POST`, `PUT`, `DELETE`, and `OPTIONS`
 - Process liveness: `GET /` and `GET /health`
-- Angular development API base `http://127.0.0.1:8000`; production environment file still holds a placeholder URL
+- Angular development API base `http://127.0.0.1:8000`; production API URL supplied at build time through `NG_APP_API_BASE_URL` and `npm run build` (see README)
 
 The following are **not** implemented: Redis, message queues, background workers, Kubernetes (or other cluster orchestration), metrics/tracing platforms, and authentication infrastructure.
 
