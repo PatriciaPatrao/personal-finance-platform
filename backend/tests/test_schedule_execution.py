@@ -1,11 +1,229 @@
 """Schedule occurrence execution API tests."""
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import date
 from datetime import timedelta
 from decimal import Decimal
+import threading
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import func
+from sqlalchemy import select
+from app.models.account import Account
+from app.models.schedule_execution import ScheduleExecution
+from app.models.schedule_execution import ScheduleSourceType
+from app.models.transaction import Transaction
+from app.repositories.schedule_execution import ScheduleExecutionRepository
+from app.services.schedule_execution import ScheduleExecutionResult
+from app.services.schedule_execution import ScheduleExecutionService
+from tests.conftest import SessionLocal
+
+
+class _InitialAbsenceSynchroniser:
+    """Barrier the first N absence checks across concurrent workers."""
+
+    def __init__(
+        self,
+        parties: int = 2,
+        timeout: float = 15.0,
+    ) -> None:
+        self._barrier = threading.Barrier(parties)
+        self._lock = threading.Lock()
+        self._absence_checks = 0
+        self._parties = parties
+        self._timeout = timeout
+
+    @contextmanager
+    def patch(self) -> Iterator[None]:
+        """Wrap occurrence lookup so concurrent absence checks align."""
+        original = ScheduleExecutionRepository.get_by_occurrence
+
+        def wrapped(
+            repo: ScheduleExecutionRepository,
+            source_type: ScheduleSourceType,
+            source_id: int,
+            occurrence_date: date,
+        ) -> ScheduleExecution | None:
+            result = original(
+                repo,
+                source_type,
+                source_id,
+                occurrence_date,
+            )
+            if result is not None:
+                return result
+            with self._lock:
+                self._absence_checks += 1
+                synchronise = self._absence_checks <= self._parties
+            if synchronise:
+                self._barrier.wait(timeout=self._timeout)
+            return result
+
+        with patch.object(
+            ScheduleExecutionRepository,
+            "get_by_occurrence",
+            wrapped,
+        ):
+            yield
+
+
+def _account_balance(account_id: int) -> Decimal:
+    """Read stored balance from a fresh session."""
+    session = SessionLocal()
+    try:
+        account = session.get(Account, account_id)
+        assert account is not None
+        return account.current_balance
+    finally:
+        session.close()
+
+
+def _execution_count_for_occurrence(
+    source_type: ScheduleSourceType,
+    source_id: int,
+    occurrence_date: date,
+) -> int:
+    """Count persisted executions for one occurrence identity."""
+    session = SessionLocal()
+    try:
+        statement = (
+            select(func.count())
+            .select_from(ScheduleExecution)
+            .where(
+                ScheduleExecution.source_type == source_type,
+                ScheduleExecution.source_id == source_id,
+                ScheduleExecution.occurrence_date == occurrence_date,
+            )
+        )
+        return int(session.scalar(statement) or 0)
+    finally:
+        session.close()
+
+
+def _transaction_count() -> int:
+    """Count all persisted transactions."""
+    session = SessionLocal()
+    try:
+        statement = select(func.count()).select_from(Transaction)
+        return int(session.scalar(statement) or 0)
+    finally:
+        session.close()
+
+
+def _assert_same_occurrence_race_outcome(
+    results: list[ScheduleExecutionResult],
+    errors: list[BaseException],
+    *,
+    account_id: int,
+    starting_balance: Decimal,
+    expected_delta: Decimal,
+    source_type: ScheduleSourceType,
+    source_id: int,
+    occurrence_date: date,
+) -> None:
+    """Assert one committed execution and matching service outcomes."""
+    assert errors == []
+    assert len(results) == 2
+    assert sorted(result.created for result in results) == [
+        False,
+        True,
+    ]
+    first, second = results
+    assert first.execution.id == second.execution.id
+    assert first.transaction.id == second.transaction.id
+    assert (
+        _execution_count_for_occurrence(
+            source_type,
+            source_id,
+            occurrence_date,
+        )
+        == 1
+    )
+    assert _transaction_count() == 1
+    assert _account_balance(account_id) == starting_balance + expected_delta
+
+    session = SessionLocal()
+    try:
+        execution = session.scalars(
+            select(ScheduleExecution).where(
+                ScheduleExecution.source_type == source_type,
+                ScheduleExecution.source_id == source_id,
+                ScheduleExecution.occurrence_date == occurrence_date,
+            ),
+        ).one()
+        assert execution.transaction_id == first.transaction.id
+        transaction = session.get(
+            Transaction,
+            execution.transaction_id,
+        )
+        assert transaction is not None
+        assert transaction.account_id == account_id
+    finally:
+        session.close()
+
+
+def _run_income_execute_worker(
+    income_id: int,
+    occurrence_date: date,
+    synchroniser: _InitialAbsenceSynchroniser,
+    results: list[ScheduleExecutionResult],
+    errors: list[BaseException],
+) -> None:
+    session = SessionLocal()
+    try:
+        with synchroniser.patch():
+            service = ScheduleExecutionService(session)
+            results.append(
+                service.execute_income(
+                    income_id,
+                    occurrence_date,
+                    domain_date=occurrence_date,
+                ),
+            )
+    except BaseException as error:
+        errors.append(error)
+    finally:
+        session.close()
+
+
+def _run_expense_execute_worker(
+    expense_id: int,
+    occurrence_date: date,
+    synchroniser: _InitialAbsenceSynchroniser,
+    results: list[ScheduleExecutionResult],
+    errors: list[BaseException],
+) -> None:
+    session = SessionLocal()
+    try:
+        with synchroniser.patch():
+            service = ScheduleExecutionService(session)
+            results.append(
+                service.execute_recurring_expense(
+                    expense_id,
+                    occurrence_date,
+                    domain_date=occurrence_date,
+                ),
+            )
+    except BaseException as error:
+        errors.append(error)
+    finally:
+        session.close()
+
+
+def _start_join_workers(
+    workers: list[threading.Thread],
+    timeout: float = 30.0,
+) -> None:
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join(timeout=timeout)
+        assert not worker.is_alive(), (
+            "Worker did not finish within the timeout"
+        )
 
 
 @pytest.fixture
@@ -270,3 +488,177 @@ def test_execution_linked_transaction_cannot_be_updated(
         },
     )
     assert updated.status_code == 409
+
+
+def test_concurrent_income_execution_same_occurrence(
+    client: TestClient,
+    today: date,
+) -> None:
+    """Concurrent income executes persist one row and one balance delta."""
+    account = _create_account(client, balance=1000.0)
+    income = _create_income(
+        client,
+        account["id"],
+        amount=150.0,
+        next_occurrence=today,
+    )
+    synchroniser = _InitialAbsenceSynchroniser()
+    results: list[ScheduleExecutionResult] = []
+    errors: list[BaseException] = []
+    workers = [
+        threading.Thread(
+            target=_run_income_execute_worker,
+            args=(
+                income["id"],
+                today,
+                synchroniser,
+                results,
+                errors,
+            ),
+        ),
+        threading.Thread(
+            target=_run_income_execute_worker,
+            args=(
+                income["id"],
+                today,
+                synchroniser,
+                results,
+                errors,
+            ),
+        ),
+    ]
+    _start_join_workers(workers)
+    _assert_same_occurrence_race_outcome(
+        results,
+        errors,
+        account_id=account["id"],
+        starting_balance=Decimal("1000.00"),
+        expected_delta=Decimal("150.00"),
+        source_type=ScheduleSourceType.INCOME,
+        source_id=income["id"],
+        occurrence_date=today,
+    )
+
+
+def test_concurrent_expense_execution_same_occurrence(
+    client: TestClient,
+    today: date,
+) -> None:
+    """Concurrent expense executes persist one row and one balance delta."""
+    account = _create_account(client, balance=800.0)
+    expense = _create_expense(
+        client,
+        account["id"],
+        amount=40.0,
+        next_occurrence=today,
+    )
+    synchroniser = _InitialAbsenceSynchroniser()
+    results: list[ScheduleExecutionResult] = []
+    errors: list[BaseException] = []
+    workers = [
+        threading.Thread(
+            target=_run_expense_execute_worker,
+            args=(
+                expense["id"],
+                today,
+                synchroniser,
+                results,
+                errors,
+            ),
+        ),
+        threading.Thread(
+            target=_run_expense_execute_worker,
+            args=(
+                expense["id"],
+                today,
+                synchroniser,
+                results,
+                errors,
+            ),
+        ),
+    ]
+    _start_join_workers(workers)
+    _assert_same_occurrence_race_outcome(
+        results,
+        errors,
+        account_id=account["id"],
+        starting_balance=Decimal("800.00"),
+        expected_delta=Decimal("-40.00"),
+        source_type=ScheduleSourceType.RECURRING_EXPENSE,
+        source_id=expense["id"],
+        occurrence_date=today,
+    )
+
+
+def test_concurrent_distinct_occurrences_same_account(
+    client: TestClient,
+    today: date,
+) -> None:
+    """Two schedules on one account may execute concurrently."""
+    account = _create_account(client, balance=1000.0)
+    first_income = _create_income(
+        client,
+        account["id"],
+        amount=100.0,
+        next_occurrence=today,
+    )
+    second_income = _create_income(
+        client,
+        account["id"],
+        amount=250.0,
+        next_occurrence=today,
+    )
+    results: list[ScheduleExecutionResult] = []
+    errors: list[BaseException] = []
+
+    def run_one(income_id: int) -> None:
+        session = SessionLocal()
+        try:
+            service = ScheduleExecutionService(session)
+            results.append(
+                service.execute_income(
+                    income_id,
+                    today,
+                    domain_date=today,
+                ),
+            )
+        except BaseException as error:
+            errors.append(error)
+        finally:
+            session.close()
+
+    workers = [
+        threading.Thread(
+            target=run_one,
+            args=(first_income["id"],),
+        ),
+        threading.Thread(
+            target=run_one,
+            args=(second_income["id"],),
+        ),
+    ]
+    _start_join_workers(workers)
+
+    assert errors == []
+    assert len(results) == 2
+    assert all(result.created for result in results)
+    assert results[0].execution.id != results[1].execution.id
+    assert results[0].transaction.id != results[1].transaction.id
+    assert _transaction_count() == 2
+    assert (
+        _execution_count_for_occurrence(
+            ScheduleSourceType.INCOME,
+            first_income["id"],
+            today,
+        )
+        == 1
+    )
+    assert (
+        _execution_count_for_occurrence(
+            ScheduleSourceType.INCOME,
+            second_income["id"],
+            today,
+        )
+        == 1
+    )
+    assert _account_balance(account["id"]) == Decimal("1350.00")
