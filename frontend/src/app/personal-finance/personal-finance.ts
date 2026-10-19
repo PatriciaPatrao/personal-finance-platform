@@ -232,7 +232,12 @@ export class PersonalFinance implements OnInit {
       return null;
     }
 
-    return Math.round(ratio * 100);
+    const percent = Math.round(ratio * 100);
+    if (!Number.isFinite(percent)) {
+      return null;
+    }
+
+    return Math.max(0, Math.min(100, percent));
   }
 
   goalRemainingAmount(goal: FinancialGoal): string | null {

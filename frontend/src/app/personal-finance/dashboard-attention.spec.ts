@@ -72,4 +72,25 @@ describe('dashboard-attention', () => {
 
     expect(goalRemainingAmount(goal)).toBe('600.00');
   });
+
+  it('should not flag a goal that has reached its target progress', () => {
+    const goal: FinancialGoal = {
+      id: 3,
+      name: 'Complete',
+      target_amount: '500.00',
+      currency: 'EUR',
+      target_date: null,
+      created_at: '2026-01-01T00:00:00',
+      allocations: [],
+      current_amount: '500.00',
+      progress: '1',
+      completed: true,
+    };
+
+    const items = buildDashboardAttentionItems([], [goal], () => 'Account');
+    expect(items.some((item) => item.id.startsWith('goal-below-target'))).toBe(
+      false,
+    );
+    expect(goalRemainingAmount(goal)).toBeNull();
+  });
 });

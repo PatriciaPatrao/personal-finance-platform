@@ -323,6 +323,23 @@ describe('PersonalFinance', () => {
     expect(text).toContain('Record transaction');
   });
 
+  it('should hide the primary action when transaction loading fails', async () => {
+    listTransactions.mockReturnValue(
+      throwError(() => new Error('network error')),
+    );
+
+    const fixture = TestBed.createComponent(PersonalFinance);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.primary-action')).toBeNull();
+    expect(compiled.textContent).not.toContain(
+      'Record your first income or expense',
+    );
+  });
+
   it('should show negative balance attention items', async () => {
     listAccounts.mockReturnValue(
       of([
