@@ -27,11 +27,18 @@ class FinancialSummaryQuery(BaseModel):
         return self
 
 
-class FinancialSummaryResponse(BaseModel):
-    """Aggregated financial totals for a date range."""
+class CurrencyFinancialTotals(BaseModel):
+    """Income, expenses, and net cash flow for one currency."""
 
-    from_date: date
-    to_date: date
+    currency: str = Field(min_length=3, max_length=3)
     total_income: Decimal = Field(ge=0, decimal_places=2)
     total_expenses: Decimal = Field(ge=0, decimal_places=2)
     net_cash_flow: Decimal = Field(decimal_places=2)
+
+
+class FinancialSummaryResponse(BaseModel):
+    """Aggregated financial totals for a date range, grouped by currency."""
+
+    from_date: date
+    to_date: date
+    by_currency: list[CurrencyFinancialTotals]

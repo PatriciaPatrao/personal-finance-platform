@@ -10,6 +10,8 @@ from app.repositories.analysis import AnalysisRepository
 from app.schemas.analysis import AnalysisGroupBy
 from app.schemas.analysis import CashFlowPeriod
 from app.schemas.analysis import CashFlowResponse
+from app.schemas.analysis import CurrencyCashFlow
+from app.schemas.analysis import CurrencyExpensesByCategory
 from app.schemas.analysis import ExpenseCategoryBreakdown
 from app.schemas.analysis import ExpensesByCategoryResponse
 from app.schemas.financial_summary import FinancialSummaryResponse
@@ -83,43 +85,55 @@ class AnalysisService:
         from_date: date,
         to_date: date,
     ) -> ExpensesByCategoryResponse:
-        """Return expense totals grouped by category."""
+        """Return expense totals grouped by currency and category."""
         rows = self._repository.get_expenses_by_category(
             from_date=from_date,
             to_date=to_date,
         )
-        total_expenses = _as_money(
-            sum((amount for _, amount in rows), _ZERO),
+        by_currency: dict[str, list[tuple[str | None, Decimal]]] = (
+            defaultdict(list)
         )
-        if total_expenses == _ZERO:
-            return ExpensesByCategoryResponse(
-                from_date=from_date,
-                to_date=to_date,
-                total_expenses=_ZERO,
-                categories=[],
+        for currency, category, amount in rows:
+            by_currency[currency].append((category, amount))
+
+        currencies: list[CurrencyExpensesByCategory] = []
+        for currency in sorted(by_currency):
+            category_rows = by_currency[currency]
+            total_expenses = _as_money(
+                sum((amount for _, amount in category_rows), _ZERO),
             )
-        categories = [
-            ExpenseCategoryBreakdown(
-                category=(
-                    category
-                    if category is not None
-                    else _UNCATEGORIZED
-                ),
-                amount=amount,
-                percentage=_as_money(
-                    amount / total_expenses * 100,
+            if total_expenses == _ZERO:
+                categories: list[ExpenseCategoryBreakdown] = []
+            else:
+                categories = [
+                    ExpenseCategoryBreakdown(
+                        category=(
+                            category
+                            if category is not None
+                            else _UNCATEGORIZED
+                        ),
+                        amount=amount,
+                        percentage=_as_money(
+                            amount / total_expenses * 100,
+                        ),
+                    )
+                    for category, amount in category_rows
+                ]
+                categories.sort(
+                    key=lambda item: (-item.amount, item.category),
+                )
+            currencies.append(
+                CurrencyExpensesByCategory(
+                    currency=currency,
+                    total_expenses=total_expenses,
+                    categories=categories,
                 ),
             )
-            for category, amount in rows
-        ]
-        categories.sort(
-            key=lambda item: (-item.amount, item.category),
-        )
+
         return ExpensesByCategoryResponse(
             from_date=from_date,
             to_date=to_date,
-            total_expenses=total_expenses,
-            categories=categories,
+            currencies=currencies,
         )
 
     def get_cash_flow(
@@ -128,25 +142,26 @@ class AnalysisService:
         to_date: date,
         group_by: AnalysisGroupBy,
     ) -> CashFlowResponse:
-        """Return income, expenses, and net cash flow by period."""
+        """Return income, expenses, and net cash flow by period and currency."""
         daily_totals = self._repository.get_daily_totals(
             from_date=from_date,
             to_date=to_date,
         )
-        income_by_period: dict[str, Decimal] = defaultdict(
-            lambda: _ZERO,
+        income_by_currency: dict[str, dict[str, Decimal]] = defaultdict(
+            lambda: defaultdict(lambda: _ZERO),
         )
-        expense_by_period: dict[str, Decimal] = defaultdict(
-            lambda: _ZERO,
+        expense_by_currency: dict[str, dict[str, Decimal]] = defaultdict(
+            lambda: defaultdict(lambda: _ZERO),
         )
-        for occurred_on, income, expenses in daily_totals:
+        for occurred_on, currency, income, expenses in daily_totals:
             key = _period_key(occurred_on, group_by)
-            income_by_period[key] = (
-                income_by_period[key] + income
+            income_by_currency[currency][key] = (
+                income_by_currency[currency][key] + income
             )
-            expense_by_period[key] = (
-                expense_by_period[key] + expenses
+            expense_by_currency[currency][key] = (
+                expense_by_currency[currency][key] + expenses
             )
+
         if group_by == AnalysisGroupBy.DAY:
             period_labels = _daily_periods(from_date, to_date)
         else:
@@ -154,21 +169,35 @@ class AnalysisService:
                 from_date,
                 to_date,
             )
-        periods = [
-            CashFlowPeriod(
-                period=label,
-                income=_as_money(income_by_period[label]),
-                expenses=_as_money(expense_by_period[label]),
-                net_cash_flow=_as_money(
-                    income_by_period[label]
-                    - expense_by_period[label],
+
+        currency_blocks: list[CurrencyCashFlow] = []
+        for currency in sorted(income_by_currency):
+            periods = [
+                CashFlowPeriod(
+                    period=label,
+                    income=_as_money(
+                        income_by_currency[currency][label],
+                    ),
+                    expenses=_as_money(
+                        expense_by_currency[currency][label],
+                    ),
+                    net_cash_flow=_as_money(
+                        income_by_currency[currency][label]
+                        - expense_by_currency[currency][label],
+                    ),
+                )
+                for label in period_labels
+            ]
+            currency_blocks.append(
+                CurrencyCashFlow(
+                    currency=currency,
+                    periods=periods,
                 ),
             )
-            for label in period_labels
-        ]
+
         return CashFlowResponse(
             from_date=from_date,
             to_date=to_date,
             group_by=group_by,
-            periods=periods,
+            currencies=currency_blocks,
         )

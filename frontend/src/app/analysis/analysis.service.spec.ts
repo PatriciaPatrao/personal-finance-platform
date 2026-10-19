@@ -36,9 +36,14 @@ describe('AnalysisService', () => {
     const expected: AnalysisSummary = {
       from_date: '2026-09-01',
       to_date: '2026-09-30',
-      total_income: '2000.00',
-      total_expenses: '1350.00',
-      net_cash_flow: '650.00',
+      by_currency: [
+        {
+          currency: 'EUR',
+          total_income: '2000.00',
+          total_expenses: '1350.00',
+          net_cash_flow: '650.00',
+        },
+      ],
     };
 
     let actual: AnalysisSummary | undefined;
@@ -57,26 +62,31 @@ describe('AnalysisService', () => {
     request.flush(expected);
 
     expect(actual).toEqual(expected);
-    expect(actual?.total_income).toBe('2000.00');
-    expect(actual?.total_expenses).toBe('1350.00');
-    expect(actual?.net_cash_flow).toBe('650.00');
+    expect(actual?.by_currency[0].total_income).toBe('2000.00');
+    expect(actual?.by_currency[0].total_expenses).toBe('1350.00');
+    expect(actual?.by_currency[0].net_cash_flow).toBe('650.00');
   });
 
   it('should request expenses by category for a date range', () => {
     const expected: ExpensesByCategory = {
       from_date: '2026-09-01',
       to_date: '2026-09-30',
-      total_expenses: '1350.00',
-      categories: [
+      currencies: [
         {
-          category: 'Housing',
-          amount: '800.00',
-          percentage: '59.26',
-        },
-        {
-          category: 'Food',
-          amount: '350.00',
-          percentage: '25.93',
+          currency: 'EUR',
+          total_expenses: '1350.00',
+          categories: [
+            {
+              category: 'Housing',
+              amount: '800.00',
+              percentage: '59.26',
+            },
+            {
+              category: 'Food',
+              amount: '350.00',
+              percentage: '25.93',
+            },
+          ],
         },
       ],
     };
@@ -99,8 +109,8 @@ describe('AnalysisService', () => {
     request.flush(expected);
 
     expect(actual).toEqual(expected);
-    expect(actual?.categories[0].amount).toBe('800.00');
-    expect(actual?.categories[0].percentage).toBe('59.26');
+    expect(actual?.currencies[0].categories[0].amount).toBe('800.00');
+    expect(actual?.currencies[0].categories[0].percentage).toBe('59.26');
   });
 
   it('should request cash flow for a date range and grouping', () => {
@@ -108,12 +118,17 @@ describe('AnalysisService', () => {
       from_date: '2026-07-01',
       to_date: '2026-09-30',
       group_by: 'month',
-      periods: [
+      currencies: [
         {
-          period: '2026-07',
-          income: '2000.00',
-          expenses: '1400.00',
-          net_cash_flow: '600.00',
+          currency: 'EUR',
+          periods: [
+            {
+              period: '2026-07',
+              income: '2000.00',
+              expenses: '1400.00',
+              net_cash_flow: '600.00',
+            },
+          ],
         },
       ],
     };
@@ -139,7 +154,7 @@ describe('AnalysisService', () => {
     request.flush(expected);
 
     expect(actual).toEqual(expected);
-    expect(actual?.periods[0].income).toBe('2000.00');
-    expect(actual?.periods[0].net_cash_flow).toBe('600.00');
+    expect(actual?.currencies[0].periods[0].income).toBe('2000.00');
+    expect(actual?.currencies[0].periods[0].net_cash_flow).toBe('600.00');
   });
 });

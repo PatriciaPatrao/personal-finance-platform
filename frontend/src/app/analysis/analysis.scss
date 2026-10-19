@@ -175,6 +175,19 @@
   color: #555;
 }
 
+.currency-block + .currency-block {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e8e8e8;
+}
+
+.currency-heading {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 @media (max-width: 720px) {
   .metric-grid {
     grid-template-columns: 1fr;

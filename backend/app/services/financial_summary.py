@@ -1,12 +1,17 @@
 """Application logic for financial summaries."""
 
 from datetime import date
+from decimal import Decimal
 
 from app.db.session import Session
 from app.repositories.financial_summary import (
     FinancialSummaryRepository,
 )
+from app.schemas.financial_summary import CurrencyFinancialTotals
 from app.schemas.financial_summary import FinancialSummaryResponse
+
+
+_ZERO = Decimal("0.00")
 
 
 class FinancialSummaryService:
@@ -21,16 +26,22 @@ class FinancialSummaryService:
         from_date: date,
         to_date: date,
     ) -> FinancialSummaryResponse:
-        """Return income, expenses, and net cash flow for a period."""
-        total_income, total_expenses = self._repository.get_totals(
+        """Return income, expenses, and net cash flow per currency."""
+        rows = self._repository.get_totals_by_currency(
             from_date=from_date,
             to_date=to_date,
         )
-        net_cash_flow = total_income - total_expenses
+        by_currency = [
+            CurrencyFinancialTotals(
+                currency=currency,
+                total_income=total_income,
+                total_expenses=total_expenses,
+                net_cash_flow=total_income - total_expenses,
+            )
+            for currency, total_income, total_expenses in rows
+        ]
         return FinancialSummaryResponse(
             from_date=from_date,
             to_date=to_date,
-            total_income=total_income,
-            total_expenses=total_expenses,
-            net_cash_flow=net_cash_flow,
+            by_currency=by_currency,
         )

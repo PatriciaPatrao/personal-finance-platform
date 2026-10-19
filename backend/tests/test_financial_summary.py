@@ -20,6 +20,13 @@ def account_id(client: TestClient) -> int:
     return response.json()["id"]
 
 
+def _summary_block(body: dict, currency: str = "EUR") -> dict:
+    """Return totals for one currency from a financial summary response."""
+    return next(
+        item for item in body["by_currency"] if item["currency"] == currency
+    )
+
+
 def _create_transaction(
     client: TestClient,
     account_id: int,
@@ -77,9 +84,10 @@ def test_financial_summary_sums_income_and_expenses(
     body = response.json()
     assert body["from_date"] == "2026-10-01"
     assert body["to_date"] == "2026-10-31"
-    assert Decimal(body["total_income"]) == Decimal("3000.00")
-    assert Decimal(body["total_expenses"]) == Decimal("1250.50")
-    assert Decimal(body["net_cash_flow"]) == Decimal("1749.50")
+    totals = _summary_block(body)
+    assert Decimal(totals["total_income"]) == Decimal("3000.00")
+    assert Decimal(totals["total_expenses"]) == Decimal("1250.50")
+    assert Decimal(totals["net_cash_flow"]) == Decimal("1749.50")
 
 
 def test_financial_summary_returns_zeros_for_empty_period(
@@ -95,9 +103,7 @@ def test_financial_summary_returns_zeros_for_empty_period(
     body = response.json()
     assert body["from_date"] == "2026-10-01"
     assert body["to_date"] == "2026-10-31"
-    assert Decimal(body["total_income"]) == Decimal("0.00")
-    assert Decimal(body["total_expenses"]) == Decimal("0.00")
-    assert Decimal(body["net_cash_flow"]) == Decimal("0.00")
+    assert body["by_currency"] == []
 
 
 def test_financial_summary_excludes_transactions_outside_range(
@@ -134,9 +140,10 @@ def test_financial_summary_excludes_transactions_outside_range(
 
     assert response.status_code == 200
     body = response.json()
-    assert Decimal(body["total_income"]) == Decimal("100.00")
-    assert Decimal(body["total_expenses"]) == Decimal("0.00")
-    assert Decimal(body["net_cash_flow"]) == Decimal("100.00")
+    totals = _summary_block(body)
+    assert Decimal(totals["total_income"]) == Decimal("100.00")
+    assert Decimal(totals["total_expenses"]) == Decimal("0.00")
+    assert Decimal(totals["net_cash_flow"]) == Decimal("100.00")
 
 
 def test_financial_summary_includes_boundary_dates(
@@ -166,9 +173,10 @@ def test_financial_summary_includes_boundary_dates(
 
     assert response.status_code == 200
     body = response.json()
-    assert Decimal(body["total_income"]) == Decimal("100.00")
-    assert Decimal(body["total_expenses"]) == Decimal("40.00")
-    assert Decimal(body["net_cash_flow"]) == Decimal("60.00")
+    totals = _summary_block(body)
+    assert Decimal(totals["total_income"]) == Decimal("100.00")
+    assert Decimal(totals["total_expenses"]) == Decimal("40.00")
+    assert Decimal(totals["net_cash_flow"]) == Decimal("60.00")
 
 
 def test_financial_summary_rejects_from_after_to(
@@ -181,6 +189,69 @@ def test_financial_summary_rejects_from_after_to(
     )
 
     assert response.status_code == 422
+
+
+def test_financial_summary_groups_by_currency(
+    client: TestClient,
+) -> None:
+    """GET /financial-summary keeps EUR and USD totals separate."""
+    eur_account = client.post(
+        "/accounts",
+        json={
+            "name": "EUR Account",
+            "account_type": "bank",
+            "currency": "EUR",
+        },
+    ).json()["id"]
+    usd_account = client.post(
+        "/accounts",
+        json={
+            "name": "USD Account",
+            "account_type": "bank",
+            "currency": "USD",
+        },
+    ).json()["id"]
+    _create_transaction(
+        client,
+        eur_account,
+        amount=100.00,
+        transaction_type="income",
+        occurred_on="2026-10-05",
+    )
+    _create_transaction(
+        client,
+        usd_account,
+        amount=50.00,
+        transaction_type="income",
+        occurred_on="2026-10-05",
+    )
+    _create_transaction(
+        client,
+        eur_account,
+        amount=40.00,
+        transaction_type="expense",
+        occurred_on="2026-10-06",
+    )
+
+    response = client.get(
+        "/financial-summary",
+        params={"from": "2026-10-01", "to": "2026-10-31"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["currency"] for item in body["by_currency"]] == [
+        "EUR",
+        "USD",
+    ]
+    eur = _summary_block(body, "EUR")
+    usd = _summary_block(body, "USD")
+    assert Decimal(eur["total_income"]) == Decimal("100.00")
+    assert Decimal(eur["total_expenses"]) == Decimal("40.00")
+    assert Decimal(eur["net_cash_flow"]) == Decimal("60.00")
+    assert Decimal(usd["total_income"]) == Decimal("50.00")
+    assert Decimal(usd["total_expenses"]) == Decimal("0.00")
+    assert Decimal(usd["net_cash_flow"]) == Decimal("50.00")
 
 
 def test_financial_summary_rejects_missing_from(

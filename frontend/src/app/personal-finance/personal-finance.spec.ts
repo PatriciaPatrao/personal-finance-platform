@@ -30,17 +30,27 @@ describe('PersonalFinance', () => {
   const emptyMonthSummary: AnalysisSummary = {
     from_date: '2026-10-01',
     to_date: '2026-10-05',
-    total_income: '0.00',
-    total_expenses: '0.00',
-    net_cash_flow: '0.00',
+    by_currency: [
+      {
+        currency: 'EUR',
+        total_income: '0.00',
+        total_expenses: '0.00',
+        net_cash_flow: '0.00',
+      },
+    ],
   };
 
   const positiveSummary: AnalysisSummary = {
     from_date: '2026-09-01',
     to_date: '2026-09-30',
-    total_income: '2000.00',
-    total_expenses: '1350.00',
-    net_cash_flow: '650.00',
+    by_currency: [
+      {
+        currency: 'EUR',
+        total_income: '2000.00',
+        total_expenses: '1350.00',
+        net_cash_flow: '650.00',
+      },
+    ],
   };
 
   const increasingForecast: ForecastResponse = {

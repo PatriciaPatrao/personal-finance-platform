@@ -68,7 +68,7 @@ It presents one stored total per currency. A household with one currency still s
 
 ### Analysis
 
-Implemented by `Analysis`. It queries `/analysis/summary`, `/analysis/expenses`, and `/analysis/cash-flow` for an explicit date range (UI dates are DD-MM-YYYY). Default range is the current month through today.
+Implemented by `Analysis`. It queries `/analysis/summary`, `/analysis/expenses`, and `/analysis/cash-flow` for an explicit date range (UI dates are DD-MM-YYYY). Default range is the current month through today. Every monetary aggregate is grouped by the **account currency** of each transaction (via `transactions.account_id → accounts.currency`). The UI renders separate EUR, USD, or other blocks; it never converts or sums across currencies.
 
 ### Forecast
 
@@ -141,7 +141,7 @@ Transaction writes validate that the account exists. ADR [005](decisions/005-sch
 
 **Analysis is historical and uses Transactions.**
 
-It reads persisted `transactions` in `[from, to]`, across every account. It reports period income, expenses, net cash flow, expenses by category, and cash flow grouped by day or month. A null expense category is returned as `Uncategorized`, with that category’s share of total expenses. The Analysis screen defaults cash-flow grouping to month and labels amounts EUR. The analysis API does not return a currency and does not convert mixed account currencies. Scheduled income and recurring expenses are out of this path.
+It reads persisted `transactions` in `[from, to]`, across every account. Aggregates join each transaction to its account and group by **currency**. `/analysis/summary` and `/financial-summary` return `by_currency` (income, expenses, net cash flow per code). `/analysis/expenses` returns `currencies[]` with category breakdowns and percentages **within each currency**. `/analysis/cash-flow` returns `currencies[]`, each with day or month periods and net cash flow computed only inside that currency. There is no household total across currencies and no FX conversion. A null expense category is returned as `Uncategorized`. Scheduled income and recurring expenses are out of this path.
 
 **Forecast is future-oriented and uses:**
 
@@ -241,7 +241,7 @@ Occurrence dates for Forecast are computed on request. Explicit user execution (
 These are **future considerations**. They are not current architecture.
 
 - **Account selection.** Analysis aggregates remain household-wide. Forecast supports optional `account_id` on the API and an account filter on the Forecast page. The Dashboard keeps a household-only forecast when every account shares one currency.
-- **Multi-currency.** The Accounts create form offers EUR, USD, and GBP. That is a UI constraint. The API accepts any 3-character code. There is no FX conversion. The Dashboard shows one stored total per currency and does not show Analysis or Forecast signals when those currencies differ. Household Forecast returns one projection per account currency (ADR 002), not a combined cross-currency total. Some Analysis UI labels still show EUR as a display convention; the analysis API does not convert mixed currencies.
+- **Multi-currency.** The Accounts create form offers EUR, USD, and GBP. That is a UI constraint. The API accepts any 3-character code. There is no FX conversion. The Dashboard shows one stored total per currency and does not show Analysis or Forecast signals when those currencies differ. Household Forecast returns one projection per account currency (ADR 002), not a combined cross-currency total. Analysis and `/financial-summary` keep the same per-currency grouping and never add amounts across codes.
 - **Account-type balance rules.** `current_balance` is one signed stored value for every type. Negative amounts are allowed. Bank overdrafts, cash, credit-card debt, and investment valuation are not modeled separately. Forecast’s starting sum assumes they are comparable.
 - **Background jobs.** Not present. Recurring occurrences are expanded when Forecast is requested.
 - **Observability.** Health JSON only. No tracing, metrics, or log platform is wired in.

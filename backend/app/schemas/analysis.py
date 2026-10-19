@@ -46,20 +46,27 @@ class AnalysisCashFlowQuery(AnalysisDateRangeQuery):
 
 
 class ExpenseCategoryBreakdown(BaseModel):
-    """One category amount and its share of total expenses."""
+    """One category amount and its share of that currency's expenses."""
 
     category: str
     amount: Decimal = Field(ge=0, decimal_places=2)
     percentage: Decimal = Field(ge=0, decimal_places=2)
 
 
+class CurrencyExpensesByCategory(BaseModel):
+    """Expense totals grouped by category within one currency."""
+
+    currency: str = Field(min_length=3, max_length=3)
+    total_expenses: Decimal = Field(ge=0, decimal_places=2)
+    categories: list[ExpenseCategoryBreakdown]
+
+
 class ExpensesByCategoryResponse(BaseModel):
-    """Expense totals grouped by category for a date range."""
+    """Expense totals grouped by currency and category for a date range."""
 
     from_date: date
     to_date: date
-    total_expenses: Decimal = Field(ge=0, decimal_places=2)
-    categories: list[ExpenseCategoryBreakdown]
+    currencies: list[CurrencyExpensesByCategory]
 
 
 class CashFlowPeriod(BaseModel):
@@ -71,10 +78,17 @@ class CashFlowPeriod(BaseModel):
     net_cash_flow: Decimal = Field(decimal_places=2)
 
 
+class CurrencyCashFlow(BaseModel):
+    """Historical cash flow for one currency."""
+
+    currency: str = Field(min_length=3, max_length=3)
+    periods: list[CashFlowPeriod]
+
+
 class CashFlowResponse(BaseModel):
-    """Historical cash flow for a date range."""
+    """Historical cash flow for a date range, grouped by currency."""
 
     from_date: date
     to_date: date
     group_by: AnalysisGroupBy
-    periods: list[CashFlowPeriod]
+    currencies: list[CurrencyCashFlow]

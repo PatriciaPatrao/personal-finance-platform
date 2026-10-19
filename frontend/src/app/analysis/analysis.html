@@ -3,6 +3,8 @@
     <h1>Analysis</h1>
     <p class="page-intro">
       Review historical income, expenses, and cash flow for a selected period.
+      Amounts stay separate by account currency; nothing is converted or
+      combined across currencies.
     </p>
   </header>
 
@@ -42,52 +44,75 @@
   @if (!loading && !errorMessage && summary) {
     <section class="panel summary-panel" aria-labelledby="summary-heading">
       <h2 id="summary-heading">Summary</h2>
-      <div class="metric-grid">
-        <article class="metric">
-          <h3>Income</h3>
-          <p class="metric-value">
-            {{ summary.total_income | currency: 'EUR' }}
-          </p>
-        </article>
-        <article class="metric">
-          <h3>Expenses</h3>
-          <p class="metric-value">
-            {{ summary.total_expenses | currency: 'EUR' }}
-          </p>
-        </article>
-        <article class="metric">
-          <h3>Net Cash Flow</h3>
-          <p class="metric-value">
-            {{ summary.net_cash_flow | currency: 'EUR' }}
-          </p>
-        </article>
-      </div>
+
+      @if (summary.by_currency.length === 0) {
+        <p class="empty-state">
+          No recorded income or expenses in this period.
+        </p>
+      } @else {
+        @for (block of summary.by_currency; track block.currency) {
+          <div class="currency-block">
+            <h3 class="currency-heading">{{ block.currency }}</h3>
+            <div class="metric-grid">
+              <article class="metric">
+                <h4>Income</h4>
+                <p class="metric-value">
+                  {{ block.total_income | currency: block.currency }}
+                </p>
+              </article>
+              <article class="metric">
+                <h4>Expenses</h4>
+                <p class="metric-value">
+                  {{ block.total_expenses | currency: block.currency }}
+                </p>
+              </article>
+              <article class="metric">
+                <h4>Net Cash Flow</h4>
+                <p class="metric-value">
+                  {{ block.net_cash_flow | currency: block.currency }}
+                </p>
+              </article>
+            </div>
+          </div>
+        }
+      }
     </section>
 
     <section class="panel" aria-labelledby="expenses-heading">
       <h2 id="expenses-heading">Expenses by Category</h2>
 
-      @if (expenses && expenses.categories.length > 0) {
-        <app-copy-table>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th scope="col">Category</th>
-              <th scope="col">Amount</th>
-              <th scope="col">Share</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (item of expenses.categories; track item.category) {
-              <tr>
-                <td>{{ item.category }}</td>
-                <td>{{ item.amount | currency: 'EUR' }}</td>
-                <td>{{ item.percentage }}%</td>
-              </tr>
+      @if (expenses && expenses.currencies.length > 0) {
+        @for (block of expenses.currencies; track block.currency) {
+          <div class="currency-block">
+            <h3 class="currency-heading">{{ block.currency }}</h3>
+            @if (block.categories.length > 0) {
+              <app-copy-table>
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Category</th>
+                      <th scope="col">Amount ({{ block.currency }})</th>
+                      <th scope="col">Share</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of block.categories; track item.category) {
+                      <tr>
+                        <td>{{ item.category }}</td>
+                        <td>{{ item.amount | currency: block.currency }}</td>
+                        <td>{{ item.percentage }}%</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </app-copy-table>
+            } @else {
+              <p class="empty-state">
+                No expenses recorded in {{ block.currency }} for this period.
+              </p>
             }
-          </tbody>
-        </table>
-        </app-copy-table>
+          </div>
+        }
       } @else {
         <p class="empty-state">No expenses recorded for this period.</p>
       }
@@ -122,32 +147,51 @@
       }
 
       @if (!cashFlowLoading && !cashFlowErrorMessage && cashFlow) {
-        @if (cashFlow.periods.length > 0) {
-          <app-copy-table>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th scope="col">Period</th>
-                <th scope="col">Income</th>
-                <th scope="col">Expenses</th>
-                <th scope="col">Net Cash Flow</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (period of cashFlow.periods; track period.period) {
-                <tr>
-                  <td>{{ period.period }}</td>
-                  <td>{{ period.income | currency: 'EUR' }}</td>
-                  <td>{{ period.expenses | currency: 'EUR' }}</td>
-                  <td>{{ period.net_cash_flow | currency: 'EUR' }}</td>
-                </tr>
+        @if (cashFlow.currencies.length > 0) {
+          @for (block of cashFlow.currencies; track block.currency) {
+            <div class="currency-block">
+              <h3 class="currency-heading">{{ block.currency }}</h3>
+              @if (block.periods.length > 0) {
+                <app-copy-table>
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Period</th>
+                        <th scope="col">Income ({{ block.currency }})</th>
+                        <th scope="col">Expenses ({{ block.currency }})</th>
+                        <th scope="col">Net ({{ block.currency }})</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (period of block.periods; track period.period) {
+                        <tr>
+                          <td>{{ period.period }}</td>
+                          <td>
+                            {{ period.income | currency: block.currency }}
+                          </td>
+                          <td>
+                            {{ period.expenses | currency: block.currency }}
+                          </td>
+                          <td>
+                            {{
+                              period.net_cash_flow | currency: block.currency
+                            }}
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </app-copy-table>
+              } @else {
+                <p class="empty-state">
+                  No cash flow periods for {{ block.currency }} in this range.
+                </p>
               }
-            </tbody>
-          </table>
-          </app-copy-table>
+            </div>
+          }
         } @else {
           <p class="empty-state">
-            No cash flow periods recorded for this range.
+            No cash flow recorded for this range.
           </p>
         }
       }

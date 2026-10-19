@@ -8,6 +8,7 @@ from sqlalchemy import func
 from sqlalchemy import select
 
 from app.db.session import Session
+from app.models.account import Account
 from app.models.transaction import Transaction
 from app.models.transaction import TransactionType
 
@@ -22,15 +23,15 @@ class FinancialSummaryRepository:
         """Bind the repository to one database session."""
         self._session = session
 
-    def get_totals(
+    def get_totals_by_currency(
         self,
         from_date: date,
         to_date: date,
-    ) -> tuple[Decimal, Decimal]:
+    ) -> list[tuple[str, Decimal, Decimal]]:
         """
-        Return total income and total expenses for the inclusive range.
+        Return total income and expenses per account currency.
 
-        Uses SQL SUM so rows are not loaded into Python.
+        Uses SQL SUM grouped by currency so rows are not loaded into Python.
         """
         income_sum = func.coalesce(
             func.sum(
@@ -58,17 +59,30 @@ class FinancialSummaryRepository:
             ),
             0,
         )
-        statement = select(
-            income_sum,
-            expense_sum,
-        ).where(
-            Transaction.occurred_on >= from_date,
-            Transaction.occurred_on <= to_date,
+        statement = (
+            select(
+                Account.currency,
+                income_sum,
+                expense_sum,
+            )
+            .select_from(Transaction)
+            .join(Account, Transaction.account_id == Account.id)
+            .where(
+                Transaction.occurred_on >= from_date,
+                Transaction.occurred_on <= to_date,
+            )
+            .group_by(Account.currency)
+            .order_by(Account.currency)
         )
-        row = self._session.execute(statement).one()
-        total_income = self._as_money(row[0])
-        total_expenses = self._as_money(row[1])
-        return total_income, total_expenses
+        rows = self._session.execute(statement).all()
+        return [
+            (
+                currency,
+                self._as_money(income),
+                self._as_money(expenses),
+            )
+            for currency, income, expenses in rows
+        ]
 
     @staticmethod
     def _as_money(value: Decimal | int | None) -> Decimal:

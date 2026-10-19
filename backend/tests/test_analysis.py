@@ -108,10 +108,27 @@ def _create_recurring_expense(
     assert response.status_code == 201
 
 
-def _period(body: dict, label: str) -> dict:
-    """Return the cash-flow period with the given label."""
+def _summary_block(body: dict, currency: str = "EUR") -> dict:
+    """Return the summary totals for one currency."""
     return next(
-        item for item in body["periods"] if item["period"] == label
+        item for item in body["by_currency"] if item["currency"] == currency
+    )
+
+
+def _expenses_block(body: dict, currency: str = "EUR") -> dict:
+    """Return the expenses breakdown for one currency."""
+    return next(
+        item for item in body["currencies"] if item["currency"] == currency
+    )
+
+
+def _period(body: dict, label: str, currency: str = "EUR") -> dict:
+    """Return the cash-flow period with the given label and currency."""
+    block = next(
+        item for item in body["currencies"] if item["currency"] == currency
+    )
+    return next(
+        item for item in block["periods"] if item["period"] == label
     )
 
 
@@ -159,9 +176,10 @@ def test_analysis_summary_valid_historical_period(
     body = response.json()
     assert body["from_date"] == _iso(from_date)
     assert body["to_date"] == _iso(to_date)
-    assert Decimal(body["total_income"]) == Decimal("2000.00")
-    assert Decimal(body["total_expenses"]) == Decimal("1350.00")
-    assert Decimal(body["net_cash_flow"]) == Decimal("650.00")
+    totals = _summary_block(body)
+    assert Decimal(totals["total_income"]) == Decimal("2000.00")
+    assert Decimal(totals["total_expenses"]) == Decimal("1350.00")
+    assert Decimal(totals["net_cash_flow"]) == Decimal("650.00")
 
 
 def test_analysis_summary_empty_period_returns_zeros(
@@ -179,9 +197,7 @@ def test_analysis_summary_empty_period_returns_zeros(
 
     assert response.status_code == 200
     body = response.json()
-    assert Decimal(body["total_income"]) == Decimal("0.00")
-    assert Decimal(body["total_expenses"]) == Decimal("0.00")
-    assert Decimal(body["net_cash_flow"]) == Decimal("0.00")
+    assert body["by_currency"] == []
 
 
 def test_analysis_summary_includes_boundary_dates(
@@ -214,9 +230,10 @@ def test_analysis_summary_includes_boundary_dates(
 
     assert response.status_code == 200
     body = response.json()
-    assert Decimal(body["total_income"]) == Decimal("100.00")
-    assert Decimal(body["total_expenses"]) == Decimal("40.00")
-    assert Decimal(body["net_cash_flow"]) == Decimal("60.00")
+    totals = _summary_block(body)
+    assert Decimal(totals["total_income"]) == Decimal("100.00")
+    assert Decimal(totals["total_expenses"]) == Decimal("40.00")
+    assert Decimal(totals["net_cash_flow"]) == Decimal("60.00")
 
 
 def test_analysis_summary_accepts_to_equal_today(
@@ -241,7 +258,8 @@ def test_analysis_summary_accepts_to_equal_today(
 
     assert response.status_code == 200
     body = response.json()
-    assert Decimal(body["total_expenses"]) == Decimal("50.00")
+    totals = _summary_block(body)
+    assert Decimal(totals["total_expenses"]) == Decimal("50.00")
 
 
 def test_analysis_summary_ignores_income_and_recurring_expense(
@@ -279,8 +297,9 @@ def test_analysis_summary_ignores_income_and_recurring_expense(
 
     assert response.status_code == 200
     body = response.json()
-    assert Decimal(body["total_income"]) == Decimal("100.00")
-    assert Decimal(body["total_expenses"]) == Decimal("0.00")
+    totals = _summary_block(body)
+    assert Decimal(totals["total_income"]) == Decimal("100.00")
+    assert Decimal(totals["total_expenses"]) == Decimal("0.00")
 
 
 def test_analysis_summary_rejects_from_after_to(
@@ -397,28 +416,29 @@ def test_analysis_expenses_grouped_by_category(
     body = response.json()
     assert body["from_date"] == _iso(from_date)
     assert body["to_date"] == _iso(to_date)
-    assert Decimal(body["total_expenses"]) == Decimal("1350.00")
-    assert [item["category"] for item in body["categories"]] == [
+    expenses = _expenses_block(body)
+    assert Decimal(expenses["total_expenses"]) == Decimal("1350.00")
+    assert [item["category"] for item in expenses["categories"]] == [
         "Housing",
         "Food",
         "Transport",
     ]
-    assert Decimal(body["categories"][0]["amount"]) == Decimal(
+    assert Decimal(expenses["categories"][0]["amount"]) == Decimal(
         "800.00",
     )
-    assert Decimal(body["categories"][0]["percentage"]) == Decimal(
+    assert Decimal(expenses["categories"][0]["percentage"]) == Decimal(
         "59.26",
     )
-    assert Decimal(body["categories"][1]["amount"]) == Decimal(
+    assert Decimal(expenses["categories"][1]["amount"]) == Decimal(
         "350.00",
     )
-    assert Decimal(body["categories"][1]["percentage"]) == Decimal(
+    assert Decimal(expenses["categories"][1]["percentage"]) == Decimal(
         "25.93",
     )
-    assert Decimal(body["categories"][2]["amount"]) == Decimal(
+    assert Decimal(expenses["categories"][2]["amount"]) == Decimal(
         "200.00",
     )
-    assert Decimal(body["categories"][2]["percentage"]) == Decimal(
+    assert Decimal(expenses["categories"][2]["percentage"]) == Decimal(
         "14.81",
     )
 
@@ -444,12 +464,13 @@ def test_analysis_expenses_null_category_becomes_uncategorized(
 
     assert response.status_code == 200
     body = response.json()
-    assert len(body["categories"]) == 1
-    assert body["categories"][0]["category"] == "Uncategorized"
-    assert Decimal(body["categories"][0]["amount"]) == Decimal(
+    expenses = _expenses_block(body)
+    assert len(expenses["categories"]) == 1
+    assert expenses["categories"][0]["category"] == "Uncategorized"
+    assert Decimal(expenses["categories"][0]["amount"]) == Decimal(
         "75.00",
     )
-    assert Decimal(body["categories"][0]["percentage"]) == Decimal(
+    assert Decimal(expenses["categories"][0]["percentage"]) == Decimal(
         "100.00",
     )
 
@@ -475,8 +496,7 @@ def test_analysis_expenses_zero_expenses_returns_empty_categories(
 
     assert response.status_code == 200
     body = response.json()
-    assert Decimal(body["total_expenses"]) == Decimal("0.00")
-    assert body["categories"] == []
+    assert body["currencies"] == []
 
 
 def test_analysis_expenses_deterministic_ordering(
@@ -516,9 +536,8 @@ def test_analysis_expenses_deterministic_ordering(
     )
 
     assert response.status_code == 200
-    categories = [
-        item["category"] for item in response.json()["categories"]
-    ]
+    expenses = _expenses_block(response.json())
+    categories = [item["category"] for item in expenses["categories"]]
     assert categories == ["Housing", "Food", "Transport"]
 
 
@@ -561,9 +580,8 @@ def test_analysis_expenses_includes_boundary_dates(
     )
 
     assert response.status_code == 200
-    assert Decimal(response.json()["total_expenses"]) == Decimal(
-        "30.00",
-    )
+    expenses = _expenses_block(response.json())
+    assert Decimal(expenses["total_expenses"]) == Decimal("30.00")
 
 
 def test_analysis_expenses_rejects_from_after_to(
@@ -644,7 +662,12 @@ def test_analysis_cash_flow_daily_grouping(
     assert response.status_code == 200
     body = response.json()
     assert body["group_by"] == "day"
-    assert [item["period"] for item in body["periods"]] == [
+    periods = next(
+        block["periods"]
+        for block in body["currencies"]
+        if block["currency"] == "EUR"
+    )
+    assert [item["period"] for item in periods] == [
         _iso(day_one),
         _iso(day_two),
         _iso(day_three),
@@ -737,7 +760,12 @@ def test_analysis_cash_flow_monthly_grouping(
     assert response.status_code == 200
     body = response.json()
     assert body["group_by"] == "month"
-    assert [item["period"] for item in body["periods"]] == [
+    periods = next(
+        block["periods"]
+        for block in body["currencies"]
+        if block["currency"] == "EUR"
+    )
+    assert [item["period"] for item in periods] == [
         _month(first_month),
         _month(second_month),
         _month(third_month),
@@ -774,11 +802,7 @@ def test_analysis_cash_flow_empty_periods_returned(
 
     assert response.status_code == 200
     body = response.json()
-    assert len(body["periods"]) == 3
-    for item in body["periods"]:
-        assert Decimal(item["income"]) == Decimal("0.00")
-        assert Decimal(item["expenses"]) == Decimal("0.00")
-        assert Decimal(item["net_cash_flow"]) == Decimal("0.00")
+    assert body["currencies"] == []
 
 
 def test_analysis_cash_flow_includes_boundary_dates(
@@ -819,6 +843,69 @@ def test_analysis_cash_flow_includes_boundary_dates(
     assert Decimal(first["income"]) == Decimal("100.00")
     last = _period(body, _iso(today))
     assert Decimal(last["expenses"]) == Decimal("40.00")
+
+
+def test_analysis_summary_multi_currency(
+    client: TestClient,
+    today: date,
+) -> None:
+    """GET /analysis/summary does not combine EUR and USD totals."""
+    eur_account = client.post(
+        "/accounts",
+        json={
+            "name": "EUR Account",
+            "account_type": "bank",
+            "currency": "EUR",
+        },
+    ).json()["id"]
+    usd_account = client.post(
+        "/accounts",
+        json={
+            "name": "USD Account",
+            "account_type": "bank",
+            "currency": "USD",
+        },
+    ).json()["id"]
+    from_date = today - timedelta(days=5)
+    to_date = today
+    _create_transaction(
+        client,
+        eur_account,
+        amount=200.00,
+        transaction_type="income",
+        occurred_on=_iso(from_date),
+    )
+    _create_transaction(
+        client,
+        usd_account,
+        amount=100.00,
+        transaction_type="income",
+        occurred_on=_iso(from_date),
+    )
+    _create_transaction(
+        client,
+        eur_account,
+        amount=50.00,
+        transaction_type="expense",
+        occurred_on=_iso(to_date),
+        category="Food",
+    )
+
+    response = client.get(
+        "/analysis/summary",
+        params={"from": _iso(from_date), "to": _iso(to_date)},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["currency"] for item in body["by_currency"]] == [
+        "EUR",
+        "USD",
+    ]
+    eur = _summary_block(body, "EUR")
+    usd = _summary_block(body, "USD")
+    assert Decimal(eur["net_cash_flow"]) == Decimal("150.00")
+    assert Decimal(usd["net_cash_flow"]) == Decimal("100.00")
 
 
 def test_analysis_cash_flow_rejects_from_after_to(

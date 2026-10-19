@@ -13,25 +13,35 @@ describe('Analysis', () => {
   const sampleSummary: AnalysisSummary = {
     from_date: '2026-09-01',
     to_date: '2026-09-30',
-    total_income: '2000.00',
-    total_expenses: '1350.00',
-    net_cash_flow: '650.00',
+    by_currency: [
+      {
+        currency: 'EUR',
+        total_income: '2000.00',
+        total_expenses: '1350.00',
+        net_cash_flow: '650.00',
+      },
+    ],
   };
 
   const sampleExpenses: ExpensesByCategory = {
     from_date: '2026-09-01',
     to_date: '2026-09-30',
-    total_expenses: '1350.00',
-    categories: [
+    currencies: [
       {
-        category: 'Housing',
-        amount: '800.00',
-        percentage: '59.26',
-      },
-      {
-        category: 'Food',
-        amount: '350.00',
-        percentage: '25.93',
+        currency: 'EUR',
+        total_expenses: '1350.00',
+        categories: [
+          {
+            category: 'Housing',
+            amount: '800.00',
+            percentage: '59.26',
+          },
+          {
+            category: 'Food',
+            amount: '350.00',
+            percentage: '25.93',
+          },
+        ],
       },
     ],
   };
@@ -40,12 +50,17 @@ describe('Analysis', () => {
     from_date: '2026-09-01',
     to_date: '2026-09-30',
     group_by: 'month',
-    periods: [
+    currencies: [
       {
-        period: '2026-09',
-        income: '2000.00',
-        expenses: '1350.00',
-        net_cash_flow: '650.00',
+        currency: 'EUR',
+        periods: [
+          {
+            period: '2026-09',
+            income: '2000.00',
+            expenses: '1350.00',
+            net_cash_flow: '650.00',
+          },
+        ],
       },
     ],
   };
@@ -149,14 +164,47 @@ describe('Analysis', () => {
     expect(text).toContain('59.26%');
     expect(text).toContain('Cash Flow Over Time');
     expect(text).toContain('2026-09');
+    expect(text).toContain('EUR');
+  });
+
+  it('should render separate currency blocks for multi-currency summaries', async () => {
+    getSummary.mockReturnValue(
+      of({
+        from_date: '2026-09-01',
+        to_date: '2026-09-30',
+        by_currency: [
+          {
+            currency: 'EUR',
+            total_income: '100.00',
+            total_expenses: '40.00',
+            net_cash_flow: '60.00',
+          },
+          {
+            currency: 'USD',
+            total_income: '50.00',
+            total_expenses: '0.00',
+            net_cash_flow: '50.00',
+          },
+        ],
+      }),
+    );
+
+    const fixture = TestBed.createComponent(Analysis);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('EUR');
+    expect(text).toContain('USD');
+    expect(text).toContain('$50.00');
   });
 
   it('should show an empty expenses state when there are no categories', async () => {
     getExpenses.mockReturnValue(
       of({
         ...sampleExpenses,
-        total_expenses: '0.00',
-        categories: [],
+        currencies: [],
       }),
     );
 

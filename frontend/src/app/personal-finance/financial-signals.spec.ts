@@ -1,18 +1,36 @@
-import { AnalysisSummary } from '../analysis/analysis-summary';
+import {
+  AnalysisSummary,
+  CurrencyAnalysisTotals,
+} from '../analysis/analysis-summary';
 import { ForecastResponse } from '../forecast/forecast-response';
 import {
   deriveFinancialSignals,
   quietCheckDetail,
 } from './financial-signals';
 
-describe('deriveFinancialSignals', () => {
-  const emptySummary: AnalysisSummary = {
+function eurSummary(
+  totals: Partial<CurrencyAnalysisTotals>,
+  range: { from_date: string; to_date: string } = {
     from_date: '2026-10-01',
     to_date: '2026-10-05',
-    total_income: '0.00',
-    total_expenses: '0.00',
-    net_cash_flow: '0.00',
+  },
+): AnalysisSummary {
+  return {
+    ...range,
+    by_currency: [
+      {
+        currency: 'EUR',
+        total_income: '0.00',
+        total_expenses: '0.00',
+        net_cash_flow: '0.00',
+        ...totals,
+      },
+    ],
   };
+}
+
+describe('deriveFinancialSignals', () => {
+  const emptySummary = eurSummary({});
 
   const increasingForecast: ForecastResponse = {
     from_date: '2026-10-05',
@@ -54,12 +72,11 @@ describe('deriveFinancialSignals', () => {
 
   it('returns a positive cash-flow signal when income exceeds expenses', () => {
     const signals = deriveFinancialSignals(
-      {
-        ...emptySummary,
+      eurSummary({
         total_income: '2000.00',
         total_expenses: '1350.00',
         net_cash_flow: '650.00',
-      },
+      }),
       null,
     );
 
@@ -73,16 +90,41 @@ describe('deriveFinancialSignals', () => {
 
   it('returns an expenses-exceeded signal when net cash flow is negative', () => {
     const signals = deriveFinancialSignals(
-      {
-        ...emptySummary,
+      eurSummary({
         total_income: '1000.00',
         total_expenses: '1500.00',
         net_cash_flow: '-500.00',
-      },
+      }),
       null,
     );
 
     expect(signals[0]?.title).toBe('Expenses exceeded income');
+  });
+
+  it('returns no cash-flow signal when multiple currencies are present', () => {
+    const signals = deriveFinancialSignals(
+      {
+        from_date: '2026-10-01',
+        to_date: '2026-10-05',
+        by_currency: [
+          {
+            currency: 'EUR',
+            total_income: '100.00',
+            total_expenses: '0.00',
+            net_cash_flow: '100.00',
+          },
+          {
+            currency: 'USD',
+            total_income: '50.00',
+            total_expenses: '0.00',
+            net_cash_flow: '50.00',
+          },
+        ],
+      },
+      null,
+    );
+
+    expect(signals).toEqual([]);
   });
 
   it('returns no signals when both sources have nothing to compare', () => {
@@ -167,12 +209,11 @@ describe('deriveFinancialSignals', () => {
 
   it('describes equal recorded income and expenses', () => {
     const detail = quietCheckDetail(
-      {
-        ...emptySummary,
+      eurSummary({
         total_income: '80.00',
         total_expenses: '80.00',
         net_cash_flow: '0.00',
-      },
+      }),
       null,
     );
 
@@ -183,12 +224,11 @@ describe('deriveFinancialSignals', () => {
 
   it('omits a source that produced a signal', () => {
     const detail = quietCheckDetail(
-      {
-        ...emptySummary,
+      eurSummary({
         total_income: '2000.00',
         total_expenses: '1350.00',
         net_cash_flow: '650.00',
-      },
+      }),
       null,
     );
 

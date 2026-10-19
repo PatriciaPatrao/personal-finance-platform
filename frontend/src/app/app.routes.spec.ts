@@ -63,23 +63,20 @@ describe('App routing', () => {
               of({
                 from_date: '2026-10-01',
                 to_date: '2026-10-05',
-                total_income: '0.00',
-                total_expenses: '0.00',
-                net_cash_flow: '0.00',
+                by_currency: [],
               }),
             getExpenses: () =>
               of({
                 from_date: '2026-10-01',
                 to_date: '2026-10-05',
-                total_expenses: '0.00',
-                categories: [],
+                currencies: [],
               }),
             getCashFlow: () =>
               of({
                 from_date: '2026-10-01',
                 to_date: '2026-10-05',
                 group_by: 'month',
-                periods: [],
+                currencies: [],
               }),
           },
         },

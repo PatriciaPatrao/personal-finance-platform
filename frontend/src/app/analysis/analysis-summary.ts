@@ -1,9 +1,14 @@
-export interface AnalysisSummary {
-  from_date: string;
-  to_date: string;
+export interface CurrencyAnalysisTotals {
+  currency: string;
   total_income: string;
   total_expenses: string;
   net_cash_flow: string;
+}
+
+export interface AnalysisSummary {
+  from_date: string;
+  to_date: string;
+  by_currency: CurrencyAnalysisTotals[];
 }
 
 export interface ExpenseCategoryBreakdown {
@@ -12,11 +17,16 @@ export interface ExpenseCategoryBreakdown {
   percentage: string;
 }
 
+export interface CurrencyExpensesByCategory {
+  currency: string;
+  total_expenses: string;
+  categories: ExpenseCategoryBreakdown[];
+}
+
 export interface ExpensesByCategory {
   from_date: string;
   to_date: string;
-  total_expenses: string;
-  categories: ExpenseCategoryBreakdown[];
+  currencies: CurrencyExpensesByCategory[];
 }
 
 export type CashFlowGroupBy = 'day' | 'month';
@@ -28,9 +38,25 @@ export interface CashFlowPeriod {
   net_cash_flow: string;
 }
 
+export interface CurrencyCashFlow {
+  currency: string;
+  periods: CashFlowPeriod[];
+}
+
 export interface CashFlow {
   from_date: string;
   to_date: string;
   group_by: CashFlowGroupBy;
-  periods: CashFlowPeriod[];
+  currencies: CurrencyCashFlow[];
+}
+
+/** Single-currency summary for dashboard signals when exactly one block exists. */
+export function singleCurrencySummaryTotals(
+  summary: AnalysisSummary,
+): CurrencyAnalysisTotals | null {
+  if (summary.by_currency.length !== 1) {
+    return null;
+  }
+
+  return summary.by_currency[0];
 }

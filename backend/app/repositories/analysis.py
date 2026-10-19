@@ -8,6 +8,7 @@ from sqlalchemy import func
 from sqlalchemy import select
 
 from app.db.session import Session
+from app.models.account import Account
 from app.models.transaction import Transaction
 from app.models.transaction import TransactionType
 
@@ -26,42 +27,45 @@ class AnalysisRepository:
         self,
         from_date: date,
         to_date: date,
-    ) -> list[tuple[str | None, Decimal]]:
+    ) -> list[tuple[str, str | None, Decimal]]:
         """
-        Return expense totals grouped by category.
+        Return expense totals grouped by account currency and category.
 
         Null categories stay null so the service can map them.
         """
         amount_sum = func.coalesce(func.sum(Transaction.amount), 0)
         statement = (
             select(
+                Account.currency,
                 Transaction.category,
                 amount_sum,
             )
+            .select_from(Transaction)
+            .join(Account, Transaction.account_id == Account.id)
             .where(
                 Transaction.transaction_type
                 == TransactionType.EXPENSE,
                 Transaction.occurred_on >= from_date,
                 Transaction.occurred_on <= to_date,
             )
-            .group_by(Transaction.category)
+            .group_by(Account.currency, Transaction.category)
+            .order_by(Account.currency, Transaction.category)
         )
         rows = self._session.execute(statement).all()
         return [
-            (category, self._as_money(amount))
-            for category, amount in rows
+            (currency, category, self._as_money(amount))
+            for currency, category, amount in rows
         ]
 
     def get_daily_totals(
         self,
         from_date: date,
         to_date: date,
-    ) -> list[tuple[date, Decimal, Decimal]]:
+    ) -> list[tuple[date, str, Decimal, Decimal]]:
         """
-        Return income and expense totals for each day with rows.
+        Return income and expense totals for each day and currency with rows.
 
-        Days with no transactions are omitted; the service fills
-        empty periods.
+        Days with no transactions are omitted; the service fills empty periods.
         """
         income_sum = func.coalesce(
             func.sum(
@@ -92,24 +96,28 @@ class AnalysisRepository:
         statement = (
             select(
                 Transaction.occurred_on,
+                Account.currency,
                 income_sum,
                 expense_sum,
             )
+            .select_from(Transaction)
+            .join(Account, Transaction.account_id == Account.id)
             .where(
                 Transaction.occurred_on >= from_date,
                 Transaction.occurred_on <= to_date,
             )
-            .group_by(Transaction.occurred_on)
-            .order_by(Transaction.occurred_on)
+            .group_by(Transaction.occurred_on, Account.currency)
+            .order_by(Account.currency, Transaction.occurred_on)
         )
         rows = self._session.execute(statement).all()
         return [
             (
                 occurred_on,
+                currency,
                 self._as_money(income),
                 self._as_money(expenses),
             )
-            for occurred_on, income, expenses in rows
+            for occurred_on, currency, income, expenses in rows
         ]
 
     @staticmethod

@@ -1,4 +1,7 @@
-import { AnalysisSummary } from '../analysis/analysis-summary';
+import {
+  AnalysisSummary,
+  singleCurrencySummaryTotals,
+} from '../analysis/analysis-summary';
 import {
   ForecastResponse,
   projectionForFinancialSignals,
@@ -28,9 +31,14 @@ function deriveCashFlowSignal(
     return null;
   }
 
-  const income = parseMoneyMinorUnits(summary.total_income);
-  const expenses = parseMoneyMinorUnits(summary.total_expenses);
-  const netCashFlow = parseMoneyMinorUnits(summary.net_cash_flow);
+  const totals = singleCurrencySummaryTotals(summary);
+  if (!totals) {
+    return null;
+  }
+
+  const income = parseMoneyMinorUnits(totals.total_income);
+  const expenses = parseMoneyMinorUnits(totals.total_expenses);
+  const netCashFlow = parseMoneyMinorUnits(totals.net_cash_flow);
 
   if (income === 0n && expenses === 0n) {
     return null;
@@ -104,8 +112,13 @@ function europeanDate(isoDate: string): string {
 }
 
 function analysisQuietSentence(summary: AnalysisSummary): string {
-  const income = parseMoneyMinorUnits(summary.total_income);
-  const expenses = parseMoneyMinorUnits(summary.total_expenses);
+  const totals = singleCurrencySummaryTotals(summary);
+  if (!totals) {
+    return '';
+  }
+
+  const income = parseMoneyMinorUnits(totals.total_income);
+  const expenses = parseMoneyMinorUnits(totals.total_expenses);
   const range = `${europeanDate(summary.from_date)} to ${europeanDate(summary.to_date)}`;
 
   if (income === 0n && expenses === 0n) {
@@ -169,7 +182,10 @@ export function quietCheckDetail(
   const parts: string[] = [];
 
   if (summary && deriveCashFlowSignal(summary) === null) {
-    parts.push(analysisQuietSentence(summary));
+    const sentence = analysisQuietSentence(summary);
+    if (sentence) {
+      parts.push(sentence);
+    }
   }
 
   if (forecast && deriveForecastSignals(forecast).length === 0) {
