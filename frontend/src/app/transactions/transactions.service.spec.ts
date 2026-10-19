@@ -21,6 +21,7 @@ describe('TransactionService', () => {
     occurred_on: '2026-10-01',
     category: 'Food',
     created_at: '2026-10-01T00:00:00',
+    linked_to_schedule_execution: false,
   };
 
   const writePayload: TransactionWrite = {

@@ -9,6 +9,7 @@ export interface Transaction {
   occurred_on: string;
   category: string | null;
   created_at: string;
+  linked_to_schedule_execution: boolean;
 }
 
 export interface TransactionWrite {

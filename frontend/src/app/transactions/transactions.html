@@ -244,20 +244,26 @@
                 {{ transaction.amount | currency: 'EUR' }}
               </td>
               <td class="row-actions">
-                <button
-                  type="button"
-                  class="edit-button"
-                  (click)="startEdit(transaction)"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  class="delete-button"
-                  (click)="requestDelete(transaction)"
-                >
-                  Delete
-                </button>
+                @if (isScheduleLinked(transaction)) {
+                  <span class="schedule-linked-note">
+                    From schedule execution
+                  </span>
+                } @else {
+                  <button
+                    type="button"
+                    class="edit-button"
+                    (click)="startEdit(transaction)"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    class="delete-button"
+                    (click)="requestDelete(transaction)"
+                  >
+                    Delete
+                  </button>
+                }
               </td>
             </tr>
           }

@@ -1,5 +1,6 @@
 """Persistence for schedule execution records."""
 
+from collections.abc import Iterable
 from datetime import date
 
 from sqlalchemy import select
@@ -44,6 +45,19 @@ class ScheduleExecutionRepository:
             ScheduleExecution.transaction_id == transaction_id,
         )
         return self._session.scalars(statement).one_or_none()
+
+    def linked_transaction_ids(
+        self,
+        transaction_ids: Iterable[int],
+    ) -> set[int]:
+        """Return transaction ids referenced by schedule_executions."""
+        ids = list(transaction_ids)
+        if not ids:
+            return set()
+        statement = select(ScheduleExecution.transaction_id).where(
+            ScheduleExecution.transaction_id.in_(ids),
+        )
+        return set(self._session.scalars(statement).all())
 
     def add(
         self,

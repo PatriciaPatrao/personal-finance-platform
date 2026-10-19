@@ -41,6 +41,7 @@ describe('Transactions', () => {
       occurred_on: '2026-10-05',
       category: null,
       created_at: '2026-10-05T00:00:00',
+      linked_to_schedule_execution: false,
     },
     {
       id: 1,
@@ -51,6 +52,7 @@ describe('Transactions', () => {
       occurred_on: '2026-10-01',
       category: 'Food',
       created_at: '2026-10-01T00:00:00',
+      linked_to_schedule_execution: false,
     },
     {
       id: 2,
@@ -61,6 +63,7 @@ describe('Transactions', () => {
       occurred_on: '2026-09-15',
       category: 'Salary',
       created_at: '2026-09-15T00:00:00',
+      linked_to_schedule_execution: false,
     },
   ];
 
@@ -344,6 +347,7 @@ describe('Transactions', () => {
       occurred_on: '2026-10-06',
       category: 'Food',
       created_at: '2026-10-06T00:00:00',
+      linked_to_schedule_execution: false,
     };
     createTransaction.mockReturnValue(of(created));
 
@@ -472,6 +476,28 @@ describe('Transactions', () => {
     expect(text).toContain('Transaction updated.');
     expect(text).toContain('Coffee');
     expect(compiled.querySelector('.transaction-form')).toBeNull();
+  });
+
+  it('should hide edit and delete for schedule-linked transactions', async () => {
+    const linked: Transaction = {
+      ...sampleTransactions[0],
+      id: 99,
+      linked_to_schedule_execution: true,
+    };
+    listTransactions.mockReturnValue(of([linked]));
+
+    const { fixture, compiled, component } = await render();
+    fixture.detectChanges();
+
+    const row = compiled.querySelector('tbody tr');
+    expect(row?.textContent).toContain('From schedule execution');
+    expect(row?.querySelector('.edit-button')).toBeNull();
+    expect(row?.querySelector('.delete-button')).toBeNull();
+
+    component.startEdit(linked);
+    component.requestDelete(linked);
+    expect(component.editingId).toBeNull();
+    expect(component.pendingDelete).toBeNull();
   });
 
   it('should show an account loading error and block saving', async () => {

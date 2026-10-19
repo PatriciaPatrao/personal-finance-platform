@@ -1,5 +1,6 @@
 """API tests for creating a transaction."""
 
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -46,6 +47,7 @@ def test_create_transaction_returns_created_transaction(
     assert body["occurred_on"] == payload["occurred_on"]
     assert body["category"] == payload["category"]
     assert body["created_at"]
+    assert body["linked_to_schedule_execution"] is False
 
 
 def test_create_transaction_rejects_zero_amount(
@@ -432,3 +434,54 @@ def test_update_transaction_persists_updated_values(
     assert stored["transaction_type"] == update_payload["transaction_type"]
     assert stored["occurred_on"] == update_payload["occurred_on"]
     assert stored["category"] == update_payload["category"]
+
+
+def test_transaction_response_flags_schedule_execution_link(
+    client: TestClient,
+    account_id: int,
+) -> None:
+    """GET /transactions marks rows linked from schedule_executions."""
+    today = date.today()
+    income = client.post(
+        "/incomes",
+        json={
+            "account_id": account_id,
+            "amount": 100.0,
+            "frequency": "monthly",
+            "start_date": today.isoformat(),
+            "next_occurrence": today.isoformat(),
+            "active": True,
+        },
+    )
+    assert income.status_code == 201
+    income_id = income.json()["id"]
+
+    manual = client.post(
+        "/transactions",
+        json={
+            "account_id": account_id,
+            "amount": 10.0,
+            "transaction_type": "expense",
+            "occurred_on": "2026-10-01",
+        },
+    )
+    assert manual.status_code == 201
+    manual_id = manual.json()["id"]
+    assert manual.json()["linked_to_schedule_execution"] is False
+
+    executed = client.post(
+        f"/incomes/{income_id}/executions",
+        json={"occurrence_date": today.isoformat()},
+    )
+    assert executed.status_code == 201
+    linked_id = executed.json()["transaction_id"]
+
+    listed = client.get("/transactions")
+    assert listed.status_code == 200
+    by_id = {item["id"]: item for item in listed.json()}
+    assert by_id[manual_id]["linked_to_schedule_execution"] is False
+    assert by_id[linked_id]["linked_to_schedule_execution"] is True
+
+    detail = client.get(f"/transactions/{linked_id}")
+    assert detail.status_code == 200
+    assert detail.json()["linked_to_schedule_execution"] is True

@@ -46,3 +46,4 @@ class TransactionResponse(BaseModel):
     occurred_on: date
     category: str | None = None
     created_at: datetime
+    linked_to_schedule_execution: bool = False

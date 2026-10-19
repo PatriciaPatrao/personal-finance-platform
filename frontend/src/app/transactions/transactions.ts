@@ -356,7 +356,15 @@ export class Transactions implements OnInit {
     this.changeDetector.detectChanges();
   }
 
+  isScheduleLinked(transaction: Transaction): boolean {
+    return transaction.linked_to_schedule_execution;
+  }
+
   startEdit(transaction: Transaction): void {
+    if (this.isScheduleLinked(transaction)) {
+      return;
+    }
+
     this.formMode = 'edit';
     this.editingId = transaction.id;
     this.formAccountId = String(transaction.account_id);
@@ -433,7 +441,7 @@ export class Transactions implements OnInit {
   }
 
   requestDelete(transaction: Transaction): void {
-    if (this.deleting) {
+    if (this.deleting || this.isScheduleLinked(transaction)) {
       return;
     }
 

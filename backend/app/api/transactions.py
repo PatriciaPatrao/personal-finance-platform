@@ -7,6 +7,8 @@ from fastapi import status
 
 from app.db.session import Session
 from app.db.session import get_db
+from app.api.transaction_helpers import transaction_response
+from app.api.transaction_helpers import transaction_responses_for_list
 from app.schemas.transaction import TransactionCreate
 from app.schemas.transaction import TransactionResponse
 from app.schemas.transaction import TransactionUpdate
@@ -36,7 +38,7 @@ def create_transaction(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Account not found",
         )
-    return TransactionResponse.model_validate(transaction)
+    return transaction_response(session, transaction)
 
 
 @router.get(
@@ -49,10 +51,7 @@ def list_transactions(
     """Return every stored transaction."""
     service = TransactionService(session)
     transactions = service.list_all()
-    return [
-        TransactionResponse.model_validate(transaction)
-        for transaction in transactions
-    ]
+    return transaction_responses_for_list(session, transactions)
 
 
 @router.get(
@@ -71,7 +70,7 @@ def get_transaction(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Transaction not found",
         )
-    return TransactionResponse.model_validate(transaction)
+    return transaction_response(session, transaction)
 
 
 @router.put(
@@ -102,7 +101,7 @@ def update_transaction(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Transaction not found",
         )
-    return TransactionResponse.model_validate(transaction)
+    return transaction_response(session, transaction)
 
 
 @router.delete(
