@@ -208,12 +208,14 @@ export class Transactions implements OnInit {
   ) {}
 
   get categoryOptions(): string[] {
-    const categories = new Set<string>();
-    for (const transaction of this.allTransactions) {
-      const category = transaction.category?.trim();
-      if (category) {
-        categories.add(category);
-      }
+    return this.collectCategoryNames();
+  }
+
+  get formCategoryOptions(): string[] {
+    const categories = new Set(this.collectCategoryNames());
+    const current = this.formCategory.trim();
+    if (current) {
+      categories.add(current);
     }
     return [...categories].sort((left, right) => left.localeCompare(right));
   }
@@ -319,6 +321,10 @@ export class Transactions implements OnInit {
 
   onCategoryChange(category: string): void {
     this.categoryDraft = category;
+  }
+
+  onFormCategoryChange(category: string): void {
+    this.formCategory = category;
   }
 
   trackTransaction(_index: number, transaction: Transaction): number {
@@ -686,5 +692,16 @@ export class Transactions implements OnInit {
         this.changeDetector.markForCheck();
       },
     });
+  }
+
+  private collectCategoryNames(): string[] {
+    const categories = new Set<string>();
+    for (const transaction of this.allTransactions) {
+      const category = transaction.category?.trim();
+      if (category) {
+        categories.add(category);
+      }
+    }
+    return [...categories].sort((left, right) => left.localeCompare(right));
   }
 }

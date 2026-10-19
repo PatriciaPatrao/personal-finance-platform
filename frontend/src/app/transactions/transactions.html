@@ -162,20 +162,24 @@
             </select>
           </label>
           <app-date-field
+            class="form-date-field"
             label="Date"
             name="occurredOn"
             [value]="formDateDisplay"
             (valueChange)="formDateDisplay = $event"
           />
-          <label class="field">
+          <label class="field field-category">
             <span class="field-label">Category</span>
-            <input
+            <select
               name="category"
-              type="text"
-              maxlength="100"
               [value]="formCategory"
-              (input)="formCategory = $any($event.target).value"
-            />
+              (change)="onFormCategoryChange($any($event.target).value)"
+            >
+              <option value="">—</option>
+              @for (category of formCategoryOptions; track category) {
+                <option [value]="category">{{ category }}</option>
+              }
+            </select>
           </label>
         </div>
 

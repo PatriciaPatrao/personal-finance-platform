@@ -203,6 +203,18 @@
   align-items: end;
 }
 
+.form-fields app-date-field.form-date-field {
+  flex: 0 0 auto;
+  width: 10rem;
+  min-width: 10rem;
+}
+
+.form-fields .field-category {
+  flex: 0 0 auto;
+  min-width: 10rem;
+  width: 10rem;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
