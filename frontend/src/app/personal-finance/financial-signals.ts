@@ -147,6 +147,21 @@ export function deriveFinancialSignals(
   return signals;
 }
 
+export function signalActionRoute(title: string): string | null {
+  switch (title) {
+    case 'Positive cash flow':
+    case 'Expenses exceeded income':
+      return '/personal_finance/analysis';
+    case 'No scheduled income':
+      return '/personal_finance/schedules';
+    case 'Balance projected to decrease':
+    case 'Balance projected to increase':
+      return '/personal_finance/forecast';
+    default:
+      return null;
+  }
+}
+
 export function quietCheckDetail(
   summary: AnalysisSummary | null,
   forecast: ForecastResponse | null,

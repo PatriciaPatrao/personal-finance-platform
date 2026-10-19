@@ -64,7 +64,7 @@ Implemented by `PersonalFinance`. It loads:
 - `GET /forecast` grouped by month, from today through the last day of the calendar month two months ahead
 - `GET /financial-goals` for derived goal progress
 
-It presents one stored total per currency. A household with one currency still sees a single total. It shows text signals only when every loaded account uses that same currency. Mixed currencies suppress Analysis and Forecast signals, because those APIs are not currency-safe. Goals show each objective’s target and funded amount in that goal’s currency. Null progress stays unavailable. It links to Accounts, Schedules, Transactions, Goals, Analysis, and Forecast. It does not write financial data. It is a presentation/orchestration surface (see [Dashboard responsibility](#6-dashboard-responsibility)).
+It presents one stored total per currency. A household with one currency still sees a single total. It shows text signals only when every loaded account uses that same currency. Mixed currencies suppress Analysis and Forecast signals, because those APIs are not currency-safe; in that state the Dashboard does not request analysis and hides signal-section errors. A contextual primary action (create account, record transaction, or review schedules when an active schedule’s `next_occurrence` is today) and a compact **Needs attention** list surface negative stored balances and verifiable goal funding gaps without inventing a household health score. Goals show target, funded amount, progress, and remaining amount in each goal’s currency when progress is available. Null progress stays unavailable. **Quick access** links to Accounts, Transactions, Schedules, Goals, and Forecast. It does not write financial data. It is a presentation/orchestration surface (see [Dashboard responsibility](#6-dashboard-responsibility)).
 
 ### Analysis
 
@@ -164,10 +164,12 @@ It may consume existing data contracts (accounts, analysis summary, forecast, fi
 Today it:
 
 - sums `current_balance` in the client within each currency, and keeps a separate total for every currency
-- derives explainable text signals in `frontend/src/app/personal-finance/financial-signals.ts` (this-month cash-flow sign from analysis summary; missing scheduled income and projected balance direction from forecast periods). A zero net cash flow, or a projected ending balance equal to the starting balance, produces no directional signal. The quiet state names the period that was checked. Those signals are hidden when loaded accounts use more than one currency, and the Dashboard does not request household forecast in that case.
+- loads `GET /transactions`, `GET /incomes`, and `GET /recurring-expenses` only after accounts are known, to choose a primary action and to detect active schedules whose `next_occurrence` equals today (without executing them)
+- derives explainable text signals in `frontend/src/app/personal-finance/financial-signals.ts` (this-month cash-flow sign from analysis summary; missing scheduled income and projected balance direction from forecast periods). A zero net cash flow, or a projected ending balance equal to the starting balance, produces no directional signal. The quiet state names the period that was checked. Those signals are hidden when loaded accounts use more than one currency; the Dashboard then skips analysis and household forecast requests and does not show signal-section analysis or forecast errors
+- builds attention items in `dashboard-attention.ts` from negative account balances, goal progress below target when `progress` is non-null, and allocations whose funded amount is below the designated amount
 - lists goals from `GET /financial-goals`, including unavailable progress and allocations whose funded amount is below the designated amount
 
-Those signal rules live in the dashboard feature, not in a backend domain service. They interpret API responses; they do not replace Analysis, Forecast, or Goals. Account, analysis, forecast, and goal requests load and fail independently.
+Those signal and attention rules live in the dashboard feature, not in a backend domain service. They interpret API responses; they do not replace Analysis, Forecast, or Goals. Account, analysis, forecast, and goal requests load and fail independently where they still run.
 
 ## 7. Data ownership
 

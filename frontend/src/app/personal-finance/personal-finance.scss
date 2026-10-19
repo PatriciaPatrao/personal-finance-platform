@@ -5,6 +5,14 @@
   gap: 1.5rem;
 }
 
+.page-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .page-header h1 {
   margin: 0 0 0.35rem;
   font-size: 1.75rem;
@@ -16,6 +24,35 @@
   margin: 0;
   color: #555;
   max-width: 42rem;
+  line-height: 1.45;
+}
+
+.primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1.1rem;
+  border: 1px solid #222;
+  background: #222;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.primary-action:hover {
+  background: #333;
+}
+
+.primary-action:focus-visible {
+  outline: 2px solid #222;
+  outline-offset: 3px;
+}
+
+.primary-action-note {
+  margin: 0.65rem 0 0;
+  color: #555;
+  font-size: 0.9rem;
   line-height: 1.45;
 }
 
@@ -91,7 +128,9 @@
 }
 
 .currency-list,
-.goal-list {
+.goal-list,
+.attention-list,
+.quick-links {
   list-style: none;
   margin: 0.35rem 0 0;
   padding: 0;
@@ -106,25 +145,81 @@
   gap: 0.15rem;
 }
 
-.goal-card {
+.goal-card,
+.attention-item,
+.signal {
   padding: 0.9rem 1rem;
   border: 1px solid #d8d8d8;
   background: #fff;
 }
 
-.goal-card h3 {
+.goal-card h3,
+.attention-item h3,
+.signal h3 {
   margin: 0 0 0.35rem;
   font-size: 1rem;
   font-weight: 650;
 }
 
-.goal-card p {
+.goal-card p,
+.attention-item p,
+.signal p {
   margin: 0.2rem 0 0;
   color: #444;
   line-height: 1.45;
 }
 
+.goal-metrics {
+  margin: 0.35rem 0 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.goal-metrics div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.goal-metrics dt {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.goal-metrics dd {
+  margin: 0;
+  color: #222;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+}
+
+.progress-track {
+  display: block;
+  height: 0.45rem;
+  border: 1px solid #ccc;
+  background: #f0f0f0;
+  overflow: hidden;
+}
+
+.progress-fill {
+  display: block;
+  height: 100%;
+  background: #333;
+}
+
 .goal-flag {
+  margin: 0.65rem 0 0;
+  padding: 0.55rem 0.65rem;
+  border-left: 3px solid #666;
+  background: #fafafa;
   color: #333;
 }
 
@@ -164,68 +259,45 @@
   gap: 0.75rem;
 }
 
-.signal {
-  padding: 0.9rem 1rem;
-  border: 1px solid #d8d8d8;
-  background: #fff;
-}
-
-.signal h3 {
-  margin: 0 0 0.35rem;
-  font-size: 1rem;
-  font-weight: 650;
-}
-
-.signal p {
-  margin: 0;
-  color: #444;
-  line-height: 1.45;
-}
-
 .signal-neutral {
   background: #fafafa;
 }
 
-.discovery-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem;
+.signal-link,
+.attention-link,
+.inline-link,
+.quick-link {
+  display: inline-block;
+  margin-top: 0.45rem;
+  font-weight: 600;
+  color: #222;
 }
 
-.discovery-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  padding: 1rem 1.1rem;
+.signal-link:focus-visible,
+.attention-link:focus-visible,
+.inline-link:focus-visible,
+.quick-link:focus-visible,
+.discovery-card:focus-visible {
+  outline: 2px solid #222;
+  outline-offset: 2px;
+}
+
+.quick-links {
+  flex-flow: row wrap;
+  gap: 0.5rem 0.75rem;
+}
+
+.quick-link {
+  margin-top: 0;
+  padding: 0.45rem 0.75rem;
   border: 1px solid #d8d8d8;
   background: #fff;
-  color: inherit;
   text-decoration: none;
 }
 
-.discovery-card:hover {
+.quick-link:hover {
   border-color: #222;
   background: #f7f7f7;
-}
-
-.discovery-card h3 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 650;
-}
-
-.discovery-card p {
-  margin: 0;
-  color: #555;
-  line-height: 1.45;
-  flex: 1 1 auto;
-}
-
-.discovery-link {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #222;
-  text-decoration: underline;
 }
 
 @media (max-width: 720px) {
@@ -233,7 +305,17 @@
     font-size: 1.75rem;
   }
 
-  .discovery-grid {
-    grid-template-columns: 1fr;
+  .page-header-row {
+    flex-direction: column;
+  }
+
+  .primary-action {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill {
+    transition: none;
   }
 }

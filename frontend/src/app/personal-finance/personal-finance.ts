@@ -1,7 +1,7 @@
 import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { catchError, map, of } from 'rxjs';
+import { catchError, forkJoin, map, of } from 'rxjs';
 
 import { Account } from '../accounts/account';
 import { AccountService } from '../accounts/account.service';
@@ -9,12 +9,27 @@ import { AnalysisService } from '../analysis/analysis.service';
 import { AnalysisSummary } from '../analysis/analysis-summary';
 import { ForecastResponse } from '../forecast/forecast-response';
 import { ForecastService } from '../forecast/forecast.service';
-import { FinancialGoal, GoalAllocation } from '../goals/goal';
+import { FinancialGoal } from '../goals/goal';
 import { GoalService } from '../goals/goal.service';
+import { IncomeService } from '../schedules/income.service';
+import { RecurringExpenseService } from '../schedules/recurring-expense.service';
+import { TransactionService } from '../transactions/transactions.service';
+import {
+  buildDashboardAttentionItems,
+  DashboardAttentionItem,
+  goalProgressRatio,
+  goalRemainingAmount,
+  underfundedAllocations,
+} from './dashboard-attention';
+import {
+  DashboardPrimaryAction,
+  resolveDashboardPrimaryAction,
+} from './dashboard-primary-action';
 import {
   deriveFinancialSignals,
   FinancialSignal,
   quietCheckDetail,
+  signalActionRoute,
 } from './financial-signals';
 
 function formatDate(date: Date): string {
@@ -95,22 +110,39 @@ export class PersonalFinance implements OnInit {
   analysisLoading = true;
   forecastLoading = true;
   goalsLoading = true;
+  transactionsLoading = false;
+  schedulesLoading = false;
   accountsError = false;
   analysisError = false;
   forecastError = false;
   goalsError = false;
+  transactionsLoadFailed = false;
+  schedulesLoadFailed = false;
 
   accounts: Account[] = [];
   currentPosition: CurrentPositionState | null = null;
   summary: AnalysisSummary | null = null;
   forecast: ForecastResponse | null = null;
   goals: FinancialGoal[] = [];
+  transactionCount: number | null = null;
+  hasActiveScheduleOccurrenceToday = false;
+
+  readonly quickLinks = [
+    { label: 'Accounts', route: '/personal_finance/accounts' },
+    { label: 'Transactions', route: '/personal_finance/transactions' },
+    { label: 'Schedules', route: '/personal_finance/schedules' },
+    { label: 'Goals', route: '/personal_finance/goals' },
+    { label: 'Forecast', route: '/personal_finance/forecast' },
+  ] as const;
 
   constructor(
     private accountService: AccountService,
     private analysisService: AnalysisService,
     private forecastService: ForecastService,
     private goalService: GoalService,
+    private transactionService: TransactionService,
+    private incomeService: IncomeService,
+    private recurringExpenseService: RecurringExpenseService,
     private changeDetector: ChangeDetectorRef,
   ) {}
 
@@ -159,21 +191,61 @@ export class PersonalFinance implements OnInit {
     return quietCheckDetail(this.summary, this.forecast);
   }
 
+  get primaryAction(): DashboardPrimaryAction | null {
+    return resolveDashboardPrimaryAction({
+      accountsLoading: this.accountsLoading,
+      accountsError: this.accountsError,
+      hasAccounts: this.currentPosition?.kind !== 'empty',
+      transactionsLoading: this.transactionsLoading,
+      transactionsLoadFailed: this.transactionsLoadFailed,
+      transactionCount: this.transactionCount,
+      schedulesLoading: this.schedulesLoading,
+      schedulesLoadFailed: this.schedulesLoadFailed,
+      hasActiveScheduleOccurrenceToday:
+        this.hasActiveScheduleOccurrenceToday,
+    });
+  }
+
+  get attentionItems(): DashboardAttentionItem[] {
+    if (this.accountsLoading || this.accountsError || this.goalsLoading) {
+      return [];
+    }
+
+    return buildDashboardAttentionItems(
+      this.accounts,
+      this.goals,
+      (accountId) => this.accountLabel(accountId),
+    );
+  }
+
   ngOnInit(): void {
     this.loadDashboard();
   }
 
+  signalRoute(signal: FinancialSignal): string | null {
+    return signalActionRoute(signal.title);
+  }
+
+  progressPercent(goal: FinancialGoal): number | null {
+    const ratio = goalProgressRatio(goal);
+    if (ratio === null) {
+      return null;
+    }
+
+    return Math.round(ratio * 100);
+  }
+
+  goalRemainingAmount(goal: FinancialGoal): string | null {
+    return goalRemainingAmount(goal);
+  }
+
   progressText(goal: FinancialGoal): string {
-    if (goal.progress === null) {
+    const percent = this.progressPercent(goal);
+    if (percent === null) {
       return 'Progress unavailable';
     }
 
-    const value = Number(goal.progress);
-    if (!Number.isFinite(value)) {
-      return 'Progress unavailable';
-    }
-
-    return `${Math.round(value * 100)}%`;
+    return `${percent}%`;
   }
 
   accountLabel(accountId: number): string {
@@ -181,12 +253,8 @@ export class PersonalFinance implements OnInit {
     return account ? account.name : `Account ${accountId}`;
   }
 
-  underfundedAllocations(goal: FinancialGoal): GoalAllocation[] {
-    return goal.allocations.filter(
-      (allocation) =>
-        parseMoneyMinorUnits(allocation.funded_amount) <
-        parseMoneyMinorUnits(allocation.amount),
-    );
+  underfundedAllocations(goal: FinancialGoal) {
+    return underfundedAllocations(goal);
   }
 
   private loadDashboard(): void {
@@ -194,15 +262,21 @@ export class PersonalFinance implements OnInit {
     this.analysisLoading = true;
     this.forecastLoading = true;
     this.goalsLoading = true;
+    this.transactionsLoading = false;
+    this.schedulesLoading = false;
     this.accountsError = false;
     this.analysisError = false;
     this.forecastError = false;
     this.goalsError = false;
+    this.transactionsLoadFailed = false;
+    this.schedulesLoadFailed = false;
     this.accounts = [];
     this.currentPosition = null;
     this.summary = null;
     this.forecast = null;
     this.goals = [];
+    this.transactionCount = null;
+    this.hasActiveScheduleOccurrenceToday = false;
 
     const analysisRange = currentMonthRange();
     const forecastRange = defaultForecastRange();
@@ -219,11 +293,22 @@ export class PersonalFinance implements OnInit {
         if (accounts.ok) {
           this.accounts = accounts.data;
           this.currentPosition = this.buildCurrentPosition(accounts.data);
+          if (this.currentPosition.kind === 'empty') {
+            this.transactionCount = 0;
+            this.transactionsLoading = false;
+            this.schedulesLoading = false;
+          } else {
+            this.loadSupportingContext();
+          }
         } else {
           this.accounts = [];
           this.currentPosition = null;
+          this.transactionsLoading = false;
+          this.schedulesLoading = false;
         }
         if (this.signalsSuppressed) {
+          this.skipFinancialSignals();
+        } else if (this.currentPosition?.kind === 'empty') {
           this.skipFinancialSignals();
         } else {
           this.loadAnalysis(analysisRange);
@@ -244,6 +329,47 @@ export class PersonalFinance implements OnInit {
         this.goals = goals.ok ? goals.data : [];
         this.changeDetector.markForCheck();
       });
+  }
+
+  private loadSupportingContext(): void {
+    const today = formatDate(new Date());
+    this.transactionsLoading = true;
+    this.schedulesLoading = true;
+
+    forkJoin({
+      transactions: this.transactionService.listTransactions().pipe(
+        map((data) => ({ ok: true as const, data })),
+        catchError(() => of({ ok: false as const, data: [] })),
+      ),
+      incomes: this.incomeService.listIncomes().pipe(
+        map((data) => ({ ok: true as const, data })),
+        catchError(() => of({ ok: false as const, data: [] })),
+      ),
+      expenses: this.recurringExpenseService.listRecurringExpenses().pipe(
+        map((data) => ({ ok: true as const, data })),
+        catchError(() => of({ ok: false as const, data: [] })),
+      ),
+    }).subscribe(({ transactions, incomes, expenses }) => {
+      this.transactionsLoading = false;
+      this.schedulesLoading = false;
+      this.transactionsLoadFailed = !transactions.ok;
+      this.schedulesLoadFailed = !incomes.ok || !expenses.ok;
+      this.transactionCount = transactions.ok
+        ? transactions.data.length
+        : null;
+      const incomeDue =
+        incomes.ok &&
+        incomes.data.some(
+          (item) => item.active && item.next_occurrence === today,
+        );
+      const expenseDue =
+        expenses.ok &&
+        expenses.data.some(
+          (item) => item.active && item.next_occurrence === today,
+        );
+      this.hasActiveScheduleOccurrenceToday = incomeDue || expenseDue;
+      this.changeDetector.markForCheck();
+    });
   }
 
   private buildCurrentPosition(accounts: Account[]): CurrentPositionState {

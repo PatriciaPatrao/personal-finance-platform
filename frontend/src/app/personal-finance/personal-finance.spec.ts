@@ -10,6 +10,9 @@ import { ForecastResponse } from '../forecast/forecast-response';
 import { ForecastService } from '../forecast/forecast.service';
 import { FinancialGoal } from '../goals/goal';
 import { GoalService } from '../goals/goal.service';
+import { IncomeService } from '../schedules/income.service';
+import { RecurringExpenseService } from '../schedules/recurring-expense.service';
+import { TransactionService } from '../transactions/transactions.service';
 import { PersonalFinance } from './personal-finance';
 
 describe('PersonalFinance', () => {
@@ -143,6 +146,9 @@ describe('PersonalFinance', () => {
   let getSummary: ReturnType<typeof vi.fn>;
   let getForecast: ReturnType<typeof vi.fn>;
   let listGoals: ReturnType<typeof vi.fn>;
+  let listTransactions: ReturnType<typeof vi.fn>;
+  let listIncomes: ReturnType<typeof vi.fn>;
+  let listRecurringExpenses: ReturnType<typeof vi.fn>;
 
   function currentMonthRange(): { from: string; to: string } {
     const today = new Date();
@@ -175,6 +181,9 @@ describe('PersonalFinance', () => {
     getSummary = vi.fn().mockReturnValue(of(emptyMonthSummary));
     getForecast = vi.fn().mockReturnValue(of(increasingForecast));
     listGoals = vi.fn().mockReturnValue(of([]));
+    listTransactions = vi.fn().mockReturnValue(of([]));
+    listIncomes = vi.fn().mockReturnValue(of([]));
+    listRecurringExpenses = vi.fn().mockReturnValue(of([]));
 
     await TestBed.configureTestingModule({
       imports: [PersonalFinance],
@@ -205,6 +214,18 @@ describe('PersonalFinance', () => {
         {
           provide: GoalService,
           useValue: { listGoals },
+        },
+        {
+          provide: TransactionService,
+          useValue: { listTransactions },
+        },
+        {
+          provide: IncomeService,
+          useValue: { listIncomes },
+        },
+        {
+          provide: RecurringExpenseService,
+          useValue: { listRecurringExpenses },
         },
       ],
     }).compileComponents();
@@ -256,10 +277,10 @@ describe('PersonalFinance', () => {
     expect(text).toContain('Current financial position');
     expect(text).toContain('5,000.00');
     expect(text).toContain('Across your accounts');
-    expect(text).toContain('Current position, not a forecast.');
+    expect(text).toContain('Stored balances now');
   });
 
-  it('should navigate to Analysis from feature discovery', async () => {
+  it('should navigate to Forecast from quick access', async () => {
     const fixture = TestBed.createComponent(PersonalFinance);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -267,32 +288,59 @@ describe('PersonalFinance', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     const link = compiled.querySelector(
-      'a[href="/personal_finance/analysis"]',
+      'a.quick-link[href="/personal_finance/forecast"]',
     ) as HTMLAnchorElement | null;
     expect(link).toBeTruthy();
-    expect(link?.textContent).toContain('Understand your finances');
-
-    link?.click();
-    await fixture.whenStable();
-    expect(TestBed.inject(Router).url).toBe('/personal_finance/analysis');
-  });
-
-  it('should navigate to Forecast from feature discovery', async () => {
-    const fixture = TestBed.createComponent(PersonalFinance);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const compiled = fixture.nativeElement as HTMLElement;
-    const link = compiled.querySelector(
-      'a[href="/personal_finance/forecast"]',
-    ) as HTMLAnchorElement | null;
-    expect(link).toBeTruthy();
-    expect(link?.textContent).toContain('Plan ahead');
+    expect(link?.textContent).toContain('Forecast');
 
     link?.click();
     await fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/personal_finance/forecast');
+  });
+
+  it('should offer creating an account when none exist', async () => {
+    listAccounts.mockReturnValue(of([]));
+
+    const fixture = TestBed.createComponent(PersonalFinance);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Create account');
+    expect(listTransactions).not.toHaveBeenCalled();
+  });
+
+  it('should offer recording a transaction when history is empty', async () => {
+    listTransactions.mockReturnValue(of([]));
+
+    const fixture = TestBed.createComponent(PersonalFinance);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Record transaction');
+  });
+
+  it('should show negative balance attention items', async () => {
+    listAccounts.mockReturnValue(
+      of([
+        {
+          ...sampleAccounts[0],
+          current_balance: '-100.00',
+        },
+      ]),
+    );
+
+    const fixture = TestBed.createComponent(PersonalFinance);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Needs attention');
+    expect(text).toContain('negative balance');
   });
 
   it('should render a valid financial signal when the data supports it', async () => {
@@ -406,7 +454,7 @@ describe('PersonalFinance', () => {
     expect(compiled.textContent).toContain('Loading financial signals...');
     expect(compiled.textContent).toContain('Loading goals...');
     expect(compiled.textContent).not.toContain('5,000.00');
-    expect(compiled.textContent).toContain('Understand your finances');
+    expect(compiled.textContent).toContain('Quick access');
 
     pendingAccounts.next(sampleAccounts);
     pendingAccounts.complete();
@@ -693,8 +741,7 @@ describe('PersonalFinance', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Emergency fund');
     expect(text).toContain('1,000.00');
-    expect(text).toContain('Progress unavailable');
-    expect(text).toContain('No allocations yet.');
+    expect(text).toContain('Unavailable — no designated funding yet.');
     expect(text).not.toContain('0%');
     expect(text).not.toContain('not fully funded');
   });
@@ -778,7 +825,7 @@ describe('PersonalFinance', () => {
     expect(text).not.toContain('No allocations yet.');
   });
 
-  it('should link to Accounts, Schedules, Transactions, Goals, Analysis, and Forecast', async () => {
+  it('should link to quick-access destinations', async () => {
     const fixture = TestBed.createComponent(PersonalFinance);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -786,15 +833,14 @@ describe('PersonalFinance', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     const hrefs = [
-      ...compiled.querySelectorAll('.discovery-card'),
+      ...compiled.querySelectorAll('.quick-link'),
     ].map((el) => el.getAttribute('href'));
 
     expect(hrefs).toEqual([
       '/personal_finance/accounts',
-      '/personal_finance/schedules',
       '/personal_finance/transactions',
+      '/personal_finance/schedules',
       '/personal_finance/goals',
-      '/personal_finance/analysis',
       '/personal_finance/forecast',
     ]);
   });
