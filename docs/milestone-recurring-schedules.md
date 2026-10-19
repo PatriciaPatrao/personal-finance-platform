@@ -1,6 +1,6 @@
 # Milestone: Recurring schedules and forecast integration
 
-This document closes the recurring income and recurring expense milestone. It records domain behaviour, validation, automated test coverage, remaining manual checks, and the proposed next milestone (executing scheduled occurrences).
+This document closes the recurring income and recurring expense milestone and records schedule **occurrence execution** as delivered under ADR [005](decisions/005-schedule-execution.md). It covers domain behaviour, validation, automated test coverage, and remaining manual checks.
 
 The codebase remains the source of truth. If this document and the code disagree, treat the discrepancy as a documentation bug unless the product intentionally changed.
 
@@ -8,7 +8,7 @@ The codebase remains the source of truth. If this document and the code disagree
 
 - **Backend:** `incomes` and `recurring_expenses` tables, CRUD-style API (`POST`, `GET`, `PUT`; no DELETE), Pydantic validation, services that do not touch `transactions` or `Account.current_balance`.
 - **Forecast:** `GET /forecast` expands **active** schedules into in-memory occurrences via `generate_occurrences`, and returns `projections[]` (per currency) without persisting results. Omit `account_id` for household scope; pass `account_id` for one account. See ADR [002](decisions/002-analysis-vs-forecast.md).
-- **Frontend:** `/personal_finance/schedules` lists salary and recurring expenses (active and inactive), create and edit forms, one-click **Deactivate** / **Activate**, and copy-to-clipboard on data tables elsewhere in the app.
+- **Frontend:** `/personal_finance/schedules` lists salary and recurring expenses (active and inactive), create and edit forms, one-click **Deactivate** / **Activate**, **Execute occurrence** for active schedules (today’s date only), and copy-to-clipboard on data tables elsewhere in the app.
 
 ## Schedules versus transactions versus forecast
 
@@ -95,7 +95,7 @@ Automated test: `test_forecast_reflects_updated_income_amount` in `backend/tests
 
 | Area | Examples |
 | --- | --- |
-| Schedules component | Load, filters, create/edit/deactivate/activate, validation, currency display |
+| Schedules component | Load, filters, create/edit/deactivate/activate, execute occurrence (success, idempotent replay, errors, duplicate-submit guard), validation, currency display |
 | Forecast / Analysis | HTTP mocked component tests |
 | Amount validation | Zero, negative, over-precision on schedule forms |
 
@@ -151,15 +151,15 @@ Repeat for: create salary, create recurring expense, edit amount, deactivate, ac
 
 ## Known limitations
 
-- Occurrences materialize only through explicit execution API calls (no worker, batch, or frontend execute UI yet; see ADR 005).
+- Occurrences materialize only through explicit user action (Schedules UI or execution API); no worker or batch execution (ADR 005).
 - Household forecast returns one projection per currency; no FX conversion (ADR 002).
 - `account_id` on a schedule filters account-scoped forecast.
 - `start_date` is not used when generating forecast dates.
 - Pagination and indexing deferred.
 
-## Next milestone: Executing recurring occurrences
+## Schedule occurrence execution (delivered)
 
-**Status:** **Implemented** per [005-schedule-execution.md](decisions/005-schedule-execution.md) (backend API, migration, balance rules, Forecast exclusion). Frontend execute UI and cancellation/reversal remain out of scope.
+**Status:** **Implemented** per [005-schedule-execution.md](decisions/005-schedule-execution.md): backend API, `schedule_executions` migration, system-maintained balance on execution, Forecast exclusion, Angular execute UI on Schedules. Cancellation/reversal and batch/background execution remain deferred.
 
 Summary of accepted behaviour:
 
@@ -176,4 +176,4 @@ Implementation order and acceptance criteria are listed in ADR 005.
 
 ---
 
-**Milestone status:** **Closed** for backend schedule execution (ADR 005): API, migration, balance rules, forecast exclusion, and automated tests are in place. Recurring-schedule manual test 9 remains a useful environment check but is not a merge blocker. Out of scope for this closure: frontend execute UI, cancellation/reversal, batch/background execution.
+**Milestone status:** **Closed** for recurring schedules and schedule occurrence execution (ADR 005). Recurring-schedule manual test 9 remains a useful environment check but is not a merge blocker. **Deferred:** cancellation/reversal, batch/background execution.

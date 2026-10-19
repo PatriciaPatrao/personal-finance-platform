@@ -111,7 +111,7 @@ Forecast stays **read-only**.
 When aggregating schedule amounts (`ForecastService._accumulate_schedule_amounts` / `generate_occurrences`), **skip** occurrence dates that have a `schedule_executions` row for the same `(source_type, source_id, occurrence_date)`.
 
 - **Analysis:** persisted `transactions`.
-- **Forecast pending schedule flow:** active schedules minus executed keys, starting from stored `current_balance` (which reflects executed and manual transactions after implementation).
+- **Forecast pending schedule flow:** active schedules minus executed keys, starting from stored `current_balance` (which reflects executed and manual transactions).
 
 Preserve per-currency `projections[]` and account scope (ADR 002). No FX.
 
@@ -166,23 +166,9 @@ Preserve per-currency `projections[]` and account scope (ADR 002). No FX.
 7. Execution-linked transactions are not editable or deletable via normal transaction API until cancellation exists.
 8. `generate_occurrences` recurrence rules unchanged except Forecast read-path exclusion of executed keys.
 
-## Minimum implementation changes (code — not part of this task)
+## Implementation delivery
 
-Documentation-only list of what the codebase must change to meet this ADR:
-
-| Area | Change |
-| --- | --- |
-| `TransactionService` / repository | Single unit of work: insert/update/delete transaction **and** apply balance delta; **one commit** per API operation |
-| Shared balance helper | Centralise signed delta from `TransactionType` + `amount`; reverse on update/delete |
-| Repository commits | Refactor or add flush-only methods so execution and manual paths do not commit mid-flight |
-| `ScheduleExecutionService` (new) | Orchestrate execution row + call shared transaction create; **no** extra balance call |
-| Forecast service | Read `schedule_executions` (or equivalent query) when aggregating schedules |
-| Transaction API | Reject PUT/DELETE when row linked from `schedule_executions` |
-| Alembic | Add `schedule_executions` with uniqueness as in §1 |
-| Tests | Extend transaction tests for balance on create/update/delete; keep schedule data-integrity tests; add execution, idempotency, date equality, forecast exclusion |
-| Docs / seed / UI copy | Align README and screens with system-maintained balance; revisit demo seed where balance and transactions were independent |
-
-**Current gap:** `backend/app/services/transaction.py` and `backend/app/repositories/transaction.py` do not implement §2 today. Implementation must close that gap **before or together with** schedule execution so execution never doubles balance updates.
+The acceptance criteria in [Implementation acceptance criteria](#implementation-acceptance-criteria) are met in the current codebase: `TransactionService` balance rules, `ScheduleExecutionService`, `schedule_executions` migration, execution HTTP routes, Forecast exclusion, transaction guards, backend tests (`test_schedule_execution.py`, `test_transaction_balance.py`), Angular execute UI on Schedules, and aligned demo seed behaviour on first run.
 
 ## Alternatives considered
 
@@ -198,7 +184,7 @@ Documentation-only list of what the codebase must change to meet this ADR:
 
 ## Consequences and trade-offs
 
-- Stored balance tracks cumulative transaction effects; Analysis totals and balance moves align when implementation is complete.
+- Stored balance tracks cumulative transaction effects; Analysis totals and balance moves align for implemented transaction and execution paths.
 - Goal allocation capacity (`max(0, current_balance)`) reflects transaction and execution activity; concurrent execution and allocation may need account row locking (allocations already use `FOR UPDATE`).
 - Demo seed and historical docs that treated balance and transactions as independent require reconciliation when implementing.
 - Transaction update/delete semantics become financially significant; tests and UI must reflect balance changes.

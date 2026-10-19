@@ -25,7 +25,7 @@ These are implemented in the application today.
 
 The dashboard reports **stored account balances**. When every account uses the same currency, it shows a single total across accounts. When currencies differ, it shows one total per currency and does not add those totals together.
 
-That total is **current position, not a forecast**. Account `current_balance` is stored and **system-maintained** (ADR 005): every effective transaction must update it atomically with the transaction row. Implementation is pending; manual CRUD does not yet do this in code.
+That total is **current position, not a forecast**. Account `current_balance` is stored and **system-maintained** (ADR 005): every effective transaction updates it atomically with the transaction row, including schedule execution.
 
 ### Historical financial analysis
 
@@ -57,7 +57,7 @@ The Angular screen at `/personal_finance/goals` lists, creates, and edits Goals,
 
 ### Accounts
 
-Accounts are places money is held: bank, cash, credit card, or investment. Each has a name, a currency, and a stored signed current balance. Negative balances are allowed for every type. That figure is the account’s position. It is not calculated from transaction history, and recording a transaction does not change it. The Angular screen at `/personal_finance/accounts` lists those accounts and creates new ones. The create form offers EUR, USD, and GBP. That short list is a UI constraint for this MVP; the API accepts any 3-character currency code. There is no FX conversion, and the Accounts screens do not add balances that use different currencies. `/personal_finance/accounts/:id` shows a read-only view of one stored account. Accounts cannot be edited or deleted in the UI.
+Accounts are places money is held: bank, cash, credit card, or investment. Each has a name, a currency, and a stored signed current balance. Negative balances are allowed for every type. That figure is the account’s position: it is maintained by the system when transactions are written (ADR 005), not recomputed from a full replay on each read. The Angular screen at `/personal_finance/accounts` lists those accounts and creates new ones. The create form offers EUR, USD, and GBP. That short list is a UI constraint for this MVP; the API accepts any 3-character currency code. There is no FX conversion, and the Accounts screens do not add balances that use different currencies. `/personal_finance/accounts/:id` shows a read-only view of one stored account. Accounts cannot be edited or deleted in the UI.
 
 Whether a negative balance means an overdraft, impossible cash, credit-card debt, or an investment loss is not decided yet. Those type-specific rules are future product work. Forecast currently starts from the sum of every stored balance, which assumes the types are comparable. That assumption should be revisited with those rules.
 
@@ -79,7 +79,7 @@ The Angular app’s primary surfaces are **Dashboard**, **Accounts**, **Schedule
 
 The dashboard is an orientation home: current position by currency, a small set of **explainable financial signals**, goal progress, and links to Accounts, Schedules, Transactions, Goals, Analysis, and Forecast. Signals are rule-based text (for example positive vs negative cash flow this month, no scheduled income in the forecast window, projected balance rising or falling). They are withheld when accounts use more than one currency, because Analysis and Forecast are not currency-safe. A quiet check names the period that was read. Goal progress comes from the goal API: null progress is unavailable, and a funded amount of zero can display as 0%. There is no numeric financial-health score. The Dashboard does not change financial records.
 
-Accounts, Financial Goals, and Schedules (salary and fixed recurring expenses) can be listed and written in the UI. Schedule writes do not create transactions or change account balances.
+Accounts, Financial Goals, and Schedules (salary and fixed recurring expenses) can be listed and written in the UI. Schedule CRUD does not create transactions or change account balances; **Execute occurrence** on Schedules materialises one eligible occurrence per request (ADR 005).
 
 ## Product boundaries
 
@@ -109,7 +109,7 @@ These are omitted on purpose, not missing by accident:
 
 - **No arbitrary financial-health score.**
 - **No ML** in the current application.
-- **No automatic generation of transactions** from recurring records or salary schedules. Forecast calculates occurrences in memory and does not persist them as transactions. **Planned (ADR 005):** explicit user execution on the **current domain date only**, shared atomic transaction+balance rules for manual and schedule-generated rows, and Forecast exclusion of executed dates—not yet implemented.
+- **No automatic generation of transactions** from recurring records or salary schedules. Forecast calculates occurrences in memory and does not persist them as transactions. **Explicit execution (ADR 005, implemented):** user-initiated execution on the **current domain date only**, shared atomic transaction+balance rules, and Forecast exclusion of executed dates. No worker or batch execution.
 - **No unnecessary multi-currency complexity.** Currency defaults to EUR. The dashboard will not invent a single balance across mixed currencies. Forecast returns separate projections per currency. Full FX conversion is out of scope.
 - **No premature background-job infrastructure.** Occurrence dates are computed on forecast request.
 - **Salary-only scheduled income.** Other recurring income types are a later concern.

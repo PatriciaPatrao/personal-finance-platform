@@ -21,13 +21,13 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 
 ## Current capabilities
 
-**Accounts.** Create and read accounts. Types are bank, cash, credit card, and investment. Each account stores a currency (EUR by default) and a signed `current_balance`. Negative balances are allowed. ADR 005 defines **system-maintained** balances: every effective transaction must update `current_balance` in the same database transaction (implementation pending). Account create may set an opening balance. The Angular screen at `/personal_finance/accounts` lists stored accounts and creates new ones. The create form offers EUR, USD, and GBP only. That list is a UI constraint: the API accepts any 3-character currency code. `/personal_finance/accounts/:id` shows a read-only account detail. There is no update or delete path, no FX conversion, and no combined total across different currencies.
+**Accounts.** Create and read accounts. Types are bank, cash, credit card, and investment. Each account stores a currency (EUR by default) and a signed `current_balance`. Negative balances are allowed. ADR 005 **system-maintained** balances: every effective transaction updates `current_balance` in the same database transaction. Account create may set an opening balance. The Angular screen at `/personal_finance/accounts` lists stored accounts and creates new ones. The create form offers EUR, USD, and GBP only. That list is a UI constraint: the API accepts any 3-character currency code. `/personal_finance/accounts/:id` shows a read-only account detail. There is no update or delete path, no FX conversion, and no combined total across different currencies.
 
-**Transactions.** Create, read, update, and delete income and expense transactions. Each transaction belongs to an account and may have a category and description. The Angular screen at `/personal_finance/transactions` performs that CRUD. Filters (date range, type, category) run in the client. Category is an optional string. Per ADR 005, writes will update `current_balance` atomically once implemented.
+**Transactions.** Create, read, update, and delete income and expense transactions. Each transaction belongs to an account and may have a category and description. The Angular screen at `/personal_finance/transactions` performs that CRUD. Filters (date range, type, category) run in the client. Category is an optional string. Writes update `current_balance` atomically. Transactions linked to schedule execution cannot be edited or deleted (409).
 
-**Income.** Create, read, and update expected salary schedules. Each schedule belongs to an account. Frequency is weekly, monthly, or yearly, with a start date, a next occurrence, an optional end date, and an active flag. The income model is salary only. The start date is stored and checked against the next occurrence and end date. Forecast does not use it to generate dates. The Angular screen at `/personal_finance/schedules` lists, creates, edits, deactivates, and reactivates salary schedules. Schedule writes do not create transactions or change balances.
+**Income.** Create, read, and update expected salary schedules. Each schedule belongs to an account. Frequency is weekly, monthly, or yearly, with a start date, a next occurrence, an optional end date, and an active flag. The income model is salary only. The start date is stored and checked against the next occurrence and end date. Forecast does not use it to generate dates. The Angular screen at `/personal_finance/schedules` lists, creates, edits, deactivates, and reactivates salary schedules, and can **execute** today’s eligible occurrence as a transaction. Schedule CRUD does not create transactions or change balances.
 
-**Recurring expenses.** Create, read, and update fixed scheduled commitments on an account, with the same frequency, start date, occurrence, and active-flag shape, plus a description and optional category. Each schedule has one fixed amount. The same Schedules screen maintains these records alongside salary.
+**Recurring expenses.** Create, read, and update fixed scheduled commitments on an account, with the same frequency, start date, occurrence, and active-flag shape, plus a description and optional category. Each schedule has one fixed amount. The same Schedules screen maintains these records and supports execution for active rows.
 
 **Analysis.** Read-only historical queries over every account’s transactions for a date range that cannot end in the future. Amounts are not converted between currencies. The Analysis screen labels them EUR. The API response has no currency field.
 
@@ -113,13 +113,13 @@ The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for
 | `/personal_finance` | Dashboard: one stored total per currency, financial signals when currencies match, goal progress, links to Accounts, Schedules, Transactions, Goals, Analysis, and Forecast |
 | `/personal_finance/accounts` | Stored accounts list and create form: name, type, currency, and opening/current balance |
 | `/personal_finance/accounts/:id` | Read-only account detail: stored balance, type, currency, and created date. No update or delete. |
-| `/personal_finance/schedules` | Salary and fixed recurring expenses: list active and inactive records, create, edit, deactivate, and activate. Dates are entered as DD-MM-YYYY. Schedules inform Forecast; they are not transactions and do not change balances. |
+| `/personal_finance/schedules` | Salary and fixed recurring expenses: list, create, edit, deactivate, activate, and execute today’s occurrence (ADR 005). Dates are DD-MM-YYYY. Schedule CRUD informs Forecast only; execution creates transactions and updates balance. |
 | `/personal_finance/goals` | Financial objectives: list, create, and edit; allocate, reduce, or remove designated Account money. Derived progress, no Goal delete. Dates are entered as DD-MM-YYYY. |
 | `/personal_finance/analysis` | Historical summary, expenses by category, and cash flow. Default range is the current month through today. Dates are entered as DD-MM-YYYY. |
 | `/personal_finance/forecast` | Projected income, expenses, net cash flow, and running balance. Default range starts today and ends on the last day of the calendar month two months ahead. Grouping is monthly or daily. |
 | `/personal_finance/transactions` | Recorded income and expense events: list, client-side filters, create, edit, and delete. Dates are entered as DD-MM-YYYY. |
 
-If accounts use more than one currency, the Dashboard shows a separate total for each currency and does not show Analysis or Forecast signals. Forecast still sums those balances and labels the result EUR.
+If accounts use more than one currency, the Dashboard shows a separate total for each currency and does not show Analysis or Forecast signals. Household Forecast returns one projection per account currency (no cross-currency sum or FX).
 
 ## Run the backend
 
@@ -212,7 +212,7 @@ The script stops if more than one account is already named Demo Main Account.
 
 - [docs/product-vision.md](docs/product-vision.md) — product boundaries and what is intentionally omitted
 - [docs/architecture.md](docs/architecture.md) — structure of the current application
-- [docs/milestone-recurring-schedules.md](docs/milestone-recurring-schedules.md) — recurring schedule milestone validation, manual checks, and next execution plan
+- [docs/milestone-recurring-schedules.md](docs/milestone-recurring-schedules.md) — recurring schedules and schedule execution milestone (validation, tests, status)
 - [docs/decisions/](docs/decisions/) — modular monolith, Analysis versus Forecast, Dashboard responsibility, Financial Goals, and schedule occurrence execution (ADR 005)
 - [frontend/README.md](frontend/README.md) — Angular CLI serve, build, and unit-test commands
 - `http://127.0.0.1:8000/docs` — generated OpenAPI for the running API

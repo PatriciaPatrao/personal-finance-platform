@@ -47,7 +47,7 @@ The shell is `PersonalFinanceLayout` at `/personal_finance`. Navigation is Dashb
 | `/personal_finance` | Dashboard: position by currency, signals, goals, links |
 | `/personal_finance/accounts` | Stored accounts list and create form |
 | `/personal_finance/accounts/:id` | Read-only stored account detail |
-| `/personal_finance/schedules` | Salary and fixed recurring expenses: list, create, edit, deactivate, activate |
+| `/personal_finance/schedules` | Salary and fixed recurring expenses: list, create, edit, deactivate, activate, execute today’s eligible occurrence |
 | `/personal_finance/goals` | Financial objectives: list, create, and edit |
 | `/personal_finance/analysis` | Historical analysis of transactions |
 | `/personal_finance/forecast` | Projection from balances and schedules |
@@ -78,11 +78,11 @@ Implemented by `Forecast`. It queries `GET /forecast` with `from`, `to`, optiona
 
 Implemented by `Accounts` and `AccountDetail`. The list page loads `GET /accounts` through `AccountService.listAccounts()`, lists every stored account in API order, and shows each account’s name, type, currency, and stored `current_balance`. It creates accounts through `AccountService.createAccount()` with name, type, currency, and optional opening balance. The create form offers EUR, USD, and GBP. That list is a UI constraint, not a domain rule: the API accepts any 3-character currency code and does not convert between them. The detail page at `/personal_finance/accounts/:id` loads one account through `AccountService.getAccount(id)` and shows the stored fields read-only, each balance in that account’s own currency. The Accounts screens do not sum balances across accounts and do not derive them from transactions. There is no update or delete path. `AccountService` is also used by the Dashboard, by the Transactions account picker, by the Goals account picker, and by the Schedules account picker.
 
-`current_balance` is a stored signed amount maintained **by the system** (ADR [005](decisions/005-schedule-execution.md)). Negative values are allowed for every account type. Every effective transaction create, update, and delete must apply the corresponding balance delta in the **same database transaction** as the `transactions` row. Account create may set an initial balance without a transaction. Schedule CRUD and Goal allocations do not modify it. **Today’s code** does not yet update balance on manual transaction CRUD; implementation must align with ADR 005 before or with schedule execution. Type-specific meaning is future product work. Forecast starts from stored balances per currency.
+`current_balance` is a stored signed amount maintained **by the system** (ADR [005](decisions/005-schedule-execution.md)). Negative values are allowed for every account type. Every effective transaction create, update, and delete applies the corresponding balance delta in the **same database transaction** as the `transactions` row (`TransactionService`). Account create may set an initial balance without a transaction. Schedule CRUD and Goal allocations do not modify it. Schedule occurrence execution updates balance through the same shared transaction path. Type-specific meaning is future product work. Forecast starts from stored balances per currency.
 
 ### Schedules
 
-Implemented by `Schedules` at `/personal_finance/schedules`. It loads `GET /incomes`, `GET /recurring-expenses`, and `GET /accounts`, lists salary and fixed recurring-expense records (including inactive ones), and creates and updates them through `POST` and `PUT`. There is no DELETE; deactivation and activation set `active` on a full PUT body that always includes every required field, including `end_date`. One-click Deactivate and Activate buttons call those updates without opening the edit form. Separate sections cover salary and recurring expenses, each with an Active / Inactive / All filter. Dates are entered as DD-MM-YYYY and sent as ISO `YYYY-MM-DD`. Amount validation requires a positive value with at most two decimal places. The page explains that schedules inform Forecast, are not recorded transactions, do not change `Account.current_balance`, and do not imply a separate projected balance per account. It does not call Transactions, Analysis, or Forecast. See [milestone-recurring-schedules.md](milestone-recurring-schedules.md) for validation and manual test checklists.
+Implemented by `Schedules` at `/personal_finance/schedules`. It loads `GET /incomes`, `GET /recurring-expenses`, and `GET /accounts`, lists salary and fixed recurring-expense records (including inactive ones), and creates and updates them through `POST` and `PUT`. There is no DELETE; deactivation and activation set `active` on a full PUT body that always includes every required field, including `end_date`. One-click Deactivate and Activate buttons call those updates without opening the edit form. Separate sections cover salary and recurring expenses, each with an Active / Inactive / All filter. Dates are entered as DD-MM-YYYY and sent as ISO `YYYY-MM-DD`. Amount validation requires a positive value with at most two decimal places. Active schedules offer **Execute occurrence**: the user confirms today’s date (DD-MM-YYYY); the client calls `POST /incomes/{id}/executions` or `POST /recurring-expenses/{id}/executions` with `occurrence_date` equal to the current domain date. First success returns **201**; idempotent replay returns **200** (see ADR 005). The page explains that schedule CRUD informs Forecast only, does not change `Account.current_balance`, and is separate from execution. It does not call Transactions, Analysis, or Forecast for execution. See [milestone-recurring-schedules.md](milestone-recurring-schedules.md) and [005-schedule-execution.md](decisions/005-schedule-execution.md).
 
 ### Goals
 
@@ -90,7 +90,7 @@ Implemented by `Goals` at `/personal_finance/goals`. It loads `GET /financial-go
 
 ### Transactions
 
-Implemented by `Transactions`. It loads `GET /transactions` and `GET /accounts`, lists historical income and expense events, and creates, updates, and deletes them through the write routes. Execution-linked rows will reject PUT/DELETE (ADR 005). Filters run in the client. Per ADR 005, each write must update `current_balance` atomically (not yet implemented in the backend). Schedule execution is initiated from Schedules (planned). The page does not call Analysis or Forecast and does not paginate.
+Implemented by `Transactions`. It loads `GET /transactions` and `GET /accounts`, lists historical income and expense events, and creates, updates, and deletes them through the write routes. Each write updates `current_balance` atomically in the backend. Rows linked from `schedule_executions` reject PUT and DELETE with **409** (ADR 005). Schedule execution is initiated from Schedules, not this screen. Filters run in the client. The page does not call Analysis or Forecast and does not paginate.
 
 ## 4. Backend domain boundaries
 
@@ -100,6 +100,7 @@ Implemented by `Transactions`. It loads `GET /transactions` and `GET /accounts`,
 | Transactions | Recorded income or expense events on an account. Source of historical analysis. | `transactions` |
 | Income | Expected **salary** schedules on an account (weekly / monthly / yearly), with start date, next occurrence, optional end, and active flag. | `incomes` |
 | Recurring expenses | Expected future commitments on an account with **one fixed amount**, optional category, and the same date and frequency shape as income. | `recurring_expenses` |
+| Schedule execution | One materialised schedule occurrence: links schedule identity, `occurrence_date`, and the resulting transaction. Idempotent on `(source_type, source_id, occurrence_date)`. | `schedule_executions` |
 | Financial Goals | Future financial objectives with a target amount and optional target date. Funding is GoalAllocation. Do not store money. | `financial_goals`, `goal_allocations` |
 | Analysis | Read-only aggregates over transactions in a historical range. | None of its own |
 | Forecast | Read-only projection from balances and active schedules. | None of its own |
@@ -172,7 +173,7 @@ Those signal rules live in the dashboard feature, not in a backend domain servic
 | --- | --- |
 | Actual current account balance | `Account.current_balance` (stored signed column). System-maintained: every effective transaction write updates it atomically with the row (ADR 005). Opening balance on account create is the initial exception. Not type-specific yet. |
 | Historical financial events | `Transaction` rows (`occurred_on`, type, amount, optional category). |
-| Executed schedule occurrences | `schedule_executions` (planned): links schedule identity, `occurrence_date`, and `transaction_id`. |
+| Executed schedule occurrences | `schedule_executions`: links schedule identity, `occurrence_date`, and `transaction_id`. |
 | Scheduled future inflows (pending) | Active `Income` rows minus executed occurrences in Forecast aggregation. |
 | Scheduled future outflows (pending) | Active `RecurringExpense` rows minus executed occurrences in Forecast aggregation. |
 | Financial objective and target | `FinancialGoal` rows (`target_amount`, optional `target_date`). Designated funding is `GoalAllocation`. |
@@ -180,7 +181,7 @@ Those signal rules live in the dashboard feature, not in a backend domain servic
 | Calculated forecast periods | Not persisted. Produced on each `GET /forecast`. |
 | Historical analysis totals | Not persisted. Produced on each `/analysis/*` request. |
 
-Demo seed data today sets `current_balance` independently of seeded transaction totals. Reconcile seed when ADR 005 balance rules are implemented.
+Demo seed data on a **first run** sets `current_balance` from seeded transaction deltas (see [Seed data](#10-seed-data)). Legacy databases seeded before that behaviour may still diverge.
 
 ## 8. API design principles
 
@@ -199,9 +200,9 @@ Relevant decisions that the current API implements:
 
 ### Backend
 
-pytest plus FastAPI `TestClient` (`httpx`). Tests use the same `DATABASE_URL` as the app, with connection `search_path` set to a PostgreSQL schema named `test` (`backend/tests/conftest.py`). That schema must already exist and contain migrated tables. The suite does not create the schema. Each test deletes rows in `goal_allocations`, `financial_goals`, `accounts`, `transactions`, `recurring_expenses`, and `incomes`.
+pytest plus FastAPI `TestClient` (`httpx`). Tests use the same `DATABASE_URL` as the app, with connection `search_path` set to a PostgreSQL schema named `test` (`backend/tests/conftest.py`). That schema must already exist and contain migrated tables. The suite does not create the schema. Each test deletes rows in `goal_allocations`, `financial_goals`, `schedule_executions`, `transactions`, `recurring_expenses`, `incomes`, and `accounts` (child tables first).
 
-Coverage is HTTP-level and domain-level: health, CORS preflight, accounts, transactions, account–transaction relationship, incomes, recurring expenses, schedule data integrity (no balance or transaction side effects), financial goals, financial summary, analysis, forecast, occurrence helpers, and database session wiring.
+Coverage is HTTP-level and domain-level: health, CORS preflight, accounts, transactions (including balance effects), account–transaction relationship, incomes, recurring expenses, schedule data integrity (schedule CRUD side effects), schedule execution, financial goals, financial summary, analysis, forecast, occurrence helpers, and database session wiring.
 
 ### Frontend
 
@@ -229,14 +230,14 @@ Infrastructure that exists:
 
 The following are **not** implemented: Redis, message queues, background workers, Kubernetes (or other cluster orchestration), metrics/tracing platforms, and authentication infrastructure.
 
-Occurrence dates for Forecast are computed on request. There is no job that materializes upcoming transactions.
+Occurrence dates for Forecast are computed on request. Explicit user execution (ADR 005) materialises an eligible occurrence as a transaction; there is no background job that runs schedules automatically.
 
 ## 12. Future evolution
 
 These are **future considerations**. They are not current architecture.
 
 - **Account selection.** Analysis aggregates remain household-wide. Forecast supports optional `account_id` on the API and an account filter on the Forecast page. The Dashboard keeps a household-only forecast when every account shares one currency.
-- **Multi-currency.** The Accounts create form offers EUR, USD, and GBP. That is a UI constraint. The API accepts any 3-character code. There is no FX conversion. The Dashboard shows one stored total per currency and does not show Analysis or Forecast signals when those currencies differ. Forecast still sums balances and labels the result EUR. That Forecast limitation is unchanged. Revisit it if broader multi-currency support becomes a product requirement.
+- **Multi-currency.** The Accounts create form offers EUR, USD, and GBP. That is a UI constraint. The API accepts any 3-character code. There is no FX conversion. The Dashboard shows one stored total per currency and does not show Analysis or Forecast signals when those currencies differ. Household Forecast returns one projection per account currency (ADR 002), not a combined cross-currency total. Some Analysis UI labels still show EUR as a display convention; the analysis API does not convert mixed currencies.
 - **Account-type balance rules.** `current_balance` is one signed stored value for every type. Negative amounts are allowed. Bank overdrafts, cash, credit-card debt, and investment valuation are not modeled separately. Forecast’s starting sum assumes they are comparable.
 - **Background jobs.** Not present. Recurring occurrences are expanded when Forecast is requested.
 - **Observability.** Health JSON only. No tracing, metrics, or log platform is wired in.

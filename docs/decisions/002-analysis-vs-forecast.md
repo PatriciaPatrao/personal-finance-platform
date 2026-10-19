@@ -8,9 +8,9 @@ Accepted
 
 The product answers two different questions with two different sources of truth.
 
-Historical events live in `transactions` (`occurred_on`, type, amount, optional category). Scheduled future inflows live in active `incomes` (salary). Scheduled future outflows live in active `recurring_expenses` (one fixed amount). Current position is the stored `Account.current_balance`. ADR [005](005-schedule-execution.md) requires that **every effective transaction** (manual and schedule-generated) update `current_balance` atomically with the transaction row; the codebase does not yet implement that for manual CRUD.
+Historical events live in `transactions` (`occurred_on`, type, amount, optional category). Scheduled future inflows live in active `incomes` (salary). Scheduled future outflows live in active `recurring_expenses` (one fixed amount). Current position is the stored `Account.current_balance`. ADR [005](005-schedule-execution.md) requires that **every effective transaction** (manual and schedule-generated) update `current_balance` atomically with the transaction row; manual CRUD and schedule execution implement this via `TransactionService`.
 
-Demo seed data today sets `current_balance` independently of seeded transaction totals; reconcile seed when balance rules are implemented.
+Demo seed data on a first run sets `current_balance` from seeded transaction deltas; see `backend/scripts/seed_demo_data.py`.
 
 ## Decision
 
