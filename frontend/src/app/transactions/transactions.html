@@ -75,7 +75,7 @@
         <span>{{ pendingDelete.amount | currency: 'EUR' }}</span>
       </p>
       <p class="delete-note">
-        This removes the recorded event. Account balances are not changed.
+        This removes the recorded event and reverses its impact on the account balance.
       </p>
       @if (deleteError) {
         <p class="status status-error" role="alert">{{ deleteError }}</p>

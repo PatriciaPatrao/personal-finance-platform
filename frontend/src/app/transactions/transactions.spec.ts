@@ -535,7 +535,9 @@ describe('Transactions', () => {
     expect(text).toContain('Cash Wallet');
     expect(text).toContain('Expense');
     expect(text).toContain('€12.00');
-    expect(text).toContain('Account balances are not changed.');
+    expect(text).toContain(
+      'This removes the recorded event and reverses its impact on the account balance.',
+    );
     expect(deleteTransaction).not.toHaveBeenCalled();
     expect(compiled.querySelectorAll('tbody tr')).toHaveLength(3);
   });
