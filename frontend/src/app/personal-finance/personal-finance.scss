@@ -1,30 +1,3 @@
-.goal-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1.15rem;
-}
-
-.goal-card-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.85rem;
-  padding-bottom: 0.65rem;
-  border-bottom: 1px solid var(--pfp-border);
-}
-
-.goal-card-header h3 {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 650;
-  color: var(--pfp-brand-navy);
-}
-
 .goal-currency-tag {
   font-size: 0.75rem;
   font-weight: 700;
@@ -36,32 +9,9 @@
   color: var(--pfp-brand-teal);
 }
 
-.goal-metrics {
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: 0.85rem 1rem;
-}
-
-.goal-metrics dt {
-  margin: 0 0 0.2rem;
-  font-size: 0.75rem;
-  font-weight: 650;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--pfp-text-subtle);
-}
-
-.goal-metrics dd {
-  margin: 0;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
 .progress-track {
   display: block;
   height: 0.5rem;
-  margin-top: 0.35rem;
   border-radius: 999px;
   background: var(--pfp-border);
   overflow: hidden;
@@ -71,18 +21,4 @@
   display: block;
   height: 100%;
   background: var(--pfp-brand-teal);
-}
-
-.progress-label {
-  display: block;
-  margin-bottom: 0.15rem;
-}
-
-:host ::ng-deep .goal-card .p-card-body {
-  border-left: 4px solid var(--pfp-brand-teal);
-}
-
-:host ::ng-deep .goal-card-unavailable .p-card-body {
-  border-left-color: var(--pfp-text-subtle);
-  background: var(--pfp-surface-muted);
 }

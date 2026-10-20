@@ -49,6 +49,14 @@
         </p>
         <p class="hero-caption">Across your accounts ({{ position.currency }})</p>
         <p class="hero-note">Stored balances now — not a forecast.</p>
+        @if (accountsCount > 0) {
+          <p class="hero-meta">
+            <a class="inline-link" routerLink="/personal_finance/accounts">
+              {{ accountsCount }}
+              {{ accountsCount === 1 ? 'account' : 'accounts' }}
+            </a>
+          </p>
+        }
       } @else if (position.kind === 'by_currency') {
         <ul class="currency-list">
           @for (total of position.totals; track total.currency) {
@@ -64,6 +72,14 @@
           Stored balances now — not a forecast. Totals stay separate by
           currency.
         </p>
+        @if (accountsCount > 0) {
+          <p class="hero-meta">
+            <a class="inline-link" routerLink="/personal_finance/accounts">
+              View {{ accountsCount }}
+              {{ accountsCount === 1 ? 'account' : 'accounts' }}
+            </a>
+          </p>
+        }
       }
     }
   </p-card>
@@ -188,6 +204,87 @@
           routerLink="/personal_finance/schedules"
         />
       </div>
+    </p-card>
+  }
+
+  @if (showNearTermOutlookSection) {
+    <p-card
+      styleClass="pfp-panel-card panel outlook-panel"
+      aria-labelledby="outlook-heading"
+    >
+      <h2 id="outlook-heading">Near-term outlook</h2>
+      <p class="panel-intro">
+        Scheduled projection from stored balances and active schedules — not
+        historical spending or guaranteed outcomes. Amounts stay separate by
+        currency.
+      </p>
+
+      @if (forecastLoading) {
+        <p-message
+          severity="info"
+          styleClass="status-loading"
+          text="Loading scheduled projection..."
+          ariaLive="polite"
+        />
+      } @else if (forecastError) {
+        <p-message
+          severity="error"
+          styleClass="status-error"
+          text="Unable to load the scheduled forecast for this window."
+          role="alert"
+        />
+      } @else if (forecastRangeLabel) {
+        <p class="range-note">Forecast period: {{ forecastRangeLabel }}</p>
+      }
+
+      @if (!forecastLoading && !forecastError && outlookGroups.length > 0) {
+        <ul class="outlook-list">
+          @for (group of outlookGroups; track group.currency) {
+            <li>
+              <article class="outlook-card">
+                <header class="outlook-card-header">
+                  <h3 class="outlook-currency">{{ group.currency }}</h3>
+                  <span class="outlook-trend-badge">{{
+                    outlookTrendShortLabel(group.trend)
+                  }}</span>
+                </header>
+                <dl class="outlook-metrics">
+                  <div>
+                    <dt>Starting balance</dt>
+                    <dd>
+                      {{
+                        group.startingBalance | currency: group.currency
+                      }}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Projected at period end</dt>
+                    <dd>
+                      {{ group.endingBalance | currency: group.currency }}
+                    </dd>
+                  </div>
+                </dl>
+                <p class="outlook-detail">
+                  {{ outlookTrendAccessibleDetail(group.trend) }}
+                </p>
+              </article>
+            </li>
+          }
+        </ul>
+        <div class="panel-footer-actions">
+          <p-button
+            label="Open Forecast"
+            icon="pi pi-chart-line"
+            severity="primary"
+            styleClass="panel-footer-action open-forecast-link"
+            routerLink="/personal_finance/forecast"
+          />
+        </div>
+      } @else if (!forecastLoading && !forecastError) {
+        <p class="empty-state">
+          No projection periods returned for the current forecast window.
+        </p>
+      }
     </p-card>
   }
 
@@ -380,64 +477,42 @@
         />
       </div>
     } @else {
-      <ul class="goal-list">
+      <ul class="goal-summary-list">
         @for (goal of goals; track goal.id) {
           <li>
-            <p-card
-              [styleClass]="
-                'pfp-panel-card goal-card' +
-                (goal.progress === null ? ' goal-card-unavailable' : '')
-              "
+            <article
+              class="goal-summary"
+              [class.goal-summary-unavailable]="goal.progress === null"
             >
-            <header class="goal-card-header">
-              <h3>{{ goal.name }}</h3>
-              <span class="goal-currency-tag">{{ goal.currency }}</span>
-            </header>
-            <dl class="goal-metrics">
-              <div>
-                <dt>Target</dt>
-                <dd>{{ goal.target_amount | currency: goal.currency }}</dd>
-              </div>
+              <header class="goal-summary-header">
+                <h3>{{ goal.name }}</h3>
+                <span class="goal-currency-tag">{{ goal.currency }}</span>
+              </header>
               @if (goal.progress === null) {
-                <div>
-                  <dt>Progress</dt>
-                  <dd>Unavailable — no designated funding yet.</dd>
-                </div>
+                <p class="goal-summary-note">
+                  Progress unavailable — no designated funding yet.
+                </p>
               } @else {
-                <div>
-                  <dt>Funded</dt>
-                  <dd>{{ goal.current_amount | currency: goal.currency }}</dd>
-                </div>
-                <div>
-                  <dt>Progress</dt>
-                  <dd>
-                    <span class="progress-label">{{ progressText(goal) }}</span>
-                    <span
-                      class="progress-track"
-                      role="progressbar"
-                      [attr.aria-valuenow]="progressPercent(goal)"
-                      aria-valuemin="0"
-                      aria-valuemax="100"
-                      [attr.aria-label]="
-                        'Progress toward target for ' + goal.name
-                      "
-                    >
-                      <span
-                        class="progress-fill"
-                        [style.width.%]="progressPercent(goal) ?? 0"
-                      ></span>
-                    </span>
-                  </dd>
-                </div>
-                @if (goalRemainingAmount(goal); as remaining) {
-                  <div>
-                    <dt>Remaining</dt>
-                    <dd>{{ remaining | currency: goal.currency }}</dd>
-                  </div>
-                }
+                <p class="goal-summary-funded">
+                  {{ goal.current_amount | currency: goal.currency }}
+                  of {{ goal.target_amount | currency: goal.currency }}
+                  funded ({{ progressText(goal) }})
+                </p>
+                <span
+                  class="progress-track"
+                  role="progressbar"
+                  [attr.aria-valuenow]="progressPercent(goal)"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  [attr.aria-label]="'Progress toward target for ' + goal.name"
+                >
+                  <span
+                    class="progress-fill"
+                    [style.width.%]="progressPercent(goal) ?? 0"
+                  ></span>
+                </span>
               }
-            </dl>
-            </p-card>
+            </article>
           </li>
         }
       </ul>
@@ -453,7 +528,10 @@
     }
   </p-card>
 
-  <p-card styleClass="pfp-panel-card panel quick-panel" aria-labelledby="quick-heading">
+  <p-card
+    styleClass="pfp-panel-card panel quick-panel quick-panel-secondary"
+    aria-labelledby="quick-heading"
+  >
     <h2 id="quick-heading">Quick access</h2>
     <p class="panel-intro">
       Jump to the tools you use most — same routes as the main navigation.

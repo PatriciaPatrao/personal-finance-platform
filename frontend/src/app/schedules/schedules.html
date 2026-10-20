@@ -2,15 +2,25 @@
   <header class="page-header">
     <h1>Schedules</h1>
     <p class="page-intro">
-      Expected future salary and fixed recurring expenses. Forecast counts
-      occurrences from the next occurrence, not from the start date.
-      Creating or editing a schedule does not add a transaction, including
-      when the start date is already in the past, and it does not change
-      account balances. Use Execute occurrence on an active schedule to
-      materialize today's eligible occurrence as a transaction.
-      Choosing an account links the commitment to that account. Use the
-      Forecast page account filter to project that account alone.
+      Manage salary and fixed recurring expenses. Schedule changes inform
+      Forecast only until you execute an eligible occurrence.
     </p>
+    <details class="pfp-page-disclosure">
+      <summary>How schedules, forecast, and execution work</summary>
+      <div class="pfp-page-disclosure-body">
+        <p>
+          Forecast counts occurrences from the next occurrence, not from the
+          start date. Creating or editing a schedule does not add a
+          transaction and does not change account balances.
+        </p>
+        <p>
+          Use Execute occurrence on an active schedule to materialize
+          today&rsquo;s eligible occurrence as a transaction (server date
+          applies). Choosing an account links the commitment to that account.
+          Use the Forecast page account filter to project that account alone.
+        </p>
+      </div>
+    </details>
   </header>
 
   @if (successMessage) {

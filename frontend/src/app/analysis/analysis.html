@@ -309,7 +309,7 @@
                 </figure>
 
                 <app-copy-table scrollLabel="Cash flow table">
-                  <table class="data-table cash-flow-table">
+                  <table class="data-table cash-flow-table period-responsive-table">
                     <thead>
                       <tr>
                         <th scope="col">Period</th>
@@ -331,13 +331,13 @@
                               <span class="period-tag">Latest in range</span>
                             }
                           </td>
-                          <td>
+                          <td [attr.data-label]="'Income (' + block.currency + ')'">
                             {{ period.income | currency: block.currency }}
                           </td>
-                          <td>
+                          <td [attr.data-label]="'Expenses (' + block.currency + ')'">
                             {{ period.expenses | currency: block.currency }}
                           </td>
-                          <td>
+                          <td [attr.data-label]="'Net (' + block.currency + ')'">
                             <span class="net-with-label">
                               {{
                                 period.net_cash_flow | currency: block.currency

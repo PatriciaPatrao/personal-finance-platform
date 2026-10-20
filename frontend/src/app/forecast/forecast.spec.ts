@@ -562,6 +562,24 @@ describe('Forecast', () => {
     expect(compiled.querySelector('.data-table')).not.toBeNull();
   });
 
+  it('should mark forecast period tables for responsive stacked layout', async () => {
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const table = (fixture.nativeElement as HTMLElement).querySelector(
+      'table.period-responsive-table.forecast-periods-table',
+    );
+    expect(table).not.toBeNull();
+    const balanceCell = table?.querySelector(
+      'td.projected-balance-cell[data-label]',
+    );
+    expect(balanceCell?.getAttribute('data-label')).toContain(
+      'Projected balance',
+    );
+  });
+
   it('should not show the zero-schedule message when any period has activity', async () => {
     const fixture = TestBed.createComponent(Forecast);
     fixture.detectChanges();

@@ -187,6 +187,7 @@ describe('Schedules', () => {
     expect(compiled.textContent).toContain('Salary');
     expect(compiled.textContent).toContain('Rent');
     expect(compiled.textContent).toContain('does not add a transaction');
+    expect(compiled.querySelector('details.pfp-page-disclosure summary')).not.toBeNull();
   });
 
   it('should show loading until schedules arrive', async () => {

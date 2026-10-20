@@ -26,8 +26,14 @@
   --pfp-shadow-sm: 0 1px 2px rgb(15 23 42 / 6%);
   --pfp-shadow-md: 0 4px 12px rgb(15 23 42 / 8%);
   --pfp-space-page: 1.5rem;
+  --pfp-space-section: 1.5rem;
+  --pfp-space-panel: 1.15rem;
   --pfp-max-content: 56rem;
   --pfp-font-display: 'Segoe UI', system-ui, sans-serif;
+  --pfp-text-page-title: 1.85rem;
+  --pfp-text-hero-balance: clamp(1.5rem, 4vw + 0.75rem, 2.25rem);
+  --pfp-text-intro: 0.95rem;
+  --pfp-leading-intro: 1.55;
   --color-text: var(--pfp-text);
   --color-text-muted: var(--pfp-text-muted);
   --color-text-subtle: var(--pfp-text-subtle);
@@ -111,6 +117,37 @@ textarea:focus-visible,
   color: var(--pfp-text-muted);
   max-width: 42rem;
   line-height: 1.55;
+}
+
+.pfp-page-disclosure {
+  margin-top: 0.65rem;
+  max-width: 42rem;
+  font-size: 0.9rem;
+  color: var(--pfp-text-muted);
+}
+
+.pfp-page-disclosure summary {
+  cursor: pointer;
+  font-weight: 650;
+  color: var(--pfp-brand-teal);
+}
+
+.pfp-page-disclosure summary:focus-visible {
+  outline: var(--focus-outline-width) solid var(--color-focus);
+  outline-offset: var(--focus-outline-offset);
+  border-radius: var(--pfp-radius-md);
+}
+
+.pfp-page-disclosure-body {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pfp-page-disclosure-body p {
+  margin: 0;
+  line-height: 1.5;
 }
 
 .pfp-filter-panel,
@@ -351,9 +388,80 @@ textarea:focus-visible,
     width: 100%;
   }
 
-  .data-table {
+  .data-table:not(.period-responsive-table) {
     display: block;
     overflow-x: auto;
+  }
+
+  .data-table.period-responsive-table {
+    display: block;
+    overflow-x: visible;
+    border: 0;
+  }
+
+  .period-responsive-table thead {
+    border: 0;
+    clip: rect(0 0 0 0);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    width: 1px;
+  }
+
+  .period-responsive-table tbody {
+    display: block;
+  }
+
+  .period-responsive-table tr {
+    display: block;
+    margin-bottom: 0.75rem;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid var(--pfp-border);
+    border-radius: var(--pfp-radius-md);
+    background: var(--pfp-surface);
+    box-shadow: var(--pfp-shadow-sm);
+  }
+
+  .period-responsive-table tr.period-current,
+  .period-responsive-table tr.period-latest {
+    border-left: 4px solid var(--pfp-brand-teal);
+  }
+
+  .period-responsive-table td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.35rem 0;
+    border: 0;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .period-responsive-table td::before {
+    content: attr(data-label);
+    flex: 1 1 auto;
+    text-align: left;
+    font-weight: 650;
+    font-size: 0.8rem;
+    color: var(--pfp-text-subtle);
+    font-variant-numeric: normal;
+  }
+
+  .period-responsive-table td:first-child {
+    flex-direction: column;
+    align-items: flex-start;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.35rem;
+    border-bottom: 1px solid var(--pfp-border);
+    font-weight: 650;
+    color: var(--pfp-brand-navy);
+  }
+
+  .period-responsive-table td:first-child::before {
+    content: none;
   }
 }
 
@@ -820,6 +928,15 @@ textarea:focus-visible,
 }
 
 .dashboard-page {
+  .page-header h1 {
+    font-size: var(--pfp-text-page-title);
+  }
+
+  .page-intro {
+    font-size: var(--pfp-text-intro);
+    line-height: var(--pfp-leading-intro);
+  }
+
   .page-header-row {
     display: flex;
     flex-wrap: wrap;
@@ -861,7 +978,7 @@ textarea:focus-visible,
 
   .hero-balance {
     margin: 0;
-    font-size: 2rem;
+    font-size: var(--pfp-text-hero-balance);
     font-weight: 700;
     letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
@@ -869,9 +986,15 @@ textarea:focus-visible,
   }
 
   .hero-caption,
-  .hero-note {
+  .hero-note,
+  .hero-meta {
     margin: 0;
     color: var(--pfp-text-muted);
+  }
+
+  .hero-meta {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
   }
 
   .panel-intro,
@@ -1205,4 +1328,126 @@ textarea:focus-visible,
     margin-top: auto;
     font-weight: 650;
   }
+
+  .outlook-list {
+    list-style: none;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .outlook-card {
+    padding: 0.95rem 1rem;
+    border: 1px solid var(--pfp-border);
+    border-radius: var(--pfp-radius-md);
+    background: var(--pfp-surface);
+    border-left: 4px solid var(--pfp-brand-teal);
+  }
+
+  .outlook-card-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .outlook-currency {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 650;
+    color: var(--pfp-brand-navy);
+  }
+
+  .outlook-trend-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: var(--pfp-info-bg);
+    color: var(--pfp-info);
+  }
+
+  .outlook-metrics {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 0.65rem 1rem;
+  }
+
+  .outlook-metrics dt {
+    margin: 0 0 0.15rem;
+    font-size: 0.75rem;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--pfp-text-subtle);
+  }
+
+  .outlook-metrics dd {
+    margin: 0;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .outlook-detail {
+    margin: 0.65rem 0 0;
+    font-size: 0.9rem;
+    color: var(--pfp-text-muted);
+    line-height: 1.45;
+  }
+
+  .goal-summary-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .goal-summary {
+    padding: 0.85rem 0.95rem;
+    border: 1px solid var(--pfp-border);
+    border-radius: var(--pfp-radius-md);
+    background: var(--pfp-surface);
+    border-left: 4px solid var(--pfp-brand-teal);
+  }
+
+  .goal-summary-unavailable {
+    border-left-color: var(--pfp-text-subtle);
+    background: var(--pfp-surface-muted);
+  }
+
+  .goal-summary-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.45rem;
+  }
+
+  .goal-summary-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 650;
+    color: var(--pfp-brand-navy);
+  }
+
+  .goal-summary-funded,
+  .goal-summary-note {
+    margin: 0 0 0.45rem;
+    font-size: 0.9rem;
+    color: var(--pfp-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+}
+
+.dashboard-page .quick-panel-secondary.p-card .p-card-body {
+  background: var(--pfp-surface-muted);
 }

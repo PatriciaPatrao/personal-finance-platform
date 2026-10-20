@@ -148,6 +148,21 @@ describe('Analysis', () => {
     );
   });
 
+  it('should mark cash flow period tables for responsive stacked layout', async () => {
+    const fixture = TestBed.createComponent(Analysis);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const table = (fixture.nativeElement as HTMLElement).querySelector(
+      'table.period-responsive-table.cash-flow-table',
+    );
+    expect(table).not.toBeNull();
+    const labeledCell = table?.querySelector('td[data-label^="Net"]');
+    expect(labeledCell).not.toBeNull();
+    expect(labeledCell?.getAttribute('data-label')).toContain('EUR');
+  });
+
   it('should display summary, expenses, and cash flow responses', async () => {
     const fixture = TestBed.createComponent(Analysis);
     fixture.detectChanges();

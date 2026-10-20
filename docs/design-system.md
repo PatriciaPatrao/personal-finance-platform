@@ -20,7 +20,13 @@ Tokens live in `frontend/src/styles.scss` under `:root`:
 | `--pfp-radius-md` / `--pfp-radius-lg` | Corner radius |
 | `--pfp-shadow-sm` / `--pfp-shadow-md` | Elevation |
 | `--pfp-space-page` | Vertical rhythm between page sections |
+| `--pfp-space-section` | Same default as page gap; dashboard section rhythm |
+| `--pfp-space-panel` | Inner panel spacing reference |
 | `--pfp-max-content` | Max width for route content |
+| `--pfp-text-page-title` | Dashboard (and shared) page `h1` size |
+| `--pfp-text-hero-balance` | Dashboard hero balance (`clamp` for mobile) |
+| `--pfp-text-intro` | Page intro copy size |
+| `--pfp-leading-intro` | Intro line height |
 
 The PrimeNG theme preset is `frontend/src/app/design-system/pfp-preset.ts`, registered in `app.config.ts` via `providePrimeNG`.
 
@@ -39,7 +45,7 @@ Layout chrome (menubar, drawer) uses PrimeNG in `personal-finance-layout`.
 
 ## Shared CSS
 
-Global rules in `styles.scss` cover page shells (`.pfp-page`, `.accounts-page`, …), filters (`.pfp-filter-panel`, `.filters`), tables (`.data-table`), metrics (`.metric-grid`), form fields (`.field`, `.form-actions`), and analysis/forecast visuals (sparklines, flow bars). Route SCSS files should only hold page-specific layout.
+Global rules in `styles.scss` cover page shells (`.pfp-page`, `.accounts-page`, …), filters (`.pfp-filter-panel`, `.filters`), tables (`.data-table`), responsive period tables (`.period-responsive-table` with `data-label` on cells), metrics (`.metric-grid`), form fields (`.field`, `.form-actions`), page policy disclosures (`.pfp-page-disclosure`), and analysis/forecast visuals (sparklines, flow bars). Route SCSS files should only hold page-specific layout.
 
 ## Route migration status
 

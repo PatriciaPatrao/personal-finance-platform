@@ -262,7 +262,7 @@
               </p>
             }
             <app-copy-table scrollLabel="Forecast periods table">
-            <table class="data-table forecast-periods-table">
+            <table class="data-table forecast-periods-table period-responsive-table">
               <thead>
                 <tr>
                   <th scope="col">Period</th>
@@ -290,18 +290,31 @@
                         <span class="period-tag">Current period</span>
                       }
                     </td>
-                    <td>
+                    <td
+                      [attr.data-label]="
+                        'Income (' + projection.currency + ')'
+                      "
+                    >
                       {{ period.income | currency: projection.currency }}
                     </td>
-                    <td>
+                    <td
+                      [attr.data-label]="
+                        'Expenses (' + projection.currency + ')'
+                      "
+                    >
                       {{ period.expenses | currency: projection.currency }}
                     </td>
-                    <td>
+                    <td [attr.data-label]="'Net (' + projection.currency + ')'">
                       {{
                         period.net_cash_flow | currency: projection.currency
                       }}
                     </td>
-                    <td class="projected-balance-cell">
+                    <td
+                      class="projected-balance-cell"
+                      [attr.data-label]="
+                        'Projected balance (' + projection.currency + ')'
+                      "
+                    >
                       {{
                         period.projected_balance
                           | currency: projection.currency

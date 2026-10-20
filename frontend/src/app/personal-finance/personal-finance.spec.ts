@@ -968,10 +968,26 @@ describe('PersonalFinance', () => {
     expect(headings).toEqual([
       'position-heading',
       'upcoming-heading',
+      'outlook-heading',
       'signals-heading',
       'goals-heading',
       'quick-heading',
     ]);
+  });
+
+  it('should show near-term outlook from loaded forecast projections by currency', async () => {
+    const fixture = TestBed.createComponent(PersonalFinance);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Near-term outlook');
+    expect(text).toContain('Projected to rise');
+    expect(text).toContain('Starting balance');
+    expect(text).toContain('Open Forecast');
+    expect(text).toContain('5,000.00');
+    expect(text).toContain('7,250.00');
   });
 
   it('should distinguish empty upcoming commitments from schedule load failure', async () => {

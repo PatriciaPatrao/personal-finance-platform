@@ -48,6 +48,12 @@ import {
   signalActionRoute,
 } from './financial-signals';
 import { DomainDateService } from '../shared/domain-date.service';
+import {
+  buildDashboardOutlookGroups,
+  DashboardOutlookGroup,
+  outlookTrendDetail,
+} from './dashboard-outlook';
+import { BalanceSparkTrend } from '../forecast/forecast-visuals';
 
 function formatDate(date: Date): string {
   const year = date.getFullYear();
@@ -214,6 +220,41 @@ export class PersonalFinance implements OnInit {
     }
 
     return `${toEuropeanDate(this.forecast.from_date)} to ${toEuropeanDate(this.forecast.to_date)}`;
+  }
+
+  get accountsCount(): number {
+    return this.accounts.length;
+  }
+
+  get outlookGroups(): DashboardOutlookGroup[] {
+    if (this.forecastLoading || this.forecastError || !this.forecast) {
+      return [];
+    }
+
+    return buildDashboardOutlookGroups(this.forecast);
+  }
+
+  get showNearTermOutlookSection(): boolean {
+    return (
+      !this.accountsLoading &&
+      !this.accountsError &&
+      this.currentPosition?.kind !== 'empty'
+    );
+  }
+
+  outlookTrendShortLabel(trend: BalanceSparkTrend): string {
+    switch (trend) {
+      case 'rising':
+        return 'Projected to rise';
+      case 'falling':
+        return 'Projected to fall';
+      case 'stable':
+        return 'Projected stable';
+    }
+  }
+
+  outlookTrendAccessibleDetail(trend: BalanceSparkTrend): string {
+    return outlookTrendDetail(trend);
   }
 
   get signalsSuppressed(): boolean {
