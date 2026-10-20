@@ -4,6 +4,8 @@ This guide prepares a **disposable staging** environment for the Personal Financ
 
 Nothing in this document assumes cloud accounts, services, or URLs already exist. Replace every `YOUR-*` placeholder with values from your own dashboards after provisioning.
 
+**Local development:** For PostgreSQL and the API on your machine without Neon or Render, use Docker Compose at the repository root ([`compose.yaml`](../compose.yaml)). That stack is **development-only** (disposable credentials and data). It does not deploy the frontend; continue to use `npm start` locally or Vercel for hosted builds. Cloud staging below is independent of Compose.
+
 ## Architecture
 
 ```text

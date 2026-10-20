@@ -1,0 +1,40 @@
+# Local development only — API + PostgreSQL. Not used by Vercel, Render, or Neon.
+# Credentials below are disposable dev defaults; do not reuse in staging or production.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pfp_dev
+      POSTGRES_PASSWORD: pfp_dev_local_only
+      POSTGRES_DB: personal_finance_dev
+    volumes:
+      - pfp_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U pfp_dev -d personal_finance_dev",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgresql://pfp_dev:pfp_dev_local_only@db:5432/personal_finance_dev
+      APP_ENV: development
+      PORT: "8000"
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pfp_postgres_data:

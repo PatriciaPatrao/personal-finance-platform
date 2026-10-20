@@ -1,0 +1,26 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Secrets and local env (Compose injects env at runtime)
+.env
+.env.*
+!.env.example
+
+# Python caches and test artefacts
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# Git and IDE
+.git/
+.gitignore
+.vscode/
+
+# Tests (not required to run the API image)
+tests/

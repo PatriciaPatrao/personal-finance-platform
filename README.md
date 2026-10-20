@@ -132,6 +132,53 @@ The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for
 
 If accounts use more than one currency, the Dashboard shows a separate total for each currency and **separate financial signal groups per currency** (Analysis and Forecast are still loaded; amounts are never combined across codes and there is no FX). Household Forecast returns one projection per account currency (no cross-currency sum or FX).
 
+## Local development with Docker Compose
+
+Run the API and PostgreSQL in containers for reproducible onboarding. The Angular app still runs on the host with `npm start` ([Run the frontend](#run-the-frontend)). Staging on Vercel, Render, and Neon is unchanged — see [docs/deployment-staging.md](docs/deployment-staging.md).
+
+**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose v2). Port **5432** and **8000** on `127.0.0.1` must be free (Compose binds locally, not on all interfaces).
+
+**Start services** (from the repository root):
+
+```powershell
+docker compose up --build -d
+```
+
+**Apply migrations** (required once after the database is up; not run during image build or container start):
+
+```powershell
+docker compose exec api alembic upgrade head
+```
+
+**Check API health:**
+
+```powershell
+curl http://127.0.0.1:8000/health
+```
+
+Expect JSON with `status` and `current_domain_date`. OpenAPI: `http://127.0.0.1:8000/docs`.
+
+**Logs:**
+
+```powershell
+docker compose logs -f
+docker compose logs -f api
+```
+
+**Stop services** (keep database data in the named volume):
+
+```powershell
+docker compose down
+```
+
+**Remove containers and delete local database data** (destructive — cannot be undone):
+
+```powershell
+docker compose down -v
+```
+
+Compose uses dev-only credentials in [`compose.yaml`](compose.yaml) and a dedicated database `personal_finance_dev`. Do not point this setup at Neon, Render, or production data.
+
 ## Run the backend
 
 PostgreSQL must already be running. From `backend`:
