@@ -11,12 +11,12 @@ from app.core.config import settings
 
 def _with_psycopg2_driver(database_url: str) -> str:
     """Use psycopg2, the PostgreSQL driver installed for this API."""
-    prefix = "postgresql://"
     driver = "postgresql+psycopg2://"
-
-    if database_url.startswith(prefix):
-        return driver + database_url[len(prefix):]
-    
+    if database_url.startswith(driver):
+        return database_url
+    for prefix in ("postgresql://", "postgres://"):
+        if database_url.startswith(prefix):
+            return driver + database_url[len(prefix):]
     return database_url
 
 

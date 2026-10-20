@@ -177,6 +177,10 @@ Open `http://localhost:4200/`. The browser is allowed to call the API from that 
 
 Configure the API and the built frontend separately. Replace placeholder values with your real deployment URLs and origins.
 
+For a **staging** stack on **Vercel** (frontend), **Render** (API), and **Neon** (PostgreSQL), see [docs/deployment-staging.md](docs/deployment-staging.md). Staging is for disposable demo/UAT data only; the application has **no authentication**.
+
+Repository artifacts for that layout: [`render.yaml`](render.yaml) (API + Alembic pre-deploy), [`frontend/vercel.json`](frontend/vercel.json) (client-side routes), and [`backend/.python-version`](backend/.python-version) (Python 3.12 on Render).
+
 ### Backend
 
 Set environment variables (or `backend/.env` on the server):
@@ -212,7 +216,7 @@ cd frontend
 NG_APP_API_BASE_URL=https://YOUR-API-ORIGIN.example npm run build
 ```
 
-Use the API origin **without** a trailing slash (for example `https://api.example.com`). Static files are emitted under `frontend/dist/frontend`.
+Use the API origin **without** a trailing slash (for example `https://api.example.com`). Static files are emitted under `frontend/dist/frontend/browser` (Angular application builder). Static hosts such as Vercel should use that `browser` folder as the publish root.
 
 Development (`npm start`) is unchanged and does not use `NG_APP_API_BASE_URL`.
 
@@ -283,6 +287,7 @@ The script stops if more than one account is already named Demo Main Account.
 - [docs/architecture.md](docs/architecture.md) — structure of the current application
 - [docs/design-system.md](docs/design-system.md) — design tokens, PrimeNG usage, migration status
 - [docs/milestone-recurring-schedules.md](docs/milestone-recurring-schedules.md) — recurring schedules and schedule execution milestone (validation, tests, status)
+- [docs/deployment-staging.md](docs/deployment-staging.md) — Vercel, Render, and Neon staging deployment
 - [docs/staging-uat-checklist.md](docs/staging-uat-checklist.md) — manual staging UAT before delivery
 - [docs/decisions/](docs/decisions/) — modular monolith, Analysis versus Forecast, Dashboard responsibility, Financial Goals, and schedule occurrence execution (ADR 005)
 - [frontend/README.md](frontend/README.md) — Angular CLI serve, build, and unit-test commands

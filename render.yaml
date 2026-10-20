@@ -1,0 +1,25 @@
+# Render Blueprint — staging API (apply after Neon and env vars are ready).
+# https://render.com/docs/blueprint-spec
+#
+# Do not commit secrets. Set DATABASE_URL and CORS_ORIGINS in the Render
+# dashboard or via `render env set` after the Neon staging database exists.
+
+services:
+  - type: web
+    name: personal-finance-api-staging
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    preDeployCommand: alembic upgrade head
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
