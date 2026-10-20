@@ -1,5 +1,10 @@
 import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { Button } from 'primeng/button';
+import { Card } from 'primeng/card';
+import { Message } from 'primeng/message';
+import { Select } from 'primeng/select';
 
 import { Account } from '../accounts/account';
 import { AccountService } from '../accounts/account.service';
@@ -12,6 +17,12 @@ import {
   ForecastResponse,
 } from './forecast-response';
 import { ForecastService } from './forecast.service';
+import {
+  isCurrentForecastPeriod,
+  netIncomeSignLabel,
+  projectedBalanceSparkPoints,
+} from './forecast-visuals';
+import { formatPeriodRangeLabel } from '../analysis/analysis-period-presets';
 
 const MONTH_NAMES = [
   'January',
@@ -99,11 +110,25 @@ function formatMoneyMinorUnits(minorUnits: bigint): string {
 
 @Component({
   selector: 'app-forecast',
-  imports: [CopyTable, CurrencyPipe, DateField],
+  imports: [
+    Button,
+    Card,
+    CopyTable,
+    CurrencyPipe,
+    DateField,
+    FormsModule,
+    Message,
+    Select,
+  ],
   templateUrl: './forecast.html',
   styleUrl: './forecast.scss',
 })
 export class Forecast implements OnInit {
+  readonly groupByOptions = [
+    { label: 'Monthly', value: 'month' as ForecastGroupBy },
+    { label: 'Daily', value: 'day' as ForecastGroupBy },
+  ];
+
   private readonly initialRange = defaultForecastRange();
 
   from = this.initialRange.from;
@@ -136,8 +161,49 @@ export class Forecast implements OnInit {
     return this.forecast?.projections ?? [];
   }
 
+  get accountFilterOptions(): { label: string; value: string }[] {
+    return [
+      { label: 'All accounts', value: 'all' },
+      ...this.accounts.map((account) => ({
+        label: account.name,
+        value: String(account.id),
+      })),
+    ];
+  }
+
   groupByForCurrency(currency: string): ForecastGroupBy {
     return this.groupByByCurrency[currency] ?? 'month';
+  }
+
+  get selectedPeriodLabel(): string | null {
+    if (!this.forecast) {
+      return null;
+    }
+
+    return formatPeriodRangeLabel(this.forecast.from_date, this.forecast.to_date);
+  }
+
+  netIncomeLabel(projection: ForecastCurrencyProjection): string | null {
+    const net = this.netIncome(projection);
+    if (net === null) {
+      return null;
+    }
+
+    return netIncomeSignLabel(net);
+  }
+
+  balanceSparkline(projection: ForecastCurrencyProjection) {
+    return projectedBalanceSparkPoints(projection.periods);
+  }
+
+  isCurrentPeriod(
+    projection: ForecastCurrencyProjection,
+    period: ForecastPeriod,
+  ): boolean {
+    return isCurrentForecastPeriod(
+      period,
+      this.groupByForCurrency(projection.currency),
+    );
   }
 
   get scopeIntro(): string {

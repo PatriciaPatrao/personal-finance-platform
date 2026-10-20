@@ -41,7 +41,11 @@ The Dashboard is a presentation layer. It loads those results, derives a small s
 
 **Financial summary.** `GET /financial-summary` returns the same transaction totals as analysis summary, for a date range that may extend into the future. The Analysis page uses the analysis routes.
 
-**Dashboard signals.** From the loaded summary and forecast, the client can report positive or negative cash flow, missing scheduled income, and whether the projected balance rises or falls over the forecast window. Those signals are hidden when accounts use more than one currency, and the Dashboard skips household forecast in that case. Per-account forecast is available on the Forecast page. The Dashboard also lists each goal’s target and funded amount in that goal’s currency. Null progress is shown as unavailable.
+**Dashboard.** The Dashboard loads stored account balances, optional analysis and forecast results, active income and recurring-expense schedules, and goals. **Upcoming commitments** lists each active schedule’s API-maintained `next_occurrence` when it falls from today through the same default forecast window used on the Dashboard (today through the end of the month three months ahead). Each row is one schedule (salary or recurring expense), grouped by the linked account’s currency, with no cross-currency totals. Executed occurrences are excluded because execution advances `next_occurrence`. The primary action suggests **Review schedules** when an active schedule’s `next_occurrence` is today or within the next seven calendar days after today. **Financial signals** reuse the same analysis summary and household forecast as before: for a single-currency household, directional cash-flow and forecast signals appear in one block; when accounts use more than one currency, the Dashboard loads analysis and forecast anyway and shows **separate signal groups per currency**, never combining amounts across codes. Per-account forecast remains on the Forecast page. The Dashboard also lists each goal’s target and funded amount in that goal’s currency. Null progress is shown as unavailable.
+
+Account lists, selectors and related labels include account type and currency, and add a created date when names collide. Transactions use a compact card layout on narrow viewports while keeping the full table on larger screens. Schedule execution requires an explicit confirmation step before posting today’s eligible occurrence.
+
+**Analysis** offers “This month” and “Last month” presets, shows the applied date range, per-currency summary metrics with income-versus-expense bars and Surplus/Deficit labels, category share bars, and a CSS net-cash-flow sparkline plus period table (amounts match the API). **Forecast** shows the selected range, per-currency projected-balance trend bars, Surplus/Deficit on net change, highlights the current period in the table with a sticky header, and states that projections are not guaranteed outcomes.
 
 There is no authentication. The Angular UI writes transactions, creates accounts, creates and edits Financial Goals, and creates and edits salary and recurring-expense schedules through the API. Schedule writes do not create transactions or change account balances.
 
@@ -104,6 +108,7 @@ Date query parameters use the names `from` and `to`.
 - Angular 21
 - TypeScript
 - SCSS
+- **PrimeNG 21** for UI components (buttons, messages, cards, inputs, selects); theme preset in `frontend/src/app/design-system/pfp-preset.ts` and tokens in `frontend/src/styles.scss` — see [docs/design-system.md](docs/design-system.md)
 - Standalone components and lazy-loaded routes
 - Vitest, through the Angular CLI
 
@@ -264,6 +269,7 @@ The script stops if more than one account is already named Demo Main Account.
 
 - [docs/product-vision.md](docs/product-vision.md) — product boundaries and what is intentionally omitted
 - [docs/architecture.md](docs/architecture.md) — structure of the current application
+- [docs/design-system.md](docs/design-system.md) — design tokens, PrimeNG usage, migration status
 - [docs/milestone-recurring-schedules.md](docs/milestone-recurring-schedules.md) — recurring schedules and schedule execution milestone (validation, tests, status)
 - [docs/decisions/](docs/decisions/) — modular monolith, Analysis versus Forecast, Dashboard responsibility, Financial Goals, and schedule occurrence execution (ADR 005)
 - [frontend/README.md](frontend/README.md) — Angular CLI serve, build, and unit-test commands

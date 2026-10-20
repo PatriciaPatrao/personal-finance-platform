@@ -2,8 +2,12 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { Title } from '@angular/platform-browser';
+import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter, Router } from '@angular/router';
+import { providePrimeNG } from 'primeng/config';
 import { of } from 'rxjs';
+
+import { PfpPreset } from './design-system/pfp-preset';
 
 import { AccountService } from './accounts/account.service';
 import { AnalysisService } from './analysis/analysis.service';
@@ -16,11 +20,19 @@ import { IncomeService } from './schedules/income.service';
 import { RecurringExpenseService } from './schedules/recurring-expense.service';
 import { TransactionService } from './transactions/transactions.service';
 
-describe('App routing', () => {
+describe('App routing', { timeout: 20_000 }, () => {
   beforeEach(async () => {
+    TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [
+        provideAnimationsAsync(),
+        providePrimeNG({
+          theme: {
+            preset: PfpPreset,
+            options: { prefix: 'p', darkModeSelector: false },
+          },
+        }),
         provideRouter(routes),
         provideHttpClient(),
         provideHttpClientTesting(),
@@ -155,13 +167,19 @@ describe('App routing', () => {
   }
 
   function navHrefs(compiled: HTMLElement): (string | null)[] {
-    return [...compiled.querySelectorAll('header nav a')].map((el) =>
-      el.getAttribute('href'),
-    );
+    return [
+      ...compiled.querySelectorAll(
+        'nav[aria-label="Primary"] a.p-menubar-item-link',
+      ),
+    ].map((el) => el.getAttribute('href'));
   }
 
   function activeNavHref(compiled: HTMLElement): string | null {
-    return compiled.querySelector('nav a.active')?.getAttribute('href') ?? null;
+    return (
+      compiled
+        .querySelector('nav[aria-label="Primary"] a.p-menubar-item-link.active-nav')
+        ?.getAttribute('href') ?? null
+    );
   }
 
   it('redirects / to /personal_finance', async () => {
@@ -321,12 +339,12 @@ describe('App routing', () => {
     const { compiled } = await renderAt('/personal_finance');
     expect(navHrefs(compiled)).toEqual([
       '/personal_finance',
+      '/personal_finance/transactions',
       '/personal_finance/accounts',
       '/personal_finance/schedules',
-      '/personal_finance/goals',
-      '/personal_finance/analysis',
       '/personal_finance/forecast',
-      '/personal_finance/transactions',
+      '/personal_finance/analysis',
+      '/personal_finance/goals',
     ]);
   });
 

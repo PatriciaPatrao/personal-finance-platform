@@ -254,9 +254,54 @@ describe('Forecast', () => {
     const usdNetIncome = panels[1]?.querySelector('.net-income-metric');
     expect(eurNetIncome?.classList.contains('net-income-positive')).toBe(true);
     expect(usdNetIncome?.classList.contains('net-income-negative')).toBe(true);
-    expect(root.textContent).toContain('Net income');
+    expect(root.textContent).toContain('Net change');
+    expect(eurNetIncome?.textContent).toContain('Surplus');
     expect(eurNetIncome?.textContent).toContain('100.00');
+    expect(usdNetIncome?.textContent).toContain('Deficit');
     expect(usdNetIncome?.textContent).toMatch(/-?\$50\.00/);
+  });
+
+  it('should highlight the current forecast period row', async () => {
+    vi.setSystemTime(new Date(2026, 9, 20));
+    getForecast.mockReturnValue(
+      of({
+        ...sampleForecast,
+        projections: [
+          {
+            currency: 'EUR',
+            group_by: 'month',
+            starting_balance: '2000.00',
+            periods: [
+              {
+                period: '2026-10',
+                income: '100.00',
+                expenses: '0.00',
+                net_cash_flow: '100.00',
+                projected_balance: '2100.00',
+              },
+              {
+                period: '2026-11',
+                income: '0.00',
+                expenses: '0.00',
+                net_cash_flow: '0.00',
+                projected_balance: '2100.00',
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('.period-current')).not.toBeNull();
+    expect(root.textContent).toContain('Current period');
+    expect(root.textContent).toContain('not guaranteed outcomes');
+    vi.useRealTimers();
   });
 
   it('should derive starting balance from the first period', async () => {
@@ -570,11 +615,7 @@ describe('Forecast', () => {
     expect(component.forecast).not.toBeNull();
 
     getForecast.mockReturnValue(new Subject<ForecastResponse>().asObservable());
-    const select = compiled.querySelector(
-      'select[name="groupBy-EUR"]',
-    ) as HTMLSelectElement;
-    select.value = 'day';
-    select.dispatchEvent(new Event('change'));
+    component.onGroupByChange('EUR', 'day');
     fixture.detectChanges();
 
     expect(component.forecast).not.toBeNull();
@@ -655,12 +696,8 @@ describe('Forecast', () => {
     await fixture.whenStable();
     getForecast.mockClear();
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    const select = compiled.querySelector(
-      'select[name="account"]',
-    ) as HTMLSelectElement;
-    select.value = '1';
-    select.dispatchEvent(new Event('change'));
+    const component = fixture.componentInstance;
+    component.onAccountFilterChange('1');
     await fixture.whenStable();
 
     const expected = defaultForecastRange();
@@ -783,11 +820,8 @@ describe('Forecast', () => {
     fixture.detectChanges();
 
     const root = fixture.nativeElement as HTMLElement;
-    const select = root.querySelector(
-      'select[name="account"]',
-    ) as HTMLSelectElement;
-    select.value = '1';
-    select.dispatchEvent(new Event('change'));
+    const component = fixture.componentInstance;
+    component.onAccountFilterChange('1');
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -912,16 +946,12 @@ describe('Forecast', () => {
     fixture.detectChanges();
 
     const root = fixture.nativeElement as HTMLElement;
-    const select = root.querySelector(
-      'select[name="account"]',
-    ) as HTMLSelectElement;
-    select.value = '1';
-    select.dispatchEvent(new Event('change'));
+    const component = fixture.componentInstance;
+    component.onAccountFilterChange('1');
     await fixture.whenStable();
     fixture.detectChanges();
 
-    select.value = 'all';
-    select.dispatchEvent(new Event('change'));
+    component.onAccountFilterChange('all');
     await fixture.whenStable();
     fixture.detectChanges();
 

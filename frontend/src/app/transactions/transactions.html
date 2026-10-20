@@ -23,49 +23,68 @@
       />
       <label class="field">
         <span class="field-label">Type</span>
-        <select
+        <p-select
           name="type"
-          [value]="typeDraft"
-          (change)="onTypeChange($any($event.target).value)"
-        >
-          <option value="all">All</option>
-          <option value="income">Income</option>
-          <option value="expense">Expense</option>
-        </select>
+          [options]="typeFilterOptions"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="typeDraft"
+          (ngModelChange)="onTypeChange($event)"
+          styleClass="w-full"
+        />
       </label>
       <label class="field">
         <span class="field-label">Category</span>
-        <select
+        <p-select
           name="category"
-          [value]="categoryDraft"
-          (change)="onCategoryChange($any($event.target).value)"
-        >
-          <option value="all">All</option>
-          <option [value]="uncategorizedFilter">Uncategorized</option>
-          @for (category of categoryOptions; track category) {
-            <option [value]="category">{{ category }}</option>
-          }
-        </select>
+          [options]="categoryFilterOptions"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="categoryDraft"
+          (ngModelChange)="onCategoryChange($event)"
+          styleClass="w-full"
+        />
       </label>
     </div>
 
-    <button type="submit" class="apply-button">Apply</button>
+    <p-button type="submit" label="Apply" styleClass="apply-button" />
   </form>
 
   @if (validationMessage) {
-    <p class="status status-validation" role="alert">{{ validationMessage }}</p>
+    <p-message
+      severity="warn"
+      styleClass="status-validation"
+      [text]="validationMessage"
+      role="alert"
+    />
   }
 
   @if (successMessage) {
-    <p class="status status-success" role="status">{{ successMessage }}</p>
+    <p-message
+      severity="success"
+      styleClass="status-success"
+      [text]="successMessage"
+      role="status"
+    />
   }
 
   @if (deleteError && pendingDelete === null) {
-    <p class="status status-error" role="alert">{{ deleteError }}</p>
+    <p-message
+      severity="error"
+      styleClass="status-error"
+      [text]="deleteError"
+      role="alert"
+    />
   }
 
   @if (pendingDelete) {
-    <section class="delete-confirm" role="alertdialog" aria-labelledby="delete-heading">
+    <section
+      #deleteConfirmPanel
+      class="delete-confirm"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="delete-heading"
+    >
       <h2 id="delete-heading">Delete this transaction?</h2>
       <p class="delete-summary">
         <span>{{ displayDate(pendingDelete.occurred_on) }}</span>
@@ -85,57 +104,67 @@
         This removes the recorded event and reverses its impact on the account balance.
       </p>
       @if (deleteError) {
-        <p class="status status-error" role="alert">{{ deleteError }}</p>
+        <p-message
+          severity="error"
+          styleClass="status-error"
+          [text]="deleteError"
+          role="alert"
+        />
       }
       <div class="form-actions">
-        <button
+        <p-button
           type="button"
-          class="confirm-delete-button"
+          [label]="deleting ? 'Deleting...' : 'Delete transaction'"
+          severity="danger"
+          styleClass="confirm-delete-button"
           [disabled]="deleting"
-          (click)="confirmDelete()"
-        >
-          {{ deleting ? 'Deleting...' : 'Delete transaction' }}
-        </button>
-        <button
+          (onClick)="confirmDelete()"
+        />
+        <p-button
           type="button"
-          class="cancel-button"
+          label="Cancel"
+          severity="secondary"
+          styleClass="cancel-button"
           [disabled]="deleting"
-          (click)="cancelDelete()"
-        >
-          Cancel
-        </button>
+          (onClick)="cancelDelete()"
+        />
       </div>
     </section>
   }
 
   @if (!loading && !errorMessage) {
     @if (formMode === null) {
-      <button type="button" class="new-transaction-button" (click)="startCreate()">
-        New transaction
-      </button>
+      <p-button
+        type="button"
+        label="New transaction"
+        styleClass="new-transaction-button"
+        (onClick)="startCreate()"
+      />
     } @else {
-      <form class="transaction-form" (submit)="$event.preventDefault(); saveTransaction()">
+      <p-card styleClass="pfp-panel-card transaction-form">
+        <form (submit)="$event.preventDefault(); saveTransaction()">
         <h2>{{ formTitle }}</h2>
         <div class="form-fields">
           <label class="field">
             <span class="field-label">Account</span>
-            <select
+            <p-select
               name="account"
-              [value]="formAccountId"
-              (change)="onFormAccountChange($any($event.target).value)"
-            >
-              <option value="">Select an account</option>
-              @for (account of accountChoices; track account.id) {
-                <option [value]="account.id">{{ account.name }}</option>
-              }
-            </select>
+              [options]="accountSelectOptions"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="formAccountId"
+              (ngModelChange)="onFormAccountChange($event)"
+              styleClass="w-full"
+            />
           </label>
           <label class="field">
             <span class="field-label">Description</span>
             <input
+              pInputText
               name="description"
               type="text"
               maxlength="255"
+              class="w-full"
               [value]="formDescription"
               (input)="formDescription = $any($event.target).value"
             />
@@ -143,23 +172,26 @@
           <label class="field">
             <span class="field-label">Amount</span>
             <input
+              pInputText
               name="amount"
               type="text"
               inputmode="decimal"
+              class="w-full"
               [value]="formAmount"
               (input)="formAmount = $any($event.target).value"
             />
           </label>
           <label class="field">
             <span class="field-label">Type</span>
-            <select
+            <p-select
               name="transactionType"
-              [value]="formType"
-              (change)="onFormTypeChange($any($event.target).value)"
-            >
-              <option value="income">Income</option>
-              <option value="expense">Expense</option>
-            </select>
+              [options]="transactionTypeOptions"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="formType"
+              (ngModelChange)="onFormTypeChange($event)"
+              styleClass="w-full"
+            />
           </label>
           <app-date-field
             class="form-date-field"
@@ -170,47 +202,63 @@
           />
           <label class="field field-category">
             <span class="field-label">Category</span>
-            <select
+            <p-select
               name="category"
-              [value]="formCategory"
-              (change)="onFormCategoryChange($any($event.target).value)"
-            >
-              <option value="">—</option>
-              @for (category of formCategoryOptions; track category) {
-                <option [value]="category">{{ category }}</option>
-              }
-            </select>
+              [options]="formCategorySelectOptions"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="formCategory"
+              (ngModelChange)="onFormCategoryChange($event)"
+              styleClass="w-full"
+            />
           </label>
         </div>
 
         @if (formError) {
-          <p class="status status-error" role="alert">{{ formError }}</p>
+          <p-message
+            severity="error"
+            styleClass="status-error"
+            [text]="formError"
+            role="alert"
+          />
         }
 
         <div class="form-actions">
-          <button
+          <p-button
             type="submit"
-            class="save-button"
+            [label]="saving ? 'Saving...' : 'Save'"
+            styleClass="save-button"
             [disabled]="saving || accountsLoadFailed || accounts.length === 0"
-          >
-            {{ saving ? 'Saving...' : 'Save' }}
-          </button>
-          <button type="button" class="cancel-button" (click)="cancelForm()">
-            Cancel
-          </button>
+          />
+          <p-button
+            type="button"
+            label="Cancel"
+            severity="secondary"
+            styleClass="cancel-button"
+            (onClick)="cancelForm()"
+          />
         </div>
-      </form>
+        </form>
+      </p-card>
     }
   }
 
   @if (loading) {
-    <p class="status status-loading" aria-live="polite">
-      Loading transactions...
-    </p>
+    <p-message
+      severity="info"
+      styleClass="status-loading"
+      text="Loading transactions..."
+      ariaLive="polite"
+    />
   }
 
   @if (errorMessage) {
-    <p class="status status-error" role="alert">{{ errorMessage }}</p>
+    <p-message
+      severity="error"
+      styleClass="status-error"
+      [text]="errorMessage"
+      role="alert"
+    />
   }
 
   @if (!loading && !errorMessage) {
@@ -219,7 +267,82 @@
     } @else if (showFilterEmpty) {
       <p class="empty-state">No transactions match these filters.</p>
     } @else {
-      <app-copy-table>
+      <ul class="transaction-cards" aria-label="Recorded transactions">
+        @for (
+          transaction of visibleTransactions;
+          track trackTransaction($index, transaction)
+        ) {
+          <li class="transaction-card">
+            <dl>
+              <div>
+                <dt>Date</dt>
+                <dd>{{ displayDate(transaction.occurred_on) }}</dd>
+              </div>
+              <div>
+                <dt>Description</dt>
+                <dd>{{ displayText(transaction.description) }}</dd>
+              </div>
+              <div>
+                <dt>Account</dt>
+                <dd>{{ accountName(transaction.account_id) }}</dd>
+              </div>
+              <div>
+                <dt>Amount</dt>
+                <dd
+                  class="amount-cell"
+                  [class.amount-income]="
+                    transaction.transaction_type === 'income'
+                  "
+                  [class.amount-expense]="
+                    transaction.transaction_type === 'expense'
+                  "
+                >
+                  @if (accountCurrency(transaction.account_id); as currency) {
+                    {{ transaction.amount | currency: currency }}
+                  } @else {
+                    {{ transaction.amount }}
+                  }
+                </dd>
+              </div>
+              <div>
+                <dt>Type</dt>
+                <dd>{{ displayType(transaction.transaction_type) }}</dd>
+              </div>
+              <div>
+                <dt>Category</dt>
+                <dd>{{ displayText(transaction.category) }}</dd>
+              </div>
+            </dl>
+            <div class="row-actions">
+              @if (isScheduleLinked(transaction)) {
+                <span class="schedule-linked-note">
+                  From schedule execution
+                </span>
+              } @else {
+                <p-button
+                  type="button"
+                  label="Edit"
+                  severity="secondary"
+                  styleClass="edit-button"
+                  (onClick)="startEdit(transaction)"
+                />
+                <p-button
+                  type="button"
+                  label="Delete"
+                  severity="danger"
+                  styleClass="delete-button"
+                  (onClick)="requestDelete(transaction)"
+                />
+              }
+            </div>
+          </li>
+        }
+      </ul>
+
+      <app-copy-table
+        scrollLabel="Transactions table"
+        class="transaction-table-wide"
+      >
       <table class="data-table">
         <thead>
           <tr>
@@ -267,20 +390,20 @@
                     From schedule execution
                   </span>
                 } @else {
-                  <button
+                  <p-button
                     type="button"
-                    class="edit-button"
-                    (click)="startEdit(transaction)"
-                  >
-                    Edit
-                  </button>
-                  <button
+                    label="Edit"
+                    severity="secondary"
+                    styleClass="edit-button"
+                    (onClick)="startEdit(transaction)"
+                  />
+                  <p-button
                     type="button"
-                    class="delete-button"
-                    (click)="requestDelete(transaction)"
-                  >
-                    Delete
-                  </button>
+                    label="Delete"
+                    severity="danger"
+                    styleClass="delete-button"
+                    (onClick)="requestDelete(transaction)"
+                  />
                 }
               </td>
             </tr>

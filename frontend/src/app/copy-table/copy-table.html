@@ -1,38 +1,29 @@
 <div class="copy-table">
   <div class="copy-table-toolbar">
-    <button
+    <p-button
       type="button"
-      class="copy-button"
-      [attr.aria-label]="tooltip"
-      (click)="copy()"
+      icon="pi pi-copy"
+      [rounded]="true"
+      [text]="true"
+      severity="secondary"
+      styleClass="copy-button"
+      [ariaLabel]="tooltip"
       (mouseenter)="hovering = true"
       (mouseleave)="hovering = false"
       (focus)="hovering = true"
       (blur)="hovering = false"
-    >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <rect
-          x="8.5"
-          y="8.5"
-          width="11"
-          height="11"
-          rx="2"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-        />
-        <path
-          d="M15.5 8.5V6.25A2.25 2.25 0 0 0 13.25 4H6.25A2.25 2.25 0 0 0 4 6.25v7A2.25 2.25 0 0 0 6.25 15.5H8.5"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          stroke-linecap="round"
-        />
-      </svg>
-      @if (showTooltip) {
-        <span class="copy-tooltip" role="status">{{ tooltip }}</span>
-      }
-    </button>
+      (onClick)="copy()"
+    />
+    @if (showTooltip) {
+      <span class="copy-tooltip" role="status">{{ tooltip }}</span>
+    }
   </div>
-  <ng-content />
+  <div
+    class="copy-table-scroll"
+    tabindex="0"
+    role="region"
+    [attr.aria-label]="scrollLabel"
+  >
+    <ng-content />
+  </div>
 </div>

@@ -60,3 +60,10 @@ export function singleCurrencySummaryTotals(
 
   return summary.by_currency[0];
 }
+
+export function summaryTotalsForCurrency(
+  summary: AnalysisSummary,
+  currency: string,
+): CurrencyAnalysisTotals | null {
+  return summary.by_currency.find((block) => block.currency === currency) ?? null;
+}

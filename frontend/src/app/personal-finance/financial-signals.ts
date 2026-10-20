@@ -1,15 +1,25 @@
 import {
   AnalysisSummary,
+  CurrencyAnalysisTotals,
   singleCurrencySummaryTotals,
+  summaryTotalsForCurrency,
 } from '../analysis/analysis-summary';
 import {
+  ForecastCurrencyProjection,
   ForecastResponse,
+  projectionForCurrency,
   projectionForFinancialSignals,
 } from '../forecast/forecast-response';
 
 export interface FinancialSignal {
   title: string;
   detail: string;
+}
+
+export interface CurrencyFinancialSignalGroup {
+  currency: string;
+  signals: FinancialSignal[];
+  quietDetail: string;
 }
 
 function parseMoneyMinorUnits(value: string): bigint {
@@ -24,18 +34,9 @@ function parseMoneyMinorUnits(value: string): bigint {
   return sign * (whole * 100n + BigInt(fraction));
 }
 
-function deriveCashFlowSignal(
-  summary: AnalysisSummary | null,
+function deriveCashFlowSignalFromTotals(
+  totals: CurrencyAnalysisTotals,
 ): FinancialSignal | null {
-  if (!summary) {
-    return null;
-  }
-
-  const totals = singleCurrencySummaryTotals(summary);
-  if (!totals) {
-    return null;
-  }
-
   const income = parseMoneyMinorUnits(totals.total_income);
   const expenses = parseMoneyMinorUnits(totals.total_expenses);
   const netCashFlow = parseMoneyMinorUnits(totals.net_cash_flow);
@@ -61,12 +62,24 @@ function deriveCashFlowSignal(
   return null;
 }
 
-function deriveForecastSignals(
-  forecast: ForecastResponse | null,
+function deriveCashFlowSignal(
+  summary: AnalysisSummary | null,
+): FinancialSignal | null {
+  if (!summary) {
+    return null;
+  }
+
+  const totals = singleCurrencySummaryTotals(summary);
+  if (!totals) {
+    return null;
+  }
+
+  return deriveCashFlowSignalFromTotals(totals);
+}
+
+function deriveForecastSignalsFromProjection(
+  projection: ForecastCurrencyProjection | null,
 ): FinancialSignal[] {
-  const projection = forecast
-    ? projectionForFinancialSignals(forecast)
-    : null;
   if (!projection || projection.periods.length === 0) {
     return [];
   }
@@ -106,17 +119,24 @@ function deriveForecastSignals(
   return signals;
 }
 
+function deriveForecastSignals(
+  forecast: ForecastResponse | null,
+): FinancialSignal[] {
+  const projection = forecast
+    ? projectionForFinancialSignals(forecast)
+    : null;
+  return deriveForecastSignalsFromProjection(projection);
+}
+
 function europeanDate(isoDate: string): string {
   const [year, month, day] = isoDate.split('-');
   return `${day}-${month}-${year}`;
 }
 
-function analysisQuietSentence(summary: AnalysisSummary): string {
-  const totals = singleCurrencySummaryTotals(summary);
-  if (!totals) {
-    return '';
-  }
-
+function analysisQuietSentence(
+  summary: AnalysisSummary,
+  totals: CurrencyAnalysisTotals,
+): string {
   const income = parseMoneyMinorUnits(totals.total_income);
   const expenses = parseMoneyMinorUnits(totals.total_expenses);
   const range = `${europeanDate(summary.from_date)} to ${europeanDate(summary.to_date)}`;
@@ -128,23 +148,44 @@ function analysisQuietSentence(summary: AnalysisSummary): string {
   return `Checked recorded cash flow from ${range}: recorded income and expenses were equal.`;
 }
 
-function forecastQuietSentence(forecast: ForecastResponse): string {
+function forecastQuietSentence(
+  forecast: ForecastResponse,
+  projection: ForecastCurrencyProjection,
+): string {
   const range = `${europeanDate(forecast.from_date)} to ${europeanDate(forecast.to_date)}`;
 
-  const projections = forecast.projections ?? [];
-  if (projections.length === 0) {
-    return `Checked the forecast from ${range}: no forecast periods were returned.`;
-  }
-  if (projections.length !== 1) {
-    return '';
-  }
-
-  const projection = projections[0];
   if (projection.periods.length === 0) {
     return `Checked the forecast from ${range}: no forecast periods were returned.`;
   }
 
   return `Checked the forecast from ${range}: scheduled income is present and the projected balance is unchanged.`;
+}
+
+function quietCheckDetailForCurrency(
+  summary: AnalysisSummary | null,
+  forecast: ForecastResponse | null,
+  currency: string,
+): string {
+  const parts: string[] = [];
+
+  if (summary) {
+    const totals = summaryTotalsForCurrency(summary, currency);
+    if (totals && deriveCashFlowSignalFromTotals(totals) === null) {
+      parts.push(analysisQuietSentence(summary, totals));
+    }
+  }
+
+  if (forecast) {
+    const projection = projectionForCurrency(forecast, currency);
+    if (
+      projection &&
+      deriveForecastSignalsFromProjection(projection).length === 0
+    ) {
+      parts.push(forecastQuietSentence(forecast, projection));
+    }
+  }
+
+  return parts.join(' ');
 }
 
 export function deriveFinancialSignals(
@@ -158,6 +199,43 @@ export function deriveFinancialSignals(
   }
   signals.push(...deriveForecastSignals(forecast));
   return signals;
+}
+
+export function deriveFinancialSignalsByCurrency(
+  summary: AnalysisSummary | null,
+  forecast: ForecastResponse | null,
+): CurrencyFinancialSignalGroup[] {
+  const currencies = new Set<string>();
+  summary?.by_currency.forEach((block) => currencies.add(block.currency));
+  forecast?.projections?.forEach((projection) =>
+    currencies.add(projection.currency),
+  );
+
+  return [...currencies]
+    .sort((left, right) => left.localeCompare(right))
+    .map((currency) => {
+      const totals = summary
+        ? summaryTotalsForCurrency(summary, currency)
+        : null;
+      const projection = forecast
+        ? projectionForCurrency(forecast, currency)
+        : null;
+
+      const signals: FinancialSignal[] = [];
+      if (totals) {
+        const cashFlowSignal = deriveCashFlowSignalFromTotals(totals);
+        if (cashFlowSignal) {
+          signals.push(cashFlowSignal);
+        }
+      }
+      signals.push(...deriveForecastSignalsFromProjection(projection));
+
+      return {
+        currency,
+        signals,
+        quietDetail: quietCheckDetailForCurrency(summary, forecast, currency),
+      };
+    });
 }
 
 export function signalActionRoute(title: string): string | null {
@@ -182,14 +260,24 @@ export function quietCheckDetail(
   const parts: string[] = [];
 
   if (summary && deriveCashFlowSignal(summary) === null) {
-    const sentence = analysisQuietSentence(summary);
-    if (sentence) {
-      parts.push(sentence);
+    const totals = singleCurrencySummaryTotals(summary);
+    if (totals) {
+      parts.push(analysisQuietSentence(summary, totals));
     }
   }
 
   if (forecast && deriveForecastSignals(forecast).length === 0) {
-    parts.push(forecastQuietSentence(forecast));
+    const projections = forecast.projections ?? [];
+    if (projections.length === 0) {
+      parts.push(
+        `Checked the forecast from ${europeanDate(forecast.from_date)} to ${europeanDate(forecast.to_date)}: no forecast periods were returned.`,
+      );
+    } else {
+      const projection = projectionForFinancialSignals(forecast);
+      if (projection) {
+        parts.push(forecastQuietSentence(forecast, projection));
+      }
+    }
   }
 
   return parts.join(' ');

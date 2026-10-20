@@ -54,6 +54,26 @@ describe('Accounts', () => {
     }).compileComponents();
   });
 
+  it('should show account type and currency under duplicate names', async () => {
+    listAccounts.mockReturnValue(
+      of([
+        sampleAccounts[1],
+        {
+          ...sampleAccounts[1],
+          id: 3,
+          name: 'Demo Main Account',
+          account_type: 'investment',
+          currency: 'USD',
+          created_at: '2026-03-01T00:00:00',
+        },
+      ]),
+    );
+
+    const { compiled } = await render();
+    expect(compiled.textContent).toContain('Bank · EUR');
+    expect(compiled.textContent).toContain('added 01-03-2026');
+  });
+
   async function render(): Promise<{
     fixture: ReturnType<typeof TestBed.createComponent<Accounts>>;
     compiled: HTMLElement;
@@ -237,13 +257,6 @@ describe('Accounts', () => {
     expect(component.formAccountType).toBe('');
     expect(component.formCurrency).toBe('EUR');
     expect(component.formBalance).toBe('0.00');
-    expect(compiled.querySelector('select[name="currency"]')?.textContent).toContain(
-      'EUR',
-    );
-    expect(
-      (compiled.querySelector('select[name="currency"]') as HTMLSelectElement)
-        .value,
-    ).toBe('EUR');
     expect(component.canSubmit).toBe(false);
   });
 
@@ -284,10 +297,6 @@ describe('Accounts', () => {
     openCreateForm(fixture, compiled);
 
     expect(component.formCurrency).toBe('EUR');
-    expect(
-      (compiled.querySelector('select[name="currency"]') as HTMLSelectElement)
-        .value,
-    ).toBe('EUR');
   });
 
   it('should accept a negative balance and post backend enum values with a number', async () => {

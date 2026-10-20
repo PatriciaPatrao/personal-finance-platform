@@ -1,64 +1,147 @@
 :host {
   display: block;
-  position: relative;
+  min-height: 100vh;
+  background: var(--pfp-page-bg);
 }
 
 .skip-link {
   position: absolute;
   top: 0.75rem;
   left: -9999px;
-  z-index: 1000;
+  z-index: 2000;
   padding: 0.55rem 0.85rem;
-  border: 1px solid var(--color-focus);
-  background: var(--color-surface-elevated);
-  color: var(--color-text);
-  font-weight: var(--font-weight-semibold);
+  border-radius: var(--pfp-radius-md);
+  border: 1px solid var(--pfp-brand-teal);
+  background: var(--pfp-surface);
+  color: var(--pfp-text);
+  font-weight: 600;
   text-decoration: none;
 }
 
 .skip-link:focus-visible {
   left: 0.75rem;
-  outline: var(--focus-outline-width) solid var(--color-focus);
+  outline: var(--focus-outline-width) solid var(--pfp-brand-teal);
   outline-offset: var(--focus-outline-offset);
 }
 
-header {
-  border-bottom: 1px solid var(--color-border-strong);
-  padding: var(--space-panel) var(--space-section);
-}
-
-.brand {
-  margin: 0 0 1rem;
-  font-weight: var(--font-weight-semibold);
-}
-
-nav {
+.app-shell-header {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-section);
   align-items: center;
+  gap: 1rem 1.5rem;
+  padding: 0.85rem 1.25rem;
+  background: linear-gradient(180deg, #fff 0%, #f8fafb 100%);
+  border-bottom: 1px solid var(--pfp-border);
+  box-shadow: var(--pfp-shadow-sm);
 }
 
-nav a {
-  color: var(--color-text);
+.app-shell-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: min(100%, 14rem);
+}
+
+.app-shell-logo {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.65rem;
+  background: var(--pfp-brand-teal);
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+.brand-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--pfp-brand-navy);
+  letter-spacing: -0.02em;
+}
+
+.brand-tagline {
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
+  color: var(--pfp-text-subtle);
+}
+
+.desktop-nav {
+  flex: 1 1 auto;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+:host ::ng-deep .app-menubar .p-menubar-root-list {
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+:host ::ng-deep .p-menubar-item-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--pfp-radius-md);
+  color: var(--pfp-text);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+:host ::ng-deep .p-menubar-item-link.active-nav {
+  background: rgb(13 148 136 / 12%);
+  color: var(--pfp-brand-teal);
+  font-weight: 650;
+}
+
+.mobile-nav-bar {
+  display: none;
+  margin-left: auto;
+}
+
+.mobile-nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.mobile-nav-list a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--pfp-radius-md);
+  color: var(--pfp-text);
   text-decoration: none;
 }
 
-nav a:focus-visible {
-  outline: var(--focus-outline-width) solid var(--color-focus);
+.mobile-nav-list a.active-nav {
+  background: rgb(13 148 136 / 12%);
+  color: var(--pfp-brand-teal);
+  font-weight: 650;
+}
+
+.app-main {
+  padding: var(--pfp-space-page);
+  max-width: 72rem;
+  margin: 0 auto;
+}
+
+.app-main:focus-visible {
+  outline: var(--focus-outline-width) solid var(--pfp-brand-teal);
   outline-offset: var(--focus-outline-offset);
 }
 
-nav a.active {
-  font-weight: var(--font-weight-semibold);
-  text-decoration: underline;
-}
+@media (max-width: 960px) {
+  .desktop-nav {
+    display: none;
+  }
 
-main {
-  padding: var(--space-section);
-}
-
-main:focus-visible {
-  outline: var(--focus-outline-width) solid var(--color-focus);
-  outline-offset: var(--focus-outline-offset);
+  .mobile-nav-bar {
+    display: block;
+  }
 }

@@ -1,9 +1,16 @@
 import { CurrencyPipe, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { catchError, forkJoin, of } from 'rxjs';
+import { Button } from 'primeng/button';
+import { Card } from 'primeng/card';
+import { InputText } from 'primeng/inputtext';
+import { Message } from 'primeng/message';
+import { Select } from 'primeng/select';
 
 import { Account } from '../accounts/account';
+import { accountDisplayName, accountSelectOptionLabel } from '../accounts/account-display';
 import { AccountService } from '../accounts/account.service';
 import { DateField } from '../analysis/date-field';
 import {
@@ -129,12 +136,26 @@ function parseEuropeanDate(value: string): string | null {
 
 @Component({
   selector: 'app-goals',
-  imports: [CurrencyPipe, DateField, NgTemplateOutlet],
+  imports: [
+    Button,
+    Card,
+    CurrencyPipe,
+    DateField,
+    FormsModule,
+    InputText,
+    Message,
+    NgTemplateOutlet,
+    Select,
+  ],
   templateUrl: './goals.html',
   styleUrl: './goals.scss',
 })
 export class Goals implements OnInit {
   readonly currencyOptions = CURRENCY_OPTIONS;
+  readonly currencySelectOptions = CURRENCY_OPTIONS.map((currency) => ({
+    label: currency,
+    value: currency,
+  }));
 
   loading = true;
   errorMessage: string | null = null;
@@ -191,6 +212,19 @@ export class Goals implements OnInit {
     return (goal?.allocations.length ?? 0) > 0;
   }
 
+  allocateAccountSelectOptions(goal: FinancialGoal): {
+    label: string;
+    value: string;
+  }[] {
+    return [
+      { label: 'Select account', value: '' },
+      ...this.compatibleAccounts(goal).map((account) => ({
+        label: `${this.accountOptionLabel(account)} — balance ${account.current_balance} ${account.currency}, allocated ${this.designatedOnAccount(account.id).toFixed(2)} ${account.currency}, available ${this.availableOnAccount(account.id).toFixed(2)} ${account.currency}`,
+        value: this.accountIdValue(account.id),
+      })),
+    ];
+  }
+
   get canSubmitAllocation(): boolean {
     if (this.allocating || this.allocatingGoalId === null) {
       return false;
@@ -217,7 +251,11 @@ export class Goals implements OnInit {
   }
 
   accountName(accountId: number): string {
-    return this.accountNames.get(accountId) ?? `Account ${accountId}`;
+    return accountDisplayName(accountId, this.accounts);
+  }
+
+  accountOptionLabel(account: Account): string {
+    return accountSelectOptionLabel(account, this.accounts);
   }
 
   accountBalance(accountId: number): string | null {

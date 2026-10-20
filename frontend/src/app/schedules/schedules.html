@@ -14,21 +14,39 @@
   </header>
 
   @if (successMessage) {
-    <p class="status status-success" role="status">{{ successMessage }}</p>
+    <p-message
+      severity="success"
+      styleClass="status-success"
+      [text]="successMessage"
+      role="status"
+    />
   }
 
   @if (actionError) {
-    <p class="status status-error" role="alert">{{ actionError }}</p>
+    <p-message
+      severity="error"
+      styleClass="status-error"
+      [text]="actionError"
+      role="alert"
+    />
   }
 
   @if (loading) {
-    <p class="status status-loading" aria-live="polite">
-      Loading schedules...
-    </p>
+    <p-message
+      severity="info"
+      styleClass="status-loading"
+      text="Loading schedules..."
+      ariaLive="polite"
+    />
   }
 
   @if (errorMessage) {
-    <p class="status status-error" role="alert">{{ errorMessage }}</p>
+    <p-message
+      severity="error"
+      styleClass="status-error"
+      [text]="errorMessage"
+      role="alert"
+    />
   }
 
   @if (
@@ -36,10 +54,12 @@
     errorMessage === null &&
     accountsLoadFailed
   ) {
-    <p class="status status-error" role="alert">
-      Unable to load accounts. You can still review schedules, but create
-      and edit stay unavailable until accounts load.
-    </p>
+    <p-message
+      severity="error"
+      styleClass="status-error"
+      text="Unable to load accounts. You can still review schedules, but create and edit stay unavailable until accounts load."
+      role="alert"
+    />
   }
 
   @if (
@@ -48,45 +68,47 @@
     !accountsLoadFailed &&
     !hasAccounts
   ) {
-    <p class="status status-error" role="alert">
-      Create an account before adding a salary or recurring expense.
-    </p>
+    <p-message
+      severity="error"
+      styleClass="status-error"
+      text="Create an account before adding a salary or recurring expense."
+      role="alert"
+    />
   }
 
   @if (!loading && errorMessage === null) {
-    <section class="schedule-section" aria-labelledby="salary-heading">
+    <p-card styleClass="pfp-panel-card schedule-section" aria-labelledby="salary-heading">
       <div class="section-header">
         <h2 id="salary-heading">Salary</h2>
         <div class="section-controls">
           <label class="filter-field">
             <span class="field-label">Show</span>
-            <select
+            <p-select
               name="incomeFilter"
-              [value]="incomeFilter"
-              (change)="onIncomeFilterChange($any($event.target).value)"
-            >
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
+              [options]="activeFilterOptions"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="incomeFilter"
+              (ngModelChange)="onIncomeFilterChange($event)"
+              styleClass="w-full"
+            />
           </label>
           @if (
             formKind !== 'income' ||
             formMode !== 'create'
           ) {
-            <button
+            <p-button
               type="button"
-              class="create-schedule-button"
+              label="Create salary"
+              styleClass="create-schedule-button"
               [disabled]="
                 !hasAccounts ||
                 accountsLoadFailed ||
                 saving ||
                 executingKey !== null
               "
-              (click)="startCreateIncome()"
-            >
-              Create salary
-            </button>
+              (onClick)="startCreateIncome()"
+            />
           }
         </div>
       </div>
@@ -175,37 +197,37 @@
                   </div>
                 </dl>
                 <div class="card-actions">
-                  <button
+                  <p-button
                     type="button"
-                    class="edit-button"
+                    label="Edit"
+                    severity="secondary"
+                    styleClass="edit-button"
                     [disabled]="
                       !hasAccounts ||
                       accountsLoadFailed ||
                       saving ||
                       executingKey !== null
                     "
-                    (click)="startEditIncome(income)"
-                  >
-                    Edit
-                  </button>
+                    (onClick)="startEditIncome(income)"
+                  />
                   @if (income.active) {
-                    <button
+                    <p-button
                       type="button"
-                      class="secondary-button"
+                      label="Deactivate"
+                      severity="secondary"
+                      styleClass="secondary-button"
                       [disabled]="saving || executingKey !== null"
-                      (click)="deactivateIncome(income)"
-                    >
-                      Deactivate
-                    </button>
+                      (onClick)="deactivateIncome(income)"
+                    />
                   } @else {
-                    <button
+                    <p-button
                       type="button"
-                      class="secondary-button"
+                      label="Activate"
+                      severity="secondary"
+                      styleClass="secondary-button"
                       [disabled]="saving || executingKey !== null"
-                      (click)="activateIncome(income)"
-                    >
-                      Activate
-                    </button>
+                      (onClick)="activateIncome(income)"
+                    />
                   }
                 </div>
                 @if (income.active) {
@@ -224,10 +246,10 @@
           }
         </ul>
       }
-    </section>
+    </p-card>
 
-    <section
-      class="schedule-section"
+    <p-card
+      styleClass="pfp-panel-card schedule-section"
       aria-labelledby="recurring-expenses-heading"
     >
       <div class="section-header">
@@ -235,33 +257,32 @@
         <div class="section-controls">
           <label class="filter-field">
             <span class="field-label">Show</span>
-            <select
+            <p-select
               name="expenseFilter"
-              [value]="expenseFilter"
-              (change)="onExpenseFilterChange($any($event.target).value)"
-            >
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
+              [options]="activeFilterOptions"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="expenseFilter"
+              (ngModelChange)="onExpenseFilterChange($event)"
+              styleClass="w-full"
+            />
           </label>
           @if (
             formKind !== 'expense' ||
             formMode !== 'create'
           ) {
-            <button
+            <p-button
               type="button"
-              class="create-schedule-button"
+              label="Create recurring expense"
+              styleClass="create-schedule-button"
               [disabled]="
                 !hasAccounts ||
                 accountsLoadFailed ||
                 saving ||
                 executingKey !== null
               "
-              (click)="startCreateExpense()"
-            >
-              Create recurring expense
-            </button>
+              (onClick)="startCreateExpense()"
+            />
           }
         </div>
       </div>
@@ -354,37 +375,37 @@
                   </div>
                 </dl>
                 <div class="card-actions">
-                  <button
+                  <p-button
                     type="button"
-                    class="edit-button"
+                    label="Edit"
+                    severity="secondary"
+                    styleClass="edit-button"
                     [disabled]="
                       !hasAccounts ||
                       accountsLoadFailed ||
                       saving ||
                       executingKey !== null
                     "
-                    (click)="startEditExpense(expense)"
-                  >
-                    Edit
-                  </button>
+                    (onClick)="startEditExpense(expense)"
+                  />
                   @if (expense.active) {
-                    <button
+                    <p-button
                       type="button"
-                      class="secondary-button"
+                      label="Deactivate"
+                      severity="secondary"
+                      styleClass="secondary-button"
                       [disabled]="saving || executingKey !== null"
-                      (click)="deactivateExpense(expense)"
-                    >
-                      Deactivate
-                    </button>
+                      (onClick)="deactivateExpense(expense)"
+                    />
                   } @else {
-                    <button
+                    <p-button
                       type="button"
-                      class="secondary-button"
+                      label="Activate"
+                      severity="secondary"
+                      styleClass="secondary-button"
                       [disabled]="saving || executingKey !== null"
-                      (click)="activateExpense(expense)"
-                    >
-                      Activate
-                    </button>
+                      (onClick)="activateExpense(expense)"
+                    />
                   }
                 </div>
                 @if (expense.active) {
@@ -403,6 +424,65 @@
           }
         </ul>
       }
+    </p-card>
+  }
+
+  @if (pendingExecution && executionConfirmSummary(); as summary) {
+    <section
+      #executionConfirmPanel
+      class="execution-confirm"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="execution-confirm-heading"
+    >
+      <h3 class="schedule-title" id="execution-confirm-heading">
+        Confirm schedule execution?
+      </h3>
+      <p class="page-intro">
+        This records a transaction and updates the linked account balance.
+        Only today’s occurrence is eligible.
+      </p>
+      <dl class="schedule-details">
+        <div>
+          <dt>Schedule</dt>
+          <dd>{{ summary.title }} ({{ summary.kindLabel }})</dd>
+        </div>
+        <div>
+          <dt>Occurrence date</dt>
+          <dd>{{ summary.dateDisplay }}</dd>
+        </div>
+        <div>
+          <dt>Account</dt>
+          <dd>{{ summary.accountLabel }}</dd>
+        </div>
+        <div>
+          <dt>Amount</dt>
+          <dd>
+            @if (summary.currency; as currency) {
+              {{ summary.amount | currency: currency }}
+            } @else {
+              {{ summary.amount }}
+            }
+          </dd>
+        </div>
+      </dl>
+      <div class="form-actions">
+        <p-button
+          type="button"
+          [label]="executingKey !== null ? 'Executing...' : 'Confirm execution'"
+          styleClass="execute-button"
+          [disabled]="executingKey !== null"
+          (onClick)="confirmExecutionFromPanel()"
+        />
+        <p-button
+          type="button"
+          label="Cancel"
+          severity="secondary"
+          styleClass="cancel-button"
+          [disabled]="executingKey !== null"
+          (onClick)="cancelExecutionConfirm()"
+        />
+      </div>
     </section>
   }
 </section>
@@ -411,23 +491,15 @@
   <div class="form-fields">
     <label class="field">
       <span class="field-label">Account</span>
-      <select
+      <p-select
         name="incomeAccount"
-        [value]="formAccountId"
-        (change)="onFormAccountChange($any($event.target).value)"
-      >
-        <option value="" [selected]="formAccountId === ''">
-          Select account
-        </option>
-        @for (account of accounts; track account.id) {
-          <option
-            [value]="accountIdValue(account.id)"
-            [selected]="formAccountId === accountIdValue(account.id)"
-          >
-            {{ account.name }} ({{ account.currency }})
-          </option>
-        }
-      </select>
+        [options]="accountSelectOptions"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="formAccountId"
+        (ngModelChange)="onFormAccountChange($event)"
+        styleClass="w-full"
+      />
       @if (formAccountError) {
         <span class="field-error">{{ formAccountError }}</span>
       }
@@ -436,9 +508,11 @@
     <label class="field">
       <span class="field-label">Amount</span>
       <input
+        pInputText
         name="incomeAmount"
         type="text"
         inputmode="decimal"
+        class="w-full"
         [value]="formAmount"
         (input)="formAmount = $any($event.target).value"
       />
@@ -449,20 +523,15 @@
 
     <label class="field">
       <span class="field-label">Frequency</span>
-      <select
+      <p-select
         name="incomeFrequency"
-        [value]="formFrequency"
-        (change)="onFormFrequencyChange($any($event.target).value)"
-      >
-        @for (frequency of frequencyOptions; track frequency) {
-          <option
-            [value]="frequency"
-            [selected]="formFrequency === frequency"
-          >
-            {{ frequencyLabel(frequency) }}
-          </option>
-        }
-      </select>
+        [options]="frequencySelectOptions"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="formFrequency"
+        (ngModelChange)="onFormFrequencyChange($event)"
+        styleClass="w-full"
+      />
     </label>
 
     <div class="field">
@@ -515,7 +584,12 @@
   </div>
 
   @if (formError) {
-    <p class="status status-error" role="alert">{{ formError }}</p>
+    <p-message
+      severity="error"
+      styleClass="status-error"
+      [text]="formError"
+      role="alert"
+    />
   }
 </ng-template>
 
@@ -523,23 +597,15 @@
   <div class="form-fields">
     <label class="field">
       <span class="field-label">Account</span>
-      <select
+      <p-select
         name="expenseAccount"
-        [value]="formAccountId"
-        (change)="onFormAccountChange($any($event.target).value)"
-      >
-        <option value="" [selected]="formAccountId === ''">
-          Select account
-        </option>
-        @for (account of accounts; track account.id) {
-          <option
-            [value]="accountIdValue(account.id)"
-            [selected]="formAccountId === accountIdValue(account.id)"
-          >
-            {{ account.name }} ({{ account.currency }})
-          </option>
-        }
-      </select>
+        [options]="accountSelectOptions"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="formAccountId"
+        (ngModelChange)="onFormAccountChange($event)"
+        styleClass="w-full"
+      />
       @if (formAccountError) {
         <span class="field-error">{{ formAccountError }}</span>
       }
@@ -548,9 +614,11 @@
     <label class="field">
       <span class="field-label">Description</span>
       <input
+        pInputText
         name="expenseDescription"
         type="text"
         maxlength="255"
+        class="w-full"
         [value]="formDescription"
         (input)="formDescription = $any($event.target).value"
       />
@@ -562,9 +630,11 @@
     <label class="field">
       <span class="field-label">Amount</span>
       <input
+        pInputText
         name="expenseAmount"
         type="text"
         inputmode="decimal"
+        class="w-full"
         [value]="formAmount"
         (input)="formAmount = $any($event.target).value"
       />
@@ -576,9 +646,11 @@
     <label class="field">
       <span class="field-label">Category (optional)</span>
       <input
+        pInputText
         name="expenseCategory"
         type="text"
         maxlength="100"
+        class="w-full"
         [value]="formCategory"
         (input)="formCategory = $any($event.target).value"
       />
@@ -589,20 +661,15 @@
 
     <label class="field">
       <span class="field-label">Frequency</span>
-      <select
+      <p-select
         name="expenseFrequency"
-        [value]="formFrequency"
-        (change)="onFormFrequencyChange($any($event.target).value)"
-      >
-        @for (frequency of frequencyOptions; track frequency) {
-          <option
-            [value]="frequency"
-            [selected]="formFrequency === frequency"
-          >
-            {{ frequencyLabel(frequency) }}
-          </option>
-        }
-      </select>
+        [options]="frequencySelectOptions"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="formFrequency"
+        (ngModelChange)="onFormFrequencyChange($event)"
+        styleClass="w-full"
+      />
     </label>
 
     <div class="field">
@@ -655,7 +722,12 @@
   </div>
 
   @if (formError) {
-    <p class="status status-error" role="alert">{{ formError }}</p>
+    <p-message
+      severity="error"
+      styleClass="status-error"
+      [text]="formError"
+      role="alert"
+    />
   }
 </ng-template>
 
@@ -677,18 +749,17 @@
         (valueChange)="onExecutionDateChange(kind, scheduleId, $event)"
       />
     </div>
-    <button
+    <p-button
       type="button"
-      class="execute-button"
+      [label]="
+        isExecutingSchedule(kind, scheduleId)
+          ? 'Executing...'
+          : 'Execute occurrence'
+      "
+      styleClass="execute-button"
       [disabled]="!canExecuteSchedule(kind, scheduleId)"
-      (click)="executeFromPanel(kind, scheduleId)"
-    >
-      @if (isExecutingSchedule(kind, scheduleId)) {
-        Executing...
-      } @else {
-        Execute occurrence
-      }
-    </button>
+      (onClick)="requestExecutionFromPanel(kind, scheduleId)"
+    />
     @if (executionError(kind, scheduleId); as executionMessage) {
       <p class="field-error execution-error" role="alert">
         {{ executionMessage }}
@@ -699,24 +770,27 @@
 
 <ng-template #scheduleActions>
   <div class="form-actions">
-    <button type="submit" class="save-button" [disabled]="!canSubmit">
-      @if (saving) {
-        Saving...
-      } @else if (formMode === 'edit') {
-        Save
-      } @else if (formKind === 'income') {
-        Create salary
-      } @else {
-        Create recurring expense
-      }
-    </button>
-    <button
+    <p-button
+      type="submit"
+      [label]="
+        saving
+          ? 'Saving...'
+          : formMode === 'edit'
+            ? 'Save'
+            : formKind === 'income'
+              ? 'Create salary'
+              : 'Create recurring expense'
+      "
+      styleClass="save-button"
+      [disabled]="!canSubmit"
+    />
+    <p-button
       type="button"
-      class="cancel-button"
+      label="Cancel"
+      severity="secondary"
+      styleClass="cancel-button"
       [disabled]="saving"
-      (click)="cancelForm()"
-    >
-      Cancel
-    </button>
+      (onClick)="cancelForm()"
+    />
   </div>
 </ng-template>

@@ -1,9 +1,27 @@
 import { CurrencyPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { Button } from 'primeng/button';
+import { Card } from 'primeng/card';
+import { InputText } from 'primeng/inputtext';
+import { Message } from 'primeng/message';
+import { Select } from 'primeng/select';
+import {
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+} from '@angular/core';
 import { catchError, forkJoin, of } from 'rxjs';
 
 import { Account } from '../accounts/account';
+import {
+  accountDisplayName,
+  accountSelectOptionLabel,
+} from '../accounts/account-display';
+import { trapFocusWithin } from '../shared/focus-trap';
 import { CopyTable } from '../copy-table/copy-table';
 import { AccountService } from '../accounts/account.service';
 import { DateField } from '../analysis/date-field';
@@ -157,12 +175,35 @@ function parseEuropeanDate(value: string): string | null {
 
 @Component({
   selector: 'app-transactions',
-  imports: [CopyTable, CurrencyPipe, DateField],
+  imports: [
+    Button,
+    Card,
+    CopyTable,
+    CurrencyPipe,
+    DateField,
+    FormsModule,
+    InputText,
+    Message,
+    Select,
+  ],
   templateUrl: './transactions.html',
   styleUrl: './transactions.scss',
 })
-export class Transactions implements OnInit {
+export class Transactions implements OnInit, OnDestroy {
+  @ViewChild('deleteConfirmPanel')
+  deleteConfirmPanel?: ElementRef<HTMLElement>;
+
+  private deleteFocusRelease: (() => void) | null = null;
   readonly uncategorizedFilter = UNCATEGORIZED_FILTER;
+  readonly typeFilterOptions = [
+    { label: 'All', value: 'all' as TransactionTypeFilter },
+    { label: 'Income', value: 'income' as TransactionTypeFilter },
+    { label: 'Expense', value: 'expense' as TransactionTypeFilter },
+  ];
+  readonly transactionTypeOptions = [
+    { label: 'Income', value: 'income' as TransactionType },
+    { label: 'Expense', value: 'expense' as TransactionType },
+  ];
 
   fromDisplay = '';
   toDisplay = '';
@@ -209,6 +250,37 @@ export class Transactions implements OnInit {
 
   get categoryOptions(): string[] {
     return this.collectCategoryNames();
+  }
+
+  get categoryFilterOptions(): { label: string; value: string }[] {
+    return [
+      { label: 'All', value: 'all' },
+      { label: 'Uncategorized', value: this.uncategorizedFilter },
+      ...this.categoryOptions.map((category) => ({
+        label: category,
+        value: category,
+      })),
+    ];
+  }
+
+  get formCategorySelectOptions(): { label: string; value: string }[] {
+    return [
+      { label: '—', value: '' },
+      ...this.formCategoryOptions.map((category) => ({
+        label: category,
+        value: category,
+      })),
+    ];
+  }
+
+  get accountSelectOptions(): { label: string; value: string }[] {
+    return [
+      { label: 'Select an account', value: '' },
+      ...this.accountChoices.map((account) => ({
+        label: this.accountOptionLabel(account),
+        value: String(account.id),
+      })),
+    ];
   }
 
   get formCategoryOptions(): string[] {
@@ -332,7 +404,15 @@ export class Transactions implements OnInit {
   }
 
   accountName(accountId: number): string {
-    return this.accountNames.get(accountId) ?? `Account ${accountId}`;
+    return accountDisplayName(accountId, this.accounts);
+  }
+
+  accountOptionLabel(account: Account): string {
+    return accountSelectOptionLabel(account, this.accounts);
+  }
+
+  ngOnDestroy(): void {
+    this.releaseDeleteFocus();
   }
 
   accountCurrency(accountId: number): string | null {
@@ -456,10 +536,12 @@ export class Transactions implements OnInit {
       return;
     }
 
+    this.releaseDeleteFocus();
     this.pendingDelete = transaction;
     this.deleteError = null;
     this.successMessage = null;
     this.changeDetector.detectChanges();
+    queueMicrotask(() => this.activateDeleteFocus());
   }
 
   cancelDelete(): void {
@@ -517,6 +599,7 @@ export class Transactions implements OnInit {
       this.formError = null;
       this.saving = false;
     }
+    this.releaseDeleteFocus();
     this.pendingDelete = null;
     this.deleting = false;
     this.deleteError = missing ? message : null;
@@ -531,8 +614,23 @@ export class Transactions implements OnInit {
       return;
     }
 
+    this.releaseDeleteFocus();
     this.pendingDelete = null;
     this.deleteError = null;
+  }
+
+  private activateDeleteFocus(): void {
+    const panel = this.deleteConfirmPanel?.nativeElement;
+    if (!panel) {
+      return;
+    }
+
+    this.deleteFocusRelease = trapFocusWithin(panel);
+  }
+
+  private releaseDeleteFocus(): void {
+    this.deleteFocusRelease?.();
+    this.deleteFocusRelease = null;
   }
 
   private removeTransaction(transactionId: number): void {

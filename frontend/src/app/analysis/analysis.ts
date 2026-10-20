@@ -1,14 +1,37 @@
-import { CurrencyPipe } from '@angular/common';
+import { CurrencyPipe, LowerCasePipe } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
+import { Button } from 'primeng/button';
+import { Card } from 'primeng/card';
+import { Message } from 'primeng/message';
+import { Select } from 'primeng/select';
 
 import { AnalysisService } from './analysis.service';
+import {
+  activePeriodPreset,
+  formatPeriodRangeLabel,
+  lastMonthRange,
+  PeriodPresetId,
+  thisMonthRange,
+  toEuropeanDate,
+} from './analysis-period-presets';
 import {
   AnalysisSummary,
   CashFlow,
   CashFlowGroupBy,
+  CashFlowPeriod,
+  CurrencyAnalysisTotals,
+  CurrencyCashFlow,
   ExpensesByCategory,
 } from './analysis-summary';
+import {
+  cashFlowNetSparkBars,
+  categoryShareBarWidth,
+  incomeExpenseBarWidths,
+  latestPeriodKey,
+  netCashFlowSignLabel,
+} from './analysis-visuals';
 import { CopyTable } from '../copy-table/copy-table';
 import { DateField } from './date-field';
 
@@ -17,21 +40,6 @@ function formatDate(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
-}
-
-function currentMonthRange(today: Date = new Date()): {
-  from: string;
-  to: string;
-} {
-  return {
-    from: formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
-    to: formatDate(today),
-  };
-}
-
-function toEuropeanDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split('-');
-  return `${day}-${month}-${year}`;
 }
 
 function parseEuropeanDate(value: string): string | null {
@@ -57,13 +65,28 @@ function parseEuropeanDate(value: string): string | null {
 
 @Component({
   selector: 'app-analysis',
-  imports: [CopyTable, CurrencyPipe, DateField],
+  imports: [
+    Button,
+    Card,
+    CopyTable,
+    CurrencyPipe,
+    DateField,
+    FormsModule,
+    LowerCasePipe,
+    Message,
+    Select,
+  ],
   templateUrl: './analysis.html',
   styleUrl: './analysis.scss',
 })
 export class Analysis implements OnInit {
-  from = currentMonthRange().from;
-  to = currentMonthRange().to;
+  readonly groupByOptions = [
+    { label: 'Monthly', value: 'month' as CashFlowGroupBy },
+    { label: 'Daily', value: 'day' as CashFlowGroupBy },
+  ];
+
+  from = thisMonthRange().from;
+  to = thisMonthRange().to;
   fromDisplay = toEuropeanDate(this.from);
   toDisplay = toEuropeanDate(this.to);
   maxTo = formatDate(new Date());
@@ -86,6 +109,51 @@ export class Analysis implements OnInit {
 
   ngOnInit(): void {
     this.loadAnalysis();
+  }
+
+  get selectedPeriodLabel(): string | null {
+    if (!this.summary) {
+      return null;
+    }
+
+    return formatPeriodRangeLabel(this.summary.from_date, this.summary.to_date);
+  }
+
+  activePreset(): PeriodPresetId | null {
+    return activePeriodPreset(this.from, this.to);
+  }
+
+  applyPreset(preset: PeriodPresetId): void {
+    const range = preset === 'this-month' ? thisMonthRange() : lastMonthRange();
+    this.from = range.from;
+    this.to = range.to;
+    this.fromDisplay = toEuropeanDate(this.from);
+    this.toDisplay = toEuropeanDate(this.to);
+    this.validationMessage = null;
+    this.loadAnalysis();
+  }
+
+  summaryFlowBars(block: CurrencyAnalysisTotals) {
+    return incomeExpenseBarWidths(block.total_income, block.total_expenses);
+  }
+
+  netSignLabel(netCashFlow: string): string {
+    return netCashFlowSignLabel(netCashFlow);
+  }
+
+  categoryBarWidth(percentage: string): number {
+    return categoryShareBarWidth(percentage);
+  }
+
+  cashFlowSparkBars(block: CurrencyCashFlow) {
+    return cashFlowNetSparkBars(block.periods);
+  }
+
+  isLatestCashFlowPeriod(
+    block: CurrencyCashFlow,
+    period: CashFlowPeriod,
+  ): boolean {
+    return latestPeriodKey(block.periods) === period.period;
   }
 
   apply(): void {

@@ -5,6 +5,7 @@ import {
 import { ForecastResponse } from '../forecast/forecast-response';
 import {
   deriveFinancialSignals,
+  deriveFinancialSignalsByCurrency,
   quietCheckDetail,
 } from './financial-signals';
 
@@ -291,6 +292,59 @@ describe('deriveFinancialSignals', () => {
     expect(quietCheckDetail(emptySummary, emptyProjections)).toContain(
       'no forecast periods were returned',
     );
+  });
+
+  it('derives independent signal groups per currency', () => {
+    const groups = deriveFinancialSignalsByCurrency(
+      {
+        from_date: '2026-10-01',
+        to_date: '2026-10-05',
+        by_currency: [
+          {
+            currency: 'EUR',
+            total_income: '2000.00',
+            total_expenses: '1350.00',
+            net_cash_flow: '650.00',
+          },
+          {
+            currency: 'USD',
+            total_income: '100.00',
+            total_expenses: '150.00',
+            net_cash_flow: '-50.00',
+          },
+        ],
+      },
+      {
+        ...increasingForecast,
+        projections: [
+          increasingForecast.projections[0],
+          {
+            currency: 'USD',
+            group_by: 'month',
+            starting_balance: '100.00',
+            periods: [
+              {
+                period: '2026-10',
+                income: '0.00',
+                expenses: '0.00',
+                net_cash_flow: '0.00',
+                projected_balance: '100.00',
+              },
+            ],
+          },
+        ],
+      },
+    );
+
+    expect(groups.map((group) => group.currency)).toEqual(['EUR', 'USD']);
+    expect(groups[0]?.signals.map((signal) => signal.title)).toEqual([
+      'Positive cash flow',
+      'Balance projected to increase',
+    ]);
+    expect(groups[1]?.signals.map((signal) => signal.title)).toEqual([
+      'Expenses exceeded income',
+      'No scheduled income',
+    ]);
   });
 
   it('omits a misleading quiet forecast sentence for multi-projection', () => {

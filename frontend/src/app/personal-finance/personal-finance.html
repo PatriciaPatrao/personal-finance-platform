@@ -20,17 +20,23 @@
     }
   </header>
 
-  <section class="hero" aria-labelledby="position-heading">
+  <p-card styleClass="pfp-panel-card hero" aria-labelledby="position-heading">
     <h2 id="position-heading">Current financial position</h2>
 
     @if (accountsLoading) {
-      <p class="status status-loading" aria-live="polite">
-        Loading current position...
-      </p>
+      <p-message
+        severity="info"
+        styleClass="status-loading"
+        text="Loading current position..."
+        ariaLive="polite"
+      />
     } @else if (accountsError) {
-      <p class="status status-error" role="alert">
-        Unable to load your current balance.
-      </p>
+      <p-message
+        severity="error"
+        styleClass="status-error"
+        text="Unable to load your current balance."
+        role="alert"
+      />
     } @else if (currentPosition; as position) {
       @if (position.kind === 'empty') {
         <p class="empty-state">
@@ -60,10 +66,10 @@
         </p>
       }
     }
-  </section>
+  </p-card>
 
   @if (attentionItems.length > 0) {
-    <section class="panel attention-panel" aria-labelledby="attention-heading">
+    <p-card styleClass="pfp-panel-card panel attention-panel" aria-labelledby="attention-heading">
       <h2 id="attention-heading">Needs attention</h2>
       <p class="panel-intro">
         Conditions drawn from stored account balances and goal funding already
@@ -78,10 +84,78 @@
           </li>
         }
       </ul>
-    </section>
+    </p-card>
   }
 
-  <section class="panel signals-panel" aria-labelledby="signals-heading">
+  @if (
+    !accountsLoading &&
+    !accountsError &&
+    currentPosition?.kind !== 'empty'
+  ) {
+    <p-card styleClass="pfp-panel-card panel upcoming-panel" aria-labelledby="upcoming-heading">
+      <h2 id="upcoming-heading">Upcoming commitments</h2>
+      <p class="panel-intro">
+        One row per active schedule showing the next occurrence date returned
+        by the API (not a full recurrence calendar). Amounts stay in each
+        linked account’s currency with no conversion.
+      </p>
+
+      @if (commitmentRangeLabel) {
+        <p class="range-note">Forecast window: {{ commitmentRangeLabel }}</p>
+      }
+
+      @if (schedulesLoading) {
+        <p-message
+          severity="info"
+          styleClass="status-loading"
+          text="Loading upcoming commitments..."
+          ariaLive="polite"
+        />
+      } @else if (schedulesLoadFailed) {
+        <p-message
+          severity="error"
+          styleClass="status-error"
+          text="Unable to load schedule data for upcoming commitments."
+          role="alert"
+        />
+      } @else if (upcomingCommitments.length === 0) {
+        <p class="empty-state">
+          No active schedules have a next occurrence in this period.
+        </p>
+      } @else {
+        @for (group of upcomingByCurrency; track group.currency) {
+          <div>
+            <h3 class="panel-subheading">{{ group.currency }}</h3>
+            <ul class="signal-list">
+              @for (item of group.items; track item.key) {
+                <li class="signal commitment-item">
+                  <p class="commitment-meta">
+                    <span>{{
+                      displayEuropeanDate(item.occurrenceDate)
+                    }}</span>
+                    <span class="commitment-kind">{{
+                      item.kind === 'income' ? 'Income' : 'Expense'
+                    }}</span>
+                  </p>
+                  <h4>{{ item.description }}</h4>
+                  <p>
+                    {{ item.amount | currency: item.currency }} ·
+                    {{ item.accountLabel }}
+                  </p>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+      }
+
+      <a class="inline-link" routerLink="/personal_finance/schedules">
+        Open Schedules
+      </a>
+    </p-card>
+  }
+
+  <p-card styleClass="pfp-panel-card panel signals-panel" aria-labelledby="signals-heading">
     <h2 id="signals-heading">Financial signals</h2>
     <p class="panel-intro">
       Recorded cash flow for the current month and scheduled projection
@@ -89,15 +163,18 @@
     </p>
 
     @if (accountsLoading) {
-      <p class="status status-loading" aria-live="polite">
-        Loading financial signals...
-      </p>
-    } @else if (signalsSuppressed) {
-      <p class="status status-unavailable">
-        Analysis and forecast signals are unavailable because your accounts
-        use more than one currency. Those results add amounts without
-        conversion, so they are not shown here.
-      </p>
+      <p-message
+        severity="info"
+        styleClass="status-loading"
+        text="Loading financial signals..."
+        ariaLive="polite"
+      />
+    } @else if (currentPosition?.kind === 'empty') {
+      <p-message
+        severity="info"
+        styleClass="status-unavailable"
+        text="Add an account to see recorded cash flow and forecast signals."
+      />
     } @else {
       @if (analysisRangeLabel || forecastRangeLabel) {
         <p class="range-note">
@@ -113,19 +190,64 @@
         </p>
       }
 
-      @if (analysisLoading) {
-        <p class="status status-loading" aria-live="polite">
-          Loading recorded cash flow...
+      @if (signalsSuppressed) {
+        <p class="panel-intro">
+          Signals are shown separately for each currency. Amounts are never
+          combined across currencies.
         </p>
+      }
+
+      @if (analysisLoading) {
+        <p-message
+          severity="info"
+          styleClass="status-loading"
+          text="Loading recorded cash flow..."
+          ariaLive="polite"
+        />
       }
 
       @if (forecastLoading) {
-        <p class="status status-loading" aria-live="polite">
-          Loading the scheduled forecast...
-        </p>
+        <p-message
+          severity="info"
+          styleClass="status-loading"
+          text="Loading the scheduled forecast..."
+          ariaLive="polite"
+        />
       }
 
-      @if (signals.length > 0) {
+      @if (signalsSuppressed) {
+        @for (group of perCurrencySignals; track group.currency) {
+          <div>
+            <h3 class="panel-subheading">{{ group.currency }}</h3>
+            @if (group.signals.length > 0) {
+              <ul class="signal-list">
+                @for (signal of group.signals; track signal.title) {
+                  <li class="signal">
+                    <h4>{{ signal.title }}</h4>
+                    <p>{{ signal.detail }}</p>
+                    @if (signalRoute(signal); as route) {
+                      <a class="signal-link" [routerLink]="route">
+                        Open related view
+                      </a>
+                    }
+                  </li>
+                }
+              </ul>
+            } @else if (
+              group.quietDetail &&
+              !analysisLoading &&
+              !forecastLoading &&
+              !analysisError &&
+              !forecastError
+            ) {
+              <article class="signal signal-neutral">
+                <h4>No directional signals</h4>
+                <p>{{ group.quietDetail }}</p>
+              </article>
+            }
+          </div>
+        }
+      } @else if (signals.length > 0) {
         <ul class="signal-list">
           @for (signal of signals; track signal.title) {
             <li class="signal">
@@ -145,35 +267,50 @@
       }
 
       @if (analysisError) {
-        <p class="status status-error" role="alert">
-          Unable to load recorded cash flow for the current month.
-        </p>
+        <p-message
+          severity="error"
+          styleClass="status-error"
+          text="Unable to load recorded cash flow for the current month."
+          role="alert"
+        />
       }
 
       @if (forecastError) {
-        <p class="status status-error" role="alert">
-          Unable to load the scheduled forecast.
-        </p>
+        <p-message
+          severity="error"
+          styleClass="status-error"
+          text="Unable to load the scheduled forecast."
+          role="alert"
+        />
       }
     }
-  </section>
+  </p-card>
 
-  <section class="panel goals-panel" aria-labelledby="goals-heading">
+  <p-card styleClass="pfp-panel-card panel goals-panel" aria-labelledby="goals-heading">
     <h2 id="goals-heading">Goals</h2>
 
     @if (goalsLoading) {
-      <p class="status status-loading" aria-live="polite">Loading goals...</p>
+      <p-message
+        severity="info"
+        styleClass="status-loading"
+        text="Loading goals..."
+        ariaLive="polite"
+      />
     } @else if (goalsError) {
-      <p class="status status-error" role="alert">
-        Unable to load financial goals.
-      </p>
+      <p-message
+        severity="error"
+        styleClass="status-error"
+        text="Unable to load financial goals."
+        role="alert"
+      />
     } @else if (goals.length === 0) {
       <p class="empty-state">No financial goals yet.</p>
       <a class="inline-link" routerLink="/personal_finance/goals">Open Goals</a>
     } @else {
       <ul class="goal-list">
         @for (goal of goals; track goal.id) {
-          <li class="goal-card">
+          <li>
+            <p-card styleClass="pfp-panel-card goal-card">
             <h3>{{ goal.name }}</h3>
             <dl class="goal-metrics">
               <div>
@@ -219,17 +356,7 @@
                 }
               }
             </dl>
-            @for (
-              allocation of underfundedAllocations(goal);
-              track allocation.id
-            ) {
-              <p class="goal-flag">
-                {{ accountLabel(allocation.account_id) }}:
-                {{ allocation.funded_amount | currency: goal.currency }} funded
-                of
-                {{ allocation.amount | currency: goal.currency }} designated.
-              </p>
-            }
+            </p-card>
           </li>
         }
       </ul>
@@ -237,9 +364,9 @@
         Manage goals
       </a>
     }
-  </section>
+  </p-card>
 
-  <section class="panel quick-panel" aria-labelledby="quick-heading">
+  <p-card styleClass="pfp-panel-card panel quick-panel" aria-labelledby="quick-heading">
     <h2 id="quick-heading">Quick access</h2>
     <ul class="quick-links">
       @for (link of quickLinks; track link.route) {
@@ -248,5 +375,5 @@
         </li>
       }
     </ul>
-  </section>
+  </p-card>
 </section>

@@ -1,276 +1,45 @@
-.transactions-page {
-  max-width: 56rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+.transaction-cards {
+  display: none;
 }
 
-.page-header h1 {
-  margin: 0 0 0.35rem;
-  font-size: 1.75rem;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-}
-
-.page-intro {
-  margin: 0;
-  color: #555;
-  max-width: 42rem;
-  line-height: 1.45;
-}
-
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: end;
-  padding: 1rem 1.15rem;
-  border: 1px solid #d8d8d8;
-  background: #fafafa;
-}
-
-.filter-fields {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  flex: 1 1 auto;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  min-width: 10rem;
-}
-
-.field-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #333;
-}
-
-.field select,
-.field input {
-  font: inherit;
-  padding: 0.45rem 0.55rem;
-  border: 1px solid #bdbdbd;
-  background: #fff;
-  color: #222;
-}
-
-.apply-button {
-  font: inherit;
-  font-weight: 600;
-  padding: 0.55rem 1.15rem;
-  border: 1px solid #222;
-  background: #222;
-  color: #fff;
-  cursor: pointer;
-}
-
-.apply-button:hover {
-  background: #000;
-}
-
-.status {
-  margin: 0;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid transparent;
-}
-
-.status-loading {
-  color: #444;
-  background: #f5f5f5;
-  border-color: #e0e0e0;
-}
-
-.status-validation,
-.status-error {
-  color: #7a1f1f;
-  background: #f8ecec;
-  border-color: #e2bcbc;
-}
-
-.status-success {
-  color: #1a5c38;
-  background: #eef6f1;
-  border-color: #b7d7c4;
-}
-
-.new-transaction-button,
-.save-button,
-.cancel-button,
-.edit-button,
-.delete-button,
-.confirm-delete-button {
-  font: inherit;
-  font-weight: 600;
-  padding: 0.55rem 1.15rem;
-  border: 1px solid #222;
-  background: #fff;
-  color: #222;
-  cursor: pointer;
-}
-
-.new-transaction-button,
-.save-button {
-  background: #222;
-  color: #fff;
-}
-
-.save-button:disabled,
-.confirm-delete-button:disabled,
-.cancel-button:disabled {
-  cursor: default;
-  opacity: 0.7;
-}
-
-.row-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: flex-end;
-}
-
-.schedule-linked-note {
-  font-size: 0.85rem;
-  color: #555;
-  font-weight: 500;
-}
-
-.currency-unavailable {
+.transaction-table-wide {
   display: block;
-  margin-top: 0.2rem;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: #555;
+}
+
+.amount-income {
+  color: var(--pfp-money-positive);
+  font-weight: 600;
+}
+
+.amount-expense {
+  color: var(--pfp-money-negative);
+  font-weight: 600;
 }
 
 .delete-confirm {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 1rem 1.15rem;
-  border: 1px solid #e2bcbc;
-  background: #f8ecec;
-}
-
-.delete-confirm h2 {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 650;
+  padding: 1rem;
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--pfp-radius-lg);
+  background: var(--pfp-danger-bg);
 }
 
 .delete-summary {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem 1rem;
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.delete-note {
-  margin: 0;
-  color: #555;
-}
-
-.confirm-delete-button {
-  background: #7a1f1f;
-  border-color: #7a1f1f;
-  color: #fff;
-}
-
-.transaction-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 1rem 1.15rem;
-  border: 1px solid #d8d8d8;
-  background: #fafafa;
-}
-
-.transaction-form h2 {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 650;
-}
-
-.form-fields,
-.form-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: end;
-}
-
-.form-fields app-date-field.form-date-field {
-  flex: 0 0 auto;
-  width: 10rem;
-  min-width: 10rem;
-}
-
-.form-fields .field-category {
-  flex: 0 0 auto;
-  min-width: 10rem;
-  width: 10rem;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
-}
-
-.data-table th,
-.data-table td {
-  padding: 0.65rem 0.5rem;
-  text-align: left;
-  border-bottom: 1px solid #e6e6e6;
-}
-
-.data-table th {
-  font-size: 0.8rem;
-  font-weight: 650;
-  color: #555;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.data-table th:nth-child(6),
-.data-table td:nth-child(6) {
-  text-align: right;
-}
-
-.amount-income {
-  color: #1a5c38;
-  font-weight: 650;
-}
-
-.amount-expense {
-  color: #7a1f1f;
-  font-weight: 650;
-}
-
-.empty-state {
-  margin: 0;
-  color: #555;
+  gap: 0.5rem 1rem;
 }
 
 @media (max-width: 720px) {
-  .filters {
-    align-items: stretch;
+  .transaction-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
 
-  .apply-button,
-  .save-button,
-  .cancel-button,
-  .new-transaction-button,
-  .confirm-delete-button {
-    width: 100%;
-  }
-
-  .data-table {
-    display: block;
-    overflow-x: auto;
+  .transaction-table-wide {
+    display: none;
   }
 }

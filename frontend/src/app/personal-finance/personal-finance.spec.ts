@@ -593,7 +593,7 @@ describe('PersonalFinance', () => {
     expect(text).not.toContain('Totals stay separate by currency');
   });
 
-  it('should total each currency separately and suppress currency-unsafe signals', async () => {
+  it('should total each currency separately and show per-currency signals', async () => {
     listAccounts.mockReturnValue(
       of([
         sampleAccounts[0],
@@ -612,7 +612,48 @@ describe('PersonalFinance', () => {
         },
       ]),
     );
-    getSummary.mockReturnValue(of(positiveSummary));
+    getSummary.mockReturnValue(
+      of({
+        from_date: '2026-09-01',
+        to_date: '2026-09-30',
+        by_currency: [
+          {
+            currency: 'EUR',
+            total_income: '2000.00',
+            total_expenses: '1350.00',
+            net_cash_flow: '650.00',
+          },
+          {
+            currency: 'USD',
+            total_income: '100.00',
+            total_expenses: '150.00',
+            net_cash_flow: '-50.00',
+          },
+        ],
+      }),
+    );
+    getForecast.mockReturnValue(
+      of({
+        ...increasingForecast,
+        projections: [
+          increasingForecast.projections[0],
+          {
+            currency: 'USD',
+            group_by: 'month',
+            starting_balance: '40.00',
+            periods: [
+              {
+                period: '2026-10',
+                income: '0.00',
+                expenses: '0.00',
+                net_cash_flow: '0.00',
+                projected_balance: '40.00',
+              },
+            ],
+          },
+        ],
+      }),
+    );
 
     const fixture = TestBed.createComponent(PersonalFinance);
     fixture.detectChanges();
@@ -628,20 +669,18 @@ describe('PersonalFinance', () => {
     expect(text).not.toContain('6,540.00');
     expect(text).not.toContain('Across your accounts');
     expect(text).toContain(
+      'Signals are shown separately for each currency.',
+    );
+    expect(getForecast).toHaveBeenCalledTimes(1);
+    expect(getSummary).toHaveBeenCalledTimes(1);
+    expect(text).toContain('Positive cash flow');
+    expect(text).toContain('Expenses exceeded income');
+    expect(text).not.toContain(
       'Analysis and forecast signals are unavailable because your accounts use more than one currency.',
     );
-    expect(getForecast).not.toHaveBeenCalled();
-    expect(getSummary).not.toHaveBeenCalled();
-    expect(text).not.toContain('Positive cash flow');
-    expect(text).not.toContain('Balance projected to increase');
-    expect(text).not.toContain('No directional signals');
-    expect(text).not.toContain(
-      'Unable to load recorded cash flow for the current month.',
-    );
-    expect(text).not.toContain('Unable to load the scheduled forecast.');
   });
 
-  it('should not request analysis when signals are suppressed', async () => {
+  it('should request analysis and forecast for multi-currency households', async () => {
     listAccounts.mockReturnValue(
       of([
         sampleAccounts[0],
@@ -663,12 +702,10 @@ describe('PersonalFinance', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(getSummary).not.toHaveBeenCalled();
+    expect(getSummary).toHaveBeenCalledTimes(1);
+    expect(getForecast).toHaveBeenCalledTimes(1);
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain(
-      'Analysis and forecast signals are unavailable because your accounts use more than one currency.',
-    );
-    expect(text).not.toContain(
       'Unable to load recorded cash flow for the current month.',
     );
   });
@@ -811,6 +848,9 @@ describe('PersonalFinance', () => {
     expect(text).toContain('1,000.00');
     expect(text).not.toContain('Progress unavailable');
     expect(text).not.toContain('No allocations yet.');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.goal-flag'),
+    ).toBeNull();
   });
 
   it('should show 0% when allocations exist but nothing is funded', async () => {
@@ -850,6 +890,9 @@ describe('PersonalFinance', () => {
     expect(text).toContain('not fully funded');
     expect(text).not.toContain('Progress unavailable');
     expect(text).not.toContain('No allocations yet.');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.goal-flag'),
+    ).toBeNull();
   });
 
   it('should link to quick-access destinations', async () => {
@@ -903,9 +946,61 @@ describe('PersonalFinance', () => {
 
     expect(headings).toEqual([
       'position-heading',
+      'upcoming-heading',
       'signals-heading',
       'goals-heading',
       'quick-heading',
     ]);
+  });
+
+  it('should distinguish empty upcoming commitments from schedule load failure', async () => {
+    listIncomes.mockReturnValue(throwError(() => new Error('network')));
+    listRecurringExpenses.mockReturnValue(of([]));
+
+    const fixture = TestBed.createComponent(PersonalFinance);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Unable to load schedule data for upcoming commitments.');
+    expect(text).not.toContain(
+      'No active schedules have a next occurrence in this period.',
+    );
+  });
+
+  it('should list upcoming commitments grouped by currency', async () => {
+    const forecastRange = defaultForecastRange();
+    listIncomes.mockReturnValue(
+      of([
+        {
+          id: 1,
+          account_id: 1,
+          amount: '2000.00',
+          frequency: 'monthly',
+          start_date: '2026-01-01',
+          next_occurrence: forecastRange.from,
+          end_date: null,
+          active: true,
+          created_at: '2026-01-01T00:00:00',
+        },
+      ]),
+    );
+    listRecurringExpenses.mockReturnValue(of([]));
+
+    const fixture = TestBed.createComponent(PersonalFinance);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Upcoming commitments');
+    expect(text).toContain('Salary');
+    expect(text).toContain('Income');
+    expect(text).toContain('Open Schedules');
+    const schedulesLink = (
+      fixture.nativeElement as HTMLElement
+    ).querySelector('a.inline-link[href="/personal_finance/schedules"]');
+    expect(schedulesLink).toBeTruthy();
   });
 });

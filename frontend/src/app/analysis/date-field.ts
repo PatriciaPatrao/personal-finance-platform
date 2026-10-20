@@ -6,6 +6,8 @@ import {
   Input,
   Output,
 } from '@angular/core';
+import { Button } from 'primeng/button';
+import { InputText } from 'primeng/inputtext';
 
 const MONTH_NAMES = [
   'January',
@@ -67,6 +69,7 @@ function parseEuropeanDate(value: string): Date | null {
 
 @Component({
   selector: 'app-date-field',
+  imports: [Button, InputText],
   templateUrl: './date-field.html',
   styleUrl: './date-field.scss',
 })

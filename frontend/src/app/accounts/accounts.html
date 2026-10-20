@@ -10,109 +10,132 @@
   </header>
 
   @if (successMessage) {
-    <p class="status status-success" role="status">{{ successMessage }}</p>
+    <p-message
+      severity="success"
+      styleClass="status-success"
+      [text]="successMessage"
+      role="status"
+    />
   }
 
   @if (!loading && errorMessage === null) {
     @if (!formOpen) {
-      <button
+      <p-button
         type="button"
-        class="create-account-button"
-        (click)="startCreate()"
-      >
-        Create account
-      </button>
+        label="Create account"
+        styleClass="create-account-button"
+        (onClick)="startCreate()"
+      />
     } @else {
-      <form class="account-form" (submit)="$event.preventDefault(); saveAccount()">
-        <h2>New account</h2>
-        <div class="form-fields">
-          <label class="field">
-            <span class="field-label">Name</span>
-            <input
-              name="name"
-              type="text"
-              maxlength="100"
-              [value]="formName"
-              (input)="formName = $any($event.target).value"
-            />
-            @if (formNameError) {
-              <span class="field-error">{{ formNameError }}</span>
-            }
-          </label>
-          <label class="field">
-            <span class="field-label">Type</span>
-            <select
-              name="accountType"
-              [value]="formAccountType"
-              (change)="onFormTypeChange($any($event.target).value)"
-            >
-              <option value="">Select a type</option>
-              @for (type of accountTypes; track type) {
-                <option [value]="type">{{ displayType(type) }}</option>
+      <p-card styleClass="pfp-panel-card account-form">
+        <form (submit)="$event.preventDefault(); saveAccount()">
+          <h2>New account</h2>
+          <div class="form-fields">
+            <label class="field">
+              <span class="field-label">Name</span>
+              <input
+                pInputText
+                name="name"
+                type="text"
+                maxlength="100"
+                class="w-full"
+                [value]="formName"
+                (input)="formName = $any($event.target).value"
+              />
+              @if (formNameError) {
+                <span class="field-error">{{ formNameError }}</span>
               }
-            </select>
-            @if (formTypeError) {
-              <span class="field-error">{{ formTypeError }}</span>
-            }
-          </label>
-          <label class="field">
-            <span class="field-label">Currency</span>
-            <select
-              name="currency"
-              [value]="formCurrency"
-              (change)="onFormCurrencyChange($any($event.target).value)"
-            >
-              @for (currency of currencyOptions; track currency) {
-                <option [value]="currency">{{ currency }}</option>
+            </label>
+            <label class="field">
+              <span class="field-label">Type</span>
+              <p-select
+                name="accountType"
+                [options]="accountTypeSelectOptions"
+                optionLabel="label"
+                optionValue="value"
+                [ngModel]="formAccountType"
+                (ngModelChange)="onFormTypeChange($event)"
+                styleClass="w-full"
+              />
+              @if (formTypeError) {
+                <span class="field-error">{{ formTypeError }}</span>
               }
-            </select>
-          </label>
-          <label class="field">
-            <span class="field-label">Opening balance</span>
-            <input
-              name="currentBalance"
-              type="text"
-              inputmode="decimal"
-              [value]="formBalance"
-              (input)="formBalance = $any($event.target).value"
+            </label>
+            <label class="field">
+              <span class="field-label">Currency</span>
+              <p-select
+                name="currency"
+                [options]="currencySelectOptions"
+                optionLabel="label"
+                optionValue="value"
+                [ngModel]="formCurrency"
+                (ngModelChange)="onFormCurrencyChange($event)"
+                styleClass="w-full"
+              />
+            </label>
+            <label class="field">
+              <span class="field-label">Opening balance</span>
+              <input
+                pInputText
+                name="currentBalance"
+                type="text"
+                inputmode="decimal"
+                class="w-full"
+                [value]="formBalance"
+                (input)="formBalance = $any($event.target).value"
+              />
+              @if (formBalanceError) {
+                <span class="field-error">{{ formBalanceError }}</span>
+              }
+            </label>
+          </div>
+
+          @if (formError) {
+            <p-message
+              severity="error"
+              styleClass="status-error"
+              [text]="formError"
+              role="alert"
             />
-            @if (formBalanceError) {
-              <span class="field-error">{{ formBalanceError }}</span>
-            }
-          </label>
-        </div>
+          }
 
-        @if (formError) {
-          <p class="status status-error" role="alert">{{ formError }}</p>
-        }
-
-        <div class="form-actions">
-          <button
-            type="submit"
-            class="save-button"
-            [disabled]="!canSubmit"
-          >
-            {{ saving ? 'Creating...' : 'Create account' }}
-          </button>
-          <button
-            type="button"
-            class="cancel-button"
-            [disabled]="saving"
-            (click)="cancelForm()"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
+          <div class="form-actions">
+            <p-button
+              type="submit"
+              [label]="saving ? 'Creating...' : 'Create account'"
+              styleClass="save-button"
+              [disabled]="!canSubmit"
+            />
+            <p-button
+              type="button"
+              label="Cancel"
+              severity="secondary"
+              styleClass="cancel-button"
+              [disabled]="saving"
+              (onClick)="cancelForm()"
+            />
+          </div>
+        </form>
+      </p-card>
     }
   }
 
   @if (loading) {
-    <p class="status status-loading" aria-live="polite">Loading accounts...</p>
+    <p-message
+      severity="info"
+      styleClass="status-loading"
+      text="Loading accounts..."
+      ariaLive="polite"
+    />
   }
 
   @if (errorMessage) {
-    <p class="status status-error" role="alert">{{ errorMessage }}</p>
+    <p-message
+      severity="error"
+      styleClass="status-error"
+      [text]="errorMessage"
+      role="alert"
+    />
   }
 
   @if (!loading && errorMessage === null && accounts.length === 0 && !formOpen) {
@@ -122,36 +145,41 @@
   }
 
   @if (!loading && errorMessage === null && accounts.length > 0) {
-    <app-copy-table>
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th scope="col">Name</th>
-          <th scope="col">Type</th>
-          <th scope="col">Currency</th>
-          <th scope="col">Current balance</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (account of accounts; track account.id) {
-          <tr>
-            <td>
-              <a
-                class="account-link"
-                [routerLink]="['/personal_finance/accounts', account.id]"
-              >
-                {{ account.name }}
-              </a>
-            </td>
-            <td>{{ displayType(account.account_type) }}</td>
-            <td>{{ account.currency }}</td>
-            <td class="amount">
-              {{ account.current_balance | currency: account.currency }}
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
-    </app-copy-table>
+    <p-card styleClass="pfp-panel-card">
+      <app-copy-table scrollLabel="Accounts table">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Type</th>
+              <th scope="col">Currency</th>
+              <th scope="col">Current balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (account of accounts; track account.id) {
+              <tr>
+                <td>
+                  <a
+                    class="account-link"
+                    [routerLink]="['/personal_finance/accounts', account.id]"
+                  >
+                    {{ account.name }}
+                  </a>
+                  <span class="account-meta">{{
+                    accountSubtitle(account)
+                  }}</span>
+                </td>
+                <td>{{ displayType(account.account_type) }}</td>
+                <td>{{ account.currency }}</td>
+                <td class="amount">
+                  {{ account.current_balance | currency: account.currency }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </app-copy-table>
+    </p-card>
   }
 </section>

@@ -2,8 +2,10 @@ import {
   ChangeDetectorRef,
   Component,
   ElementRef,
+  Input,
   OnDestroy,
 } from '@angular/core';
+import { Button } from 'primeng/button';
 
 const COPIED_LABEL_MS = 2000;
 
@@ -34,10 +36,13 @@ export function tableToText(table: HTMLTableElement): string {
 
 @Component({
   selector: 'app-copy-table',
+  imports: [Button],
   templateUrl: './copy-table.html',
   styleUrl: './copy-table.scss',
 })
 export class CopyTable implements OnDestroy {
+  @Input() scrollLabel = 'Table data';
+
   hovering = false;
   copied = false;
   private copiedTimer: ReturnType<typeof setTimeout> | null = null;
@@ -111,14 +116,14 @@ export class CopyTable implements OnDestroy {
     document.body.appendChild(area);
     area.select();
 
-    let copied = false;
+    let wrote = false;
     try {
-      copied = document.execCommand('copy');
+      wrote = document.execCommand('copy');
     } catch {
-      copied = false;
+      wrote = false;
     }
 
     document.body.removeChild(area);
-    return copied;
+    return wrote;
   }
 }

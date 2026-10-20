@@ -700,14 +700,50 @@ describe('Schedules', () => {
     expect(executeButton.disabled).toBe(false);
     executeButton.click();
     fixture.detectChanges();
+    expect(executeIncome).not.toHaveBeenCalled();
+
+    const confirmButton = compiled.querySelector(
+      '.execution-confirm .execute-button',
+    ) as HTMLButtonElement;
+    confirmButton.click();
+    fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
 
+    expect(executeIncome).toHaveBeenCalledTimes(1);
     expect(executeIncome).toHaveBeenCalledWith(10, '2026-02-15');
     expect(compiled.textContent).toContain(
       'Occurrence executed. A transaction was created',
     );
     expect(component.executingKey).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('should not execute when confirmation is cancelled', async () => {
+    vi.setSystemTime(new Date(2026, 1, 15));
+    const eligibleIncome = {
+      ...activeIncome,
+      next_occurrence: '2026-02-15',
+    };
+    listIncomes.mockReturnValue(of([eligibleIncome]));
+
+    const { fixture, compiled } = await render();
+    fixture.detectChanges();
+
+    const executeButton = compiled.querySelector(
+      '.execute-button',
+    ) as HTMLButtonElement;
+    executeButton.click();
+    fixture.detectChanges();
+
+    const cancelButton = compiled.querySelector(
+      '.execution-confirm .cancel-button',
+    ) as HTMLButtonElement;
+    cancelButton.click();
+    fixture.detectChanges();
+
+    expect(executeIncome).not.toHaveBeenCalled();
+    expect(compiled.textContent).not.toContain('Confirm schedule execution?');
     vi.useRealTimers();
   });
 

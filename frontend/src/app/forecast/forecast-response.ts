@@ -43,3 +43,13 @@ export function projectionForFinancialSignals(
   }
   return projections[0];
 }
+
+export function projectionForCurrency(
+  forecast: ForecastResponse,
+  currency: string,
+): ForecastCurrencyProjection | null {
+  return (
+    forecast.projections?.find((projection) => projection.currency === currency) ??
+    null
+  );
+}

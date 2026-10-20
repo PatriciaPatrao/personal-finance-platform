@@ -2,6 +2,8 @@ import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { Card } from 'primeng/card';
+import { Message } from 'primeng/message';
 
 import { pageTitle } from '../app-page-titles';
 
@@ -20,7 +22,7 @@ function displayCreatedDate(createdAt: string): string {
 
 @Component({
   selector: 'app-account-detail',
-  imports: [CurrencyPipe, RouterLink],
+  imports: [Card, CurrencyPipe, Message, RouterLink],
   templateUrl: './account-detail.html',
   styleUrl: './account-detail.scss',
 })

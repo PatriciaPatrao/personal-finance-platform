@@ -12,6 +12,7 @@ describe('resolveDashboardPrimaryAction', () => {
       schedulesLoading: false,
       schedulesLoadFailed: false,
       hasActiveScheduleOccurrenceToday: false,
+      hasActiveScheduleOccurrenceWithinSevenDays: false,
     });
 
     expect(action?.label).toBe('Create account');
@@ -29,6 +30,7 @@ describe('resolveDashboardPrimaryAction', () => {
       schedulesLoading: false,
       schedulesLoadFailed: false,
       hasActiveScheduleOccurrenceToday: false,
+      hasActiveScheduleOccurrenceWithinSevenDays: false,
     });
 
     expect(action?.label).toBe('Record transaction');
@@ -45,9 +47,28 @@ describe('resolveDashboardPrimaryAction', () => {
       schedulesLoading: false,
       schedulesLoadFailed: false,
       hasActiveScheduleOccurrenceToday: true,
+      hasActiveScheduleOccurrenceWithinSevenDays: true,
     });
 
     expect(action?.label).toBe('Review schedules');
+  });
+
+  it('should prioritise schedules when an occurrence is within seven days', () => {
+    const action = resolveDashboardPrimaryAction({
+      accountsLoading: false,
+      accountsError: false,
+      hasAccounts: true,
+      transactionsLoading: false,
+      transactionsLoadFailed: false,
+      transactionCount: 3,
+      schedulesLoading: false,
+      schedulesLoadFailed: false,
+      hasActiveScheduleOccurrenceToday: false,
+      hasActiveScheduleOccurrenceWithinSevenDays: true,
+    });
+
+    expect(action?.label).toBe('Review schedules');
+    expect(action?.description).toContain('seven days');
   });
 
   it('should not show a primary action while accounts are loading', () => {
@@ -62,6 +83,7 @@ describe('resolveDashboardPrimaryAction', () => {
         schedulesLoading: false,
         schedulesLoadFailed: false,
         hasActiveScheduleOccurrenceToday: false,
+        hasActiveScheduleOccurrenceWithinSevenDays: false,
       }),
     ).toBeNull();
   });
@@ -78,6 +100,7 @@ describe('resolveDashboardPrimaryAction', () => {
         schedulesLoading: false,
         schedulesLoadFailed: false,
         hasActiveScheduleOccurrenceToday: false,
+        hasActiveScheduleOccurrenceWithinSevenDays: false,
       }),
     ).toBeNull();
   });
@@ -94,6 +117,7 @@ describe('resolveDashboardPrimaryAction', () => {
         schedulesLoading: false,
         schedulesLoadFailed: false,
         hasActiveScheduleOccurrenceToday: false,
+        hasActiveScheduleOccurrenceWithinSevenDays: false,
       }),
     ).toBeNull();
   });
@@ -109,6 +133,7 @@ describe('resolveDashboardPrimaryAction', () => {
       schedulesLoading: false,
       schedulesLoadFailed: true,
       hasActiveScheduleOccurrenceToday: true,
+      hasActiveScheduleOccurrenceWithinSevenDays: true,
     });
 
     expect(action?.label).toBe('Record transaction');

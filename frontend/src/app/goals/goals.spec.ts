@@ -335,8 +335,8 @@ describe('Goals', () => {
   });
 
   function clickAddMoney(compiled: HTMLElement): void {
-    const button = [...compiled.querySelectorAll('button')].find(
-      (item) => item.textContent?.trim() === 'Add money',
+    const button = [...compiled.querySelectorAll('button')].find((item) =>
+      item.textContent?.includes('Add money'),
     ) as HTMLButtonElement;
     button.click();
   }
@@ -348,7 +348,12 @@ describe('Goals', () => {
 
     expect(component.allocatingGoalId).toBe(11);
     expect(compiled.textContent).toContain('Add money');
-    expect(compiled.textContent).toContain('available');
+    const goal = component.goals.find((item) => item.id === 11)!;
+    expect(
+      component
+        .allocateAccountSelectOptions(goal)
+        .some((option) => option.label.toLowerCase().includes('available')),
+    ).toBe(true);
     expect(component.availableOnAccount(1)).toBe(0);
     expect(component.designatedOnAccount(1)).toBe(5000);
   });

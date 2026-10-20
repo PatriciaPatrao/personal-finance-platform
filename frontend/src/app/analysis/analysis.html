@@ -9,40 +9,87 @@
   </header>
 
   <form class="filters" (submit)="$event.preventDefault(); apply()">
-    <div class="filter-fields">
-      <app-date-field
-        label="From"
-        name="from"
-        [value]="fromDisplay"
-        [maxIsoDate]="maxTo"
-        (valueChange)="fromDisplay = $event"
-      />
-      <app-date-field
-        label="To"
-        name="to"
-        [value]="toDisplay"
-        [maxIsoDate]="maxTo"
-        (valueChange)="toDisplay = $event"
-      />
+    <div class="filter-toolbar">
+      <div class="period-presets" role="group" aria-label="Quick period">
+        <p-button
+          type="button"
+          label="This month"
+          styleClass="preset-button"
+          [severity]="activePreset() === 'this-month' ? 'contrast' : 'secondary'"
+          [outlined]="activePreset() !== 'this-month'"
+          [attr.aria-pressed]="activePreset() === 'this-month'"
+          (onClick)="applyPreset('this-month')"
+        />
+        <p-button
+          type="button"
+          label="Last month"
+          styleClass="preset-button"
+          [severity]="activePreset() === 'last-month' ? 'contrast' : 'secondary'"
+          [outlined]="activePreset() !== 'last-month'"
+          [attr.aria-pressed]="activePreset() === 'last-month'"
+          (onClick)="applyPreset('last-month')"
+        />
+      </div>
+      <div class="filter-fields">
+        <app-date-field
+          label="From"
+          name="from"
+          [value]="fromDisplay"
+          [maxIsoDate]="maxTo"
+          (valueChange)="fromDisplay = $event"
+        />
+        <app-date-field
+          label="To"
+          name="to"
+          [value]="toDisplay"
+          [maxIsoDate]="maxTo"
+          (valueChange)="toDisplay = $event"
+        />
+      </div>
     </div>
 
-    <button type="submit" class="apply-button">Apply</button>
+    <p-button type="submit" label="Apply" styleClass="apply-button" />
   </form>
 
   @if (validationMessage) {
-    <p class="status status-validation" role="alert">{{ validationMessage }}</p>
+    <p-message
+      severity="warn"
+      styleClass="status-validation"
+      [text]="validationMessage"
+      role="alert"
+    />
   }
 
   @if (loading) {
-    <p class="status status-loading" aria-live="polite">Loading analysis...</p>
+    <p-message
+      severity="info"
+      styleClass="status-loading"
+      text="Loading analysis..."
+      ariaLive="polite"
+    />
   }
 
   @if (errorMessage) {
-    <p class="status status-error" role="alert">{{ errorMessage }}</p>
+    <p-message
+      severity="error"
+      styleClass="status-error"
+      [text]="errorMessage"
+      role="alert"
+    />
   }
 
   @if (!loading && !errorMessage && summary) {
-    <section class="panel summary-panel" aria-labelledby="summary-heading">
+    <p class="selected-period" aria-live="polite">
+      Showing recorded activity for
+      <strong>{{ selectedPeriodLabel }}</strong>
+      @if (summary.by_currency.length > 1) {
+        <span class="selected-period-note">
+          — {{ summary.by_currency.length }} currencies, shown separately
+        </span>
+      }
+    </p>
+
+    <p-card styleClass="pfp-panel-card panel summary-panel" aria-labelledby="summary-heading">
       <h2 id="summary-heading">Summary</h2>
 
       @if (summary.by_currency.length === 0) {
@@ -53,6 +100,8 @@
         @for (block of summary.by_currency; track block.currency) {
           <div class="currency-block">
             <h3 class="currency-heading">{{ block.currency }}</h3>
+            @let flowBars = summaryFlowBars(block);
+            @let netLabel = netSignLabel(block.net_cash_flow);
             <div class="metric-grid">
               <article class="metric">
                 <h4>Income</h4>
@@ -66,28 +115,74 @@
                   {{ block.total_expenses | currency: block.currency }}
                 </p>
               </article>
-              <article class="metric">
-                <h4>Net Cash Flow</h4>
+              <article
+                class="metric net-metric"
+                [class.net-metric-surplus]="netLabel === 'Surplus'"
+                [class.net-metric-deficit]="netLabel === 'Deficit'"
+              >
+                <h4>Net cash flow</h4>
                 <p class="metric-value">
                   {{ block.net_cash_flow | currency: block.currency }}
                 </p>
+                <p class="metric-sign-label">{{ netLabel }}</p>
               </article>
             </div>
+
+            @if (flowBars.incomePercent + flowBars.expensePercent > 0) {
+              <figure
+                class="flow-comparison"
+                [attr.aria-label]="
+                  block.currency +
+                  ' income versus expenses for the selected period'
+                "
+              >
+                <figcaption class="visually-hidden">
+                  Income
+                  {{ block.total_income | currency: block.currency }},
+                  expenses
+                  {{ block.total_expenses | currency: block.currency }},
+                  net {{ netLabel | lowercase }}
+                  {{ block.net_cash_flow | currency: block.currency }}
+                </figcaption>
+                <div class="flow-comparison-bars" aria-hidden="true">
+                  <span
+                    class="flow-bar flow-bar-income"
+                    [style.flex-grow]="flowBars.incomePercent"
+                    title="Income share"
+                  ></span>
+                  <span
+                    class="flow-bar flow-bar-expense"
+                    [style.flex-grow]="flowBars.expensePercent"
+                    title="Expense share"
+                  ></span>
+                </div>
+                <ul class="flow-comparison-legend" aria-hidden="true">
+                  <li>
+                    <span class="legend-swatch legend-income"></span>
+                    Income ({{ flowBars.incomePercent }}%)
+                  </li>
+                  <li>
+                    <span class="legend-swatch legend-expense"></span>
+                    Expenses ({{ flowBars.expensePercent }}%)
+                  </li>
+                </ul>
+              </figure>
+            }
           </div>
         }
       }
-    </section>
+    </p-card>
 
-    <section class="panel" aria-labelledby="expenses-heading">
-      <h2 id="expenses-heading">Expenses by Category</h2>
+    <p-card styleClass="pfp-panel-card panel" aria-labelledby="expenses-heading">
+      <h2 id="expenses-heading">Expenses by category</h2>
 
       @if (expenses && expenses.currencies.length > 0) {
         @for (block of expenses.currencies; track block.currency) {
           <div class="currency-block">
             <h3 class="currency-heading">{{ block.currency }}</h3>
             @if (block.categories.length > 0) {
-              <app-copy-table>
-                <table class="data-table">
+              <app-copy-table scrollLabel="Expenses by category table">
+                <table class="data-table category-table">
                   <thead>
                     <tr>
                       <th scope="col">Category</th>
@@ -100,7 +195,16 @@
                       <tr>
                         <td>{{ item.category }}</td>
                         <td>{{ item.amount | currency: block.currency }}</td>
-                        <td>{{ item.percentage }}%</td>
+                        <td>
+                          <div class="share-cell">
+                            <span class="share-value">{{ item.percentage }}%</span>
+                            <span
+                              class="share-bar"
+                              role="presentation"
+                              [style.width.%]="categoryBarWidth(item.percentage)"
+                            ></span>
+                          </div>
+                        </td>
                       </tr>
                     }
                   </tbody>
@@ -116,34 +220,41 @@
       } @else {
         <p class="empty-state">No expenses recorded for this period.</p>
       }
-    </section>
+    </p-card>
 
-    <section class="panel" aria-labelledby="cash-flow-heading">
+    <p-card styleClass="pfp-panel-card panel" aria-labelledby="cash-flow-heading">
       <div class="panel-header">
-        <h2 id="cash-flow-heading">Cash Flow Over Time</h2>
+        <h2 id="cash-flow-heading">Cash flow over time</h2>
         <label class="field group-by-field">
           <span class="field-label">Grouping</span>
-          <select
+          <p-select
             name="groupBy"
-            [value]="groupBy"
-            (change)="onGroupByChange($any($event.target).value)"
-          >
-            <option value="month">Monthly</option>
-            <option value="day">Daily</option>
-          </select>
+            [options]="groupByOptions"
+            optionLabel="label"
+            optionValue="value"
+            [ngModel]="groupBy"
+            (ngModelChange)="onGroupByChange($event)"
+            styleClass="w-full"
+          />
         </label>
       </div>
 
       @if (cashFlowLoading) {
-        <p class="status status-loading" aria-live="polite">
-          Loading cash flow...
-        </p>
+        <p-message
+          severity="info"
+          styleClass="status-loading"
+          text="Loading cash flow..."
+          ariaLive="polite"
+        />
       }
 
       @if (cashFlowErrorMessage) {
-        <p class="status status-error" role="alert">
-          {{ cashFlowErrorMessage }}
-        </p>
+        <p-message
+          severity="error"
+          styleClass="status-error"
+          [text]="cashFlowErrorMessage"
+          role="alert"
+        />
       }
 
       @if (!cashFlowLoading && !cashFlowErrorMessage && cashFlow) {
@@ -152,8 +263,51 @@
             <div class="currency-block">
               <h3 class="currency-heading">{{ block.currency }}</h3>
               @if (block.periods.length > 0) {
-                <app-copy-table>
-                  <table class="data-table">
+                @let sparkBars = cashFlowSparkBars(block);
+                <figure
+                  class="cash-flow-sparkline"
+                  [attr.aria-label]="
+                    block.currency + ' net cash flow by period'
+                  "
+                >
+                  <figcaption class="sparkline-caption">
+                    Net cash flow by
+                    {{ groupBy === 'month' ? 'month' : 'day' }} ({{
+                      block.currency
+                    }})
+                  </figcaption>
+                  <ul class="sparkline-bars" aria-hidden="true">
+                    @for (bar of sparkBars; track bar.period) {
+                      <li
+                        class="sparkline-bar-item"
+                        [class.spark-positive]="bar.signLabel === 'Surplus'"
+                        [class.spark-negative]="bar.signLabel === 'Deficit'"
+                        [title]="
+                          bar.period +
+                          ': ' +
+                          bar.signLabel +
+                          ' ' +
+                          bar.netCashFlow
+                        "
+                      >
+                        <span
+                          class="sparkline-bar"
+                          [style.height.%]="bar.heightPercent"
+                        ></span>
+                        <span class="sparkline-label">{{ bar.period }}</span>
+                      </li>
+                    }
+                  </ul>
+                  <p class="visually-hidden">
+                    @for (bar of sparkBars; track bar.period) {
+                      {{ bar.period }}: {{ bar.signLabel }},
+                      {{ bar.netCashFlow | currency: block.currency }}.
+                    }
+                  </p>
+                </figure>
+
+                <app-copy-table scrollLabel="Cash flow table">
+                  <table class="data-table cash-flow-table">
                     <thead>
                       <tr>
                         <th scope="col">Period</th>
@@ -164,8 +318,17 @@
                     </thead>
                     <tbody>
                       @for (period of block.periods; track period.period) {
-                        <tr>
-                          <td>{{ period.period }}</td>
+                        <tr
+                          [class.period-latest]="
+                            isLatestCashFlowPeriod(block, period)
+                          "
+                        >
+                          <td>
+                            {{ period.period }}
+                            @if (isLatestCashFlowPeriod(block, period)) {
+                              <span class="period-tag">Latest in range</span>
+                            }
+                          </td>
                           <td>
                             {{ period.income | currency: block.currency }}
                           </td>
@@ -173,9 +336,14 @@
                             {{ period.expenses | currency: block.currency }}
                           </td>
                           <td>
-                            {{
-                              period.net_cash_flow | currency: block.currency
-                            }}
+                            <span class="net-with-label">
+                              {{
+                                period.net_cash_flow | currency: block.currency
+                              }}
+                              <span class="net-sign-label">{{
+                                netSignLabel(period.net_cash_flow)
+                              }}</span>
+                            </span>
                           </td>
                         </tr>
                       }
@@ -195,6 +363,6 @@
           </p>
         }
       }
-    </section>
+    </p-card>
   }
 </section>

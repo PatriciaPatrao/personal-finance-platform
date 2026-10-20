@@ -45,12 +45,16 @@ describe('CopyTable', () => {
   });
 
   it('should show an English copy tooltip on the table', () => {
-    const button = compiled.querySelector('.copy-button') as HTMLButtonElement;
+    const button = compiled.querySelector(
+      'button.copy-button',
+    ) as HTMLButtonElement;
 
     expect(button.getAttribute('aria-label')).toBe('Copy table');
     expect(compiled.querySelector('.copy-tooltip')).toBeNull();
 
-    button.dispatchEvent(new Event('mouseenter'));
+    (
+      compiled.querySelector('.copy-table-toolbar p-button') as HTMLElement
+    ).dispatchEvent(new Event('mouseenter'));
     fixture.detectChanges();
 
     expect(compiled.querySelector('.copy-tooltip')?.textContent?.trim()).toBe(
@@ -62,7 +66,9 @@ describe('CopyTable', () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
 
-    const button = compiled.querySelector('.copy-button') as HTMLButtonElement;
+    const button = compiled.querySelector(
+      'button.copy-button',
+    ) as HTMLButtonElement;
     button.click();
     await fixture.whenStable();
     fixture.detectChanges();

@@ -8,17 +8,21 @@
   </header>
 
   @if (successMessage) {
-    <p class="status status-success" role="status">{{ successMessage }}</p>
+    <p-message
+      severity="success"
+      styleClass="status-success"
+      [text]="successMessage"
+      role="status"
+    />
   }
 
   @if (!loading && errorMessage === null && formMode !== 'create') {
-    <button
+    <p-button
       type="button"
-      class="create-goal-button"
-      (click)="startCreate()"
-    >
-      Create goal
-    </button>
+      label="Create goal"
+      styleClass="create-goal-button"
+      (onClick)="startCreate()"
+    />
   }
 
   @if (!loading && errorMessage === null && formMode === 'create') {
@@ -30,11 +34,21 @@
   }
 
   @if (loading) {
-    <p class="status status-loading" aria-live="polite">Loading goals...</p>
+    <p-message
+      severity="info"
+      styleClass="status-loading"
+      text="Loading goals..."
+      ariaLive="polite"
+    />
   }
 
   @if (errorMessage) {
-    <p class="status status-error" role="alert">{{ errorMessage }}</p>
+    <p-message
+      severity="error"
+      styleClass="status-error"
+      [text]="errorMessage"
+      role="alert"
+    />
   }
 
   @if (
@@ -51,11 +65,12 @@
   @if (!loading && errorMessage === null && goals.length > 0) {
     <ul class="goal-list">
       @for (goal of goals; track goal.id) {
-        <li
-          class="goal-card"
-          [class.goal-completed]="goal.completed === true"
-          [class.goal-editing]="isEditing(goal)"
-        >
+        <li>
+          <p-card
+            styleClass="pfp-panel-card goal-card"
+            [class.goal-completed]="goal.completed === true"
+            [class.goal-editing]="isEditing(goal)"
+          >
           <div class="goal-header">
             <h2 class="goal-name">{{ goal.name }}</h2>
             @if (goal.completed === true && !isEditing(goal)) {
@@ -150,8 +165,10 @@
                           <label class="field">
                             <span class="field-label">New amount</span>
                             <input
+                              pInputText
                               type="text"
                               inputmode="decimal"
+                              class="w-full"
                               [value]="reduceAmount"
                               (input)="reduceAmount = $any($event.target).value"
                             />
@@ -162,51 +179,49 @@
                             }
                           </label>
                           @if (reduceError) {
-                            <p class="status status-error" role="alert">
-                              {{ reduceError }}
-                            </p>
+                            <p-message
+                              severity="error"
+                              styleClass="status-error"
+                              [text]="reduceError"
+                              role="alert"
+                            />
                           }
                           <div class="form-actions">
-                            <button
+                            <p-button
                               type="button"
-                              class="save-button"
+                              [label]="allocating ? 'Saving...' : 'Save'"
+                              styleClass="save-button"
                               [disabled]="allocating"
-                              (click)="saveReduce(goal, allocation)"
-                            >
-                              @if (allocating) {
-                                Saving...
-                              } @else {
-                                Save
-                              }
-                            </button>
-                            <button
+                              (onClick)="saveReduce(goal, allocation)"
+                            />
+                            <p-button
                               type="button"
-                              class="cancel-button"
+                              label="Cancel"
+                              severity="secondary"
+                              styleClass="cancel-button"
                               [disabled]="allocating"
-                              (click)="cancelReduce()"
-                            >
-                              Cancel
-                            </button>
+                              (onClick)="cancelReduce()"
+                            />
                           </div>
                         </div>
                       } @else {
                         <div class="allocation-actions">
-                          <button
+                          <p-button
                             type="button"
-                            class="secondary-button"
+                            label="Reduce"
+                            severity="secondary"
+                            styleClass="secondary-button"
                             [disabled]="allocating"
-                            (click)="startReduce(allocation)"
-                          >
-                            Reduce
-                          </button>
-                          <button
+                            (onClick)="startReduce(allocation)"
+                          />
+                          <p-button
                             type="button"
-                            class="secondary-button"
+                            label="Remove"
+                            severity="secondary"
+                            styleClass="secondary-button"
                             [disabled]="allocating"
-                            (click)="removeAllocation(goal, allocation)"
-                          >
-                            Remove
-                          </button>
+                            (onClick)="removeAllocation(goal, allocation)"
+                          />
                         </div>
                       }
                     </li>
@@ -226,36 +241,15 @@
                   </p>
                   <label class="field">
                     <span class="field-label">Account</span>
-                    <select
+                    <p-select
                       name="allocateAccountId"
-                      [value]="allocateAccountId"
-                      (change)="
-                        onAllocateAccountChange($any($event.target).value)
-                      "
-                    >
-                      <option value="">Select account</option>
-                      @for (
-                        account of compatibleAccounts(goal);
-                        track account.id
-                      ) {
-                        <option [value]="accountIdValue(account.id)">
-                          {{ account.name }} — balance
-                          {{
-                            account.current_balance | currency: account.currency
-                          }},
-                          allocated
-                          {{
-                            designatedOnAccount(account.id)
-                              | currency: account.currency
-                          }},
-                          available
-                          {{
-                            availableOnAccount(account.id)
-                              | currency: account.currency
-                          }}
-                        </option>
-                      }
-                    </select>
+                      [options]="allocateAccountSelectOptions(goal)"
+                      optionLabel="label"
+                      optionValue="value"
+                      [ngModel]="allocateAccountId"
+                      (ngModelChange)="onAllocateAccountChange($event)"
+                      styleClass="w-full"
+                    />
                     @if (accountsLoadFailed) {
                       <span class="field-hint">
                         Accounts could not be loaded.
@@ -296,9 +290,11 @@
                   <label class="field">
                     <span class="field-label">Amount to designate</span>
                     <input
+                      pInputText
                       name="allocateAmount"
                       type="text"
                       inputmode="decimal"
+                      class="w-full"
                       [value]="allocateAmount"
                       (input)="allocateAmount = $any($event.target).value"
                     />
@@ -307,53 +303,52 @@
                     }
                   </label>
                   @if (allocateError) {
-                    <p class="status status-error" role="alert">
-                      {{ allocateError }}
-                    </p>
+                    <p-message
+                      severity="error"
+                      styleClass="status-error"
+                      [text]="allocateError"
+                      role="alert"
+                    />
                   }
                   <div class="form-actions">
-                    <button
+                    <p-button
                       type="submit"
-                      class="save-button"
+                      [label]="allocating ? 'Saving...' : 'Add money'"
+                      styleClass="save-button"
                       [disabled]="!canSubmitAllocation"
-                    >
-                      @if (allocating) {
-                        Saving...
-                      } @else {
-                        Add money
-                      }
-                    </button>
-                    <button
+                    />
+                    <p-button
                       type="button"
-                      class="cancel-button"
+                      label="Cancel"
+                      severity="secondary"
+                      styleClass="cancel-button"
                       [disabled]="allocating"
-                      (click)="cancelAddMoney()"
-                    >
-                      Cancel
-                    </button>
+                      (onClick)="cancelAddMoney()"
+                    />
                   </div>
                 </form>
               } @else {
-                <button
+                <p-button
                   type="button"
-                  class="secondary-button"
+                  label="Add money"
+                  severity="secondary"
+                  styleClass="secondary-button"
                   [disabled]="allocating || formMode !== null"
-                  (click)="startAddMoney(goal)"
-                >
-                  Add money
-                </button>
+                  (onClick)="startAddMoney(goal)"
+                />
               }
             </div>
 
-            <button
+            <p-button
               type="button"
-              class="edit-button"
+              label="Edit"
+              severity="secondary"
+              styleClass="edit-button"
               [disabled]="allocatingGoalId !== null || reducingAllocationId !== null"
-              (click)="startEdit(goal)"
-            >
-              Edit
-            </button>
+              (onClick)="startEdit(goal)"
+            />
           }
+          </p-card>
         </li>
       }
     </ul>
@@ -365,9 +360,11 @@
     <label class="field">
       <span class="field-label">Name</span>
       <input
+        pInputText
         name="name"
         type="text"
         maxlength="100"
+        class="w-full"
         [value]="formName"
         (input)="formName = $any($event.target).value"
       />
@@ -379,9 +376,11 @@
     <label class="field">
       <span class="field-label">Target amount</span>
       <input
+        pInputText
         name="targetAmount"
         type="text"
         inputmode="decimal"
+        class="w-full"
         [value]="formTargetAmount"
         (input)="formTargetAmount = $any($event.target).value"
       />
@@ -392,18 +391,16 @@
 
     <label class="field">
       <span class="field-label">Currency</span>
-      <select
+      <p-select
         name="currency"
-        [value]="formCurrency"
+        [options]="currencySelectOptions"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="formCurrency"
+        (ngModelChange)="onFormCurrencyChange($event)"
         [disabled]="currencyLocked"
-        (change)="onFormCurrencyChange($any($event.target).value)"
-      >
-        @for (currency of currencyOptions; track currency) {
-          <option [value]="currency" [selected]="formCurrency === currency">
-            {{ currency }}
-          </option>
-        }
-      </select>
+        styleClass="w-full"
+      />
       @if (currencyLocked) {
         <span class="field-hint">
           Currency cannot change while allocations exist.
@@ -425,28 +422,32 @@
   </div>
 
   @if (formError) {
-    <p class="status status-error" role="alert">{{ formError }}</p>
+    <p-message
+      severity="error"
+      styleClass="status-error"
+      [text]="formError"
+      role="alert"
+    />
   }
 </ng-template>
 
 <ng-template #goalActions>
   <div class="form-actions">
-    <button type="submit" class="save-button" [disabled]="!canSubmit">
-      @if (saving) {
-        Saving...
-      } @else if (formMode === 'edit') {
-        Save
-      } @else {
-        Create goal
-      }
-    </button>
-    <button
+    <p-button
+      type="submit"
+      [label]="
+        saving ? 'Saving...' : formMode === 'edit' ? 'Save' : 'Create goal'
+      "
+      styleClass="save-button"
+      [disabled]="!canSubmit"
+    />
+    <p-button
       type="button"
-      class="cancel-button"
+      label="Cancel"
+      severity="secondary"
+      styleClass="cancel-button"
       [disabled]="saving"
-      (click)="cancelForm()"
-    >
-      Cancel
-    </button>
+      (onClick)="cancelForm()"
+    />
   </div>
 </ng-template>

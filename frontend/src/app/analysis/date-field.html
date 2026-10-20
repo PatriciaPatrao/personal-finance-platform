@@ -1,6 +1,7 @@
 <label class="field-label" [attr.for]="inputId">{{ label }}</label>
 <div class="date-control">
   <input
+    pInputText
     [id]="inputId"
     type="text"
     [name]="name"
@@ -8,22 +9,21 @@
     placeholder="DD-MM-YYYY"
     maxlength="10"
     autocomplete="off"
+    class="w-full"
     [value]="value"
     (input)="onInput($event)"
   />
-  <button
+  <p-button
     type="button"
-    class="calendar-button"
-    [attr.aria-label]="'Open calendar for ' + label"
+    icon="pi pi-calendar"
+    severity="secondary"
+    [text]="true"
+    styleClass="calendar-button"
+    [ariaLabel]="'Open calendar for ' + label"
     [attr.aria-controls]="calendarId"
     [attr.aria-expanded]="open"
-    (click)="toggleCalendar($event)"
-  >
-    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-      <rect x="1.5" y="2.5" width="13" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25" />
-      <path d="M1.5 6.5h13M5 1.5v2.5M11 1.5v2.5" fill="none" stroke="currentColor" stroke-width="1.25" />
-    </svg>
-  </button>
+    (onClick)="toggleCalendar($event)"
+  />
 
   @if (open) {
     <button
@@ -34,23 +34,25 @@
     ></button>
     <div class="calendar" role="dialog" [id]="calendarId" [attr.aria-label]="'Choose ' + label">
       <div class="calendar-header">
-        <button
+        <p-button
           type="button"
-          class="month-button"
-          aria-label="Previous month"
-          (click)="previousMonth()"
-        >
-          ‹
-        </button>
+          icon="pi pi-chevron-left"
+          severity="secondary"
+          [text]="true"
+          styleClass="month-button"
+          ariaLabel="Previous month"
+          (onClick)="previousMonth()"
+        />
         <p class="month-label">{{ monthLabel }}</p>
-        <button
+        <p-button
           type="button"
-          class="month-button"
-          aria-label="Next month"
-          (click)="nextMonth()"
-        >
-          ›
-        </button>
+          icon="pi pi-chevron-right"
+          severity="secondary"
+          [text]="true"
+          styleClass="month-button"
+          ariaLabel="Next month"
+          (onClick)="nextMonth()"
+        />
       </div>
       <div class="weekdays" aria-hidden="true">
         @for (weekday of weekdays; track weekday) {

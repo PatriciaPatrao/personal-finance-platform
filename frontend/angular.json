@@ -81,7 +81,8 @@
         "test": {
           "builder": "@angular/build:unit-test",
           "options": {
-            "buildTarget": "frontend:build:development"
+            "buildTarget": "frontend:build:development",
+            "setupFiles": ["src/test-setup.ts"]
           }
         }
       }

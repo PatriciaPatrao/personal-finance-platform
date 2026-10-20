@@ -7,6 +7,10 @@
       data, not a prediction from historical spending.
     </p>
     <p class="page-intro scope-intro">{{ scopeIntro }}</p>
+    <p class="projection-disclaimer">
+      Projected balances assume scheduled income and recurring expenses run as
+      planned. They are not guaranteed outcomes.
+    </p>
   </header>
 
   <form class="filters" (submit)="$event.preventDefault(); apply()">
@@ -25,42 +29,66 @@
       />
       <label class="field account-field">
         <span class="field-label">Account</span>
-        <select
+        <p-select
           name="account"
-          [value]="accountFilter"
+          [options]="accountFilterOptions"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="accountFilter"
+          (ngModelChange)="onAccountFilterChange($event)"
           [disabled]="accountsLoading"
-          (change)="onAccountFilterChange($any($event.target).value)"
-        >
-          <option value="all">All accounts</option>
-          @for (account of accounts; track account.id) {
-            <option [value]="account.id">{{ account.name }}</option>
-          }
-        </select>
+          styleClass="w-full"
+        />
       </label>
     </div>
 
-    <button type="submit" class="apply-button">Apply</button>
+    <p-button type="submit" label="Apply" styleClass="apply-button" />
   </form>
 
   @if (validationMessage) {
-    <p class="status status-validation" role="alert">{{ validationMessage }}</p>
+    <p-message
+      severity="warn"
+      styleClass="status-validation"
+      [text]="validationMessage"
+      role="alert"
+    />
   }
 
   @if (loading && !forecast) {
-    <p class="status status-loading" aria-live="polite">Loading forecast...</p>
+    <p-message
+      severity="info"
+      styleClass="status-loading"
+      text="Loading forecast..."
+      ariaLive="polite"
+    />
   }
 
   @if (errorMessage && !forecast) {
-    <p class="status status-error" role="alert">{{ errorMessage }}</p>
+    <p-message
+      severity="error"
+      styleClass="status-error"
+      [text]="errorMessage"
+      role="alert"
+    />
   }
 
   @if (forecast) {
+    <p class="selected-period" aria-live="polite">
+      Forecast range:
+      <strong>{{ selectedPeriodLabel }}</strong>
+      @if (displayProjections.length > 1) {
+        <span class="selected-period-note">
+          — {{ displayProjections.length }} currencies, shown separately
+        </span>
+      }
+    </p>
+
     @for (
       projection of displayProjections;
       track trackProjection($index, projection)
     ) {
-      <section
-        class="panel currency-projection-panel"
+      <p-card
+        styleClass="pfp-panel-card panel currency-projection-panel"
         [attr.aria-labelledby]="'overview-' + projection.currency"
       >
         <h2 [id]="'overview-' + projection.currency">
@@ -100,19 +128,22 @@
                 </p>
               }
             </article>
-            <article
-              class="metric net-income-metric"
-              [class.net-income-positive]="isNetIncomePositive(projection)"
-              [class.net-income-negative]="!isNetIncomePositive(projection)"
-            >
-              <h3>Net income</h3>
-              <p class="metric-value">
-                {{
-                  netIncome(projection) | currency: projection.currency
-                }}
-              </p>
-              <p class="metric-caption">Over the forecast range</p>
-            </article>
+            @if (netIncomeLabel(projection); as netLabel) {
+              <article
+                class="metric net-income-metric"
+                [class.net-income-positive]="netLabel === 'Surplus'"
+                [class.net-income-negative]="netLabel === 'Deficit'"
+              >
+                <h3>Net change</h3>
+                <p class="metric-value">
+                  {{
+                    netIncome(projection) | currency: projection.currency
+                  }}
+                </p>
+                <p class="metric-sign-label">{{ netLabel }}</p>
+                <p class="metric-caption">Over the forecast range</p>
+              </article>
+            }
           </div>
         }
 
@@ -135,27 +166,67 @@
 
             <label class="field group-by-field">
               <span class="field-label">Grouping</span>
-              <select
+              <p-select
                 [name]="'groupBy-' + projection.currency"
-                [value]="groupByForCurrency(projection.currency)"
+                [options]="groupByOptions"
+                optionLabel="label"
+                optionValue="value"
+                [ngModel]="groupByForCurrency(projection.currency)"
+                (ngModelChange)="onGroupByChange(projection.currency, $event)"
                 [disabled]="isPeriodsUpdating(projection.currency)"
-                (change)="
-                  onGroupByChange(
-                    projection.currency,
-                    $any($event.target).value
-                  )
-                "
-              >
-                <option value="month">Monthly</option>
-                <option value="day">Daily</option>
-              </select>
+                styleClass="w-full"
+              />
             </label>
           </div>
 
           @if (periodsErrorForCurrency(projection.currency); as periodsError) {
-            <p class="status status-error periods-status" role="alert">
-              {{ periodsError }}
-            </p>
+            <p-message
+              severity="error"
+              styleClass="status-error periods-status"
+              [text]="periodsError"
+              role="alert"
+            />
+          }
+
+          @if (balanceSparkline(projection).length > 1) {
+            <figure
+              class="balance-sparkline"
+              [attr.aria-label]="
+                projection.currency + ' projected balance trend'
+              "
+            >
+              <figcaption class="sparkline-caption">
+                Projected balance trend ({{ projection.currency }})
+              </figcaption>
+              <ul class="sparkline-bars balance-spark-bars" aria-hidden="true">
+                @for (
+                  point of balanceSparkline(projection);
+                  track point.period
+                ) {
+                  <li class="sparkline-bar-item">
+                    <span
+                      class="sparkline-bar balance-spark-bar"
+                      [style.height.%]="point.heightPercent"
+                      [title]="
+                        point.period + ': ' + point.projectedBalance
+                      "
+                    ></span>
+                    <span class="sparkline-label">{{ point.period }}</span>
+                  </li>
+                }
+              </ul>
+              <p class="visually-hidden">
+                @for (
+                  point of balanceSparkline(projection);
+                  track point.period
+                ) {
+                  {{ point.period }}:
+                  {{
+                    point.projectedBalance | currency: projection.currency
+                  }}.
+                }
+              </p>
+            </figure>
           }
 
           <div
@@ -168,15 +239,17 @@
                 Updating forecast periods...
               </p>
             }
-            <app-copy-table>
-            <table class="data-table">
+            <app-copy-table scrollLabel="Forecast periods table">
+            <table class="data-table forecast-periods-table">
               <thead>
                 <tr>
                   <th scope="col">Period</th>
-                  <th scope="col">Income</th>
-                  <th scope="col">Expenses</th>
-                  <th scope="col">Net Cash Flow</th>
-                  <th scope="col">Projected Balance</th>
+                  <th scope="col">Income ({{ projection.currency }})</th>
+                  <th scope="col">Expenses ({{ projection.currency }})</th>
+                  <th scope="col">Net ({{ projection.currency }})</th>
+                  <th scope="col">
+                    Projected balance ({{ projection.currency }})
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -184,8 +257,17 @@
                   period of projection.periods;
                   track trackPeriod($index, period)
                 ) {
-                  <tr>
-                    <td>{{ period.period }}</td>
+                  <tr
+                    [class.period-current]="
+                      isCurrentPeriod(projection, period)
+                    "
+                  >
+                    <td>
+                      {{ period.period }}
+                      @if (isCurrentPeriod(projection, period)) {
+                        <span class="period-tag">Current period</span>
+                      }
+                    </td>
                     <td>
                       {{ period.income | currency: projection.currency }}
                     </td>
@@ -214,7 +296,7 @@
             No forecast periods returned for this range.
           </p>
         }
-      </section>
+      </p-card>
     }
   }
 </section>

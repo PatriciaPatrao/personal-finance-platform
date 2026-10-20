@@ -159,10 +159,11 @@ describe('Analysis', () => {
     expect(text).toContain('Summary');
     expect(text).toContain('Income');
     expect(text).toContain('2,000.00');
-    expect(text).toContain('Expenses by Category');
+    expect(text).toContain('Expenses by category');
+    expect(text).toContain('Surplus');
     expect(text).toContain('Housing');
     expect(text).toContain('59.26%');
-    expect(text).toContain('Cash Flow Over Time');
+    expect(text).toContain('Cash flow over time');
     expect(text).toContain('2026-09');
     expect(text).toContain('EUR');
   });
@@ -376,6 +377,59 @@ describe('Analysis', () => {
       '2026-09-30',
       'month',
     );
+  });
+
+  it('should apply the last month preset without manual date entry', async () => {
+    vi.setSystemTime(new Date(2026, 8, 15));
+    const fixture = TestBed.createComponent(Analysis);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    getSummary.mockClear();
+    getExpenses.mockClear();
+    getCashFlow.mockClear();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    (
+      compiled.querySelectorAll('button.preset-button')[1] as HTMLButtonElement
+    ).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(getSummary).toHaveBeenCalledWith('2026-08-01', '2026-08-31');
+    expect(getExpenses).toHaveBeenCalledWith('2026-08-01', '2026-08-31');
+    vi.useRealTimers();
+  });
+
+  it('should show separate currency summaries without combined totals', async () => {
+    getSummary.mockReturnValue(
+      of({
+        from_date: '2026-09-01',
+        to_date: '2026-09-30',
+        by_currency: [
+          {
+            currency: 'EUR',
+            total_income: '100.00',
+            total_expenses: '40.00',
+            net_cash_flow: '60.00',
+          },
+          {
+            currency: 'USD',
+            total_income: '50.00',
+            total_expenses: '10.00',
+            net_cash_flow: '40.00',
+          },
+        ],
+      }),
+    );
+
+    const fixture = TestBed.createComponent(Analysis);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('2 currencies, shown separately');
+    expect(text).not.toMatch(/\$110\.00|€150\.00/);
   });
 
   it('should request cash flow again when grouping changes', async () => {

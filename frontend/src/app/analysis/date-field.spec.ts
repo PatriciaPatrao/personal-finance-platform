@@ -43,7 +43,9 @@ describe('DateField', () => {
     input.dispatchEvent(new Event('input'));
     expect(values).toEqual(['01-09-2026']);
 
-    (compiled.querySelector('.calendar-button') as HTMLButtonElement).click();
+    (
+      compiled.querySelector('button.calendar-button') as HTMLButtonElement
+    ).click();
     fixture.detectChanges();
 
     expect(component.open).toBe(true);
@@ -55,7 +57,9 @@ describe('DateField', () => {
   it('should write the chosen day and close the calendar', () => {
     const { fixture, component, values, compiled } = setup();
 
-    (compiled.querySelector('.calendar-button') as HTMLButtonElement).click();
+    (
+      compiled.querySelector('button.calendar-button') as HTMLButtonElement
+    ).click();
     fixture.detectChanges();
     (
       compiled.querySelector('[data-date="2026-09-01"]') as HTMLButtonElement
@@ -69,7 +73,9 @@ describe('DateField', () => {
   it('should move between months and disable dates after the maximum', () => {
     const { fixture, component, compiled } = setup();
 
-    (compiled.querySelector('.calendar-button') as HTMLButtonElement).click();
+    (
+      compiled.querySelector('button.calendar-button') as HTMLButtonElement
+    ).click();
     fixture.detectChanges();
 
     const blocked = compiled.querySelector(

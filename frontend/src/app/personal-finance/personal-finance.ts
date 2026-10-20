@@ -1,9 +1,12 @@
 import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Card } from 'primeng/card';
+import { Message } from 'primeng/message';
 import { catchError, forkJoin, map, of } from 'rxjs';
 
 import { Account } from '../accounts/account';
+import { accountDisplayName } from '../accounts/account-display';
 import { AccountService } from '../accounts/account.service';
 import { AnalysisService } from '../analysis/analysis.service';
 import { AnalysisSummary } from '../analysis/analysis-summary';
@@ -11,9 +14,17 @@ import { ForecastResponse } from '../forecast/forecast-response';
 import { ForecastService } from '../forecast/forecast.service';
 import { FinancialGoal } from '../goals/goal';
 import { GoalService } from '../goals/goal.service';
+import { Income } from '../schedules/income';
 import { IncomeService } from '../schedules/income.service';
+import { RecurringExpense } from '../schedules/recurring-expense';
 import { RecurringExpenseService } from '../schedules/recurring-expense.service';
 import { TransactionService } from '../transactions/transactions.service';
+import {
+  buildUpcomingCommitments,
+  groupUpcomingByCurrency,
+  hasActiveScheduleOccurrenceWithinDays,
+  UpcomingCommitment,
+} from './dashboard-upcoming';
 import {
   buildDashboardAttentionItems,
   DashboardAttentionItem,
@@ -26,7 +37,9 @@ import {
   resolveDashboardPrimaryAction,
 } from './dashboard-primary-action';
 import {
+  CurrencyFinancialSignalGroup,
   deriveFinancialSignals,
+  deriveFinancialSignalsByCurrency,
   FinancialSignal,
   quietCheckDetail,
   signalActionRoute,
@@ -101,7 +114,7 @@ export type CurrentPositionState =
 
 @Component({
   selector: 'app-personal-finance',
-  imports: [CurrencyPipe, RouterLink],
+  imports: [Card, CurrencyPipe, Message, RouterLink],
   templateUrl: './personal-finance.html',
   styleUrl: './personal-finance.scss',
 })
@@ -126,6 +139,11 @@ export class PersonalFinance implements OnInit {
   goals: FinancialGoal[] = [];
   transactionCount: number | null = null;
   hasActiveScheduleOccurrenceToday = false;
+  hasActiveScheduleOccurrenceWithinSevenDays = false;
+  incomes: Income[] = [];
+  recurringExpenses: RecurringExpense[] = [];
+  commitmentWindowFrom = '';
+  commitmentWindowTo = '';
 
   readonly quickLinks = [
     { label: 'Transactions', route: '/personal_finance/transactions' },
@@ -167,6 +185,17 @@ export class PersonalFinance implements OnInit {
     return this.currentPosition?.kind === 'by_currency';
   }
 
+  get perCurrencySignals(): CurrencyFinancialSignalGroup[] {
+    if (this.accountsLoading || !this.signalsSuppressed) {
+      return [];
+    }
+
+    return deriveFinancialSignalsByCurrency(
+      this.analysisLoading || this.analysisError ? null : this.summary,
+      this.forecastLoading || this.forecastError ? null : this.forecast,
+    );
+  }
+
   get signals(): FinancialSignal[] {
     if (this.accountsLoading || this.signalsSuppressed) {
       return [];
@@ -192,6 +221,39 @@ export class PersonalFinance implements OnInit {
     return quietCheckDetail(this.summary, this.forecast);
   }
 
+  get commitmentRangeLabel(): string | null {
+    if (!this.commitmentWindowFrom || !this.commitmentWindowTo) {
+      return null;
+    }
+
+    return `${toEuropeanDate(this.commitmentWindowFrom)} to ${toEuropeanDate(this.commitmentWindowTo)}`;
+  }
+
+  get upcomingCommitments(): UpcomingCommitment[] {
+    if (
+      this.accountsLoading ||
+      this.accountsError ||
+      this.currentPosition?.kind === 'empty'
+    ) {
+      return [];
+    }
+
+    return buildUpcomingCommitments({
+      windowFrom: this.commitmentWindowFrom,
+      windowTo: this.commitmentWindowTo,
+      incomes: this.incomes,
+      expenses: this.recurringExpenses,
+      accounts: this.accounts,
+    });
+  }
+
+  get upcomingByCurrency(): {
+    currency: string;
+    items: UpcomingCommitment[];
+  }[] {
+    return groupUpcomingByCurrency(this.upcomingCommitments);
+  }
+
   get primaryAction(): DashboardPrimaryAction | null {
     return resolveDashboardPrimaryAction({
       accountsLoading: this.accountsLoading,
@@ -204,6 +266,8 @@ export class PersonalFinance implements OnInit {
       schedulesLoadFailed: this.schedulesLoadFailed,
       hasActiveScheduleOccurrenceToday:
         this.hasActiveScheduleOccurrenceToday,
+      hasActiveScheduleOccurrenceWithinSevenDays:
+        this.hasActiveScheduleOccurrenceWithinSevenDays,
     });
   }
 
@@ -225,6 +289,10 @@ export class PersonalFinance implements OnInit {
 
   signalRoute(signal: FinancialSignal): string | null {
     return signalActionRoute(signal.title);
+  }
+
+  displayEuropeanDate(isoDate: string): string {
+    return toEuropeanDate(isoDate);
   }
 
   progressPercent(goal: FinancialGoal): number | null {
@@ -255,8 +323,7 @@ export class PersonalFinance implements OnInit {
   }
 
   accountLabel(accountId: number): string {
-    const account = this.accounts.find((item) => item.id === accountId);
-    return account ? account.name : `Account ${accountId}`;
+    return accountDisplayName(accountId, this.accounts);
   }
 
   underfundedAllocations(goal: FinancialGoal) {
@@ -283,9 +350,14 @@ export class PersonalFinance implements OnInit {
     this.goals = [];
     this.transactionCount = null;
     this.hasActiveScheduleOccurrenceToday = false;
+    this.hasActiveScheduleOccurrenceWithinSevenDays = false;
+    this.incomes = [];
+    this.recurringExpenses = [];
 
     const analysisRange = currentMonthRange();
     const forecastRange = defaultForecastRange();
+    this.commitmentWindowFrom = forecastRange.from;
+    this.commitmentWindowTo = forecastRange.to;
 
     this.accountService
       .listAccounts()
@@ -312,9 +384,7 @@ export class PersonalFinance implements OnInit {
           this.transactionsLoading = false;
           this.schedulesLoading = false;
         }
-        if (this.signalsSuppressed) {
-          this.skipFinancialSignals();
-        } else if (this.currentPosition?.kind === 'empty') {
+        if (this.currentPosition?.kind === 'empty') {
           this.skipFinancialSignals();
         } else {
           this.loadAnalysis(analysisRange);
@@ -360,6 +430,8 @@ export class PersonalFinance implements OnInit {
       this.schedulesLoading = false;
       this.transactionsLoadFailed = !transactions.ok;
       this.schedulesLoadFailed = !incomes.ok || !expenses.ok;
+      this.incomes = incomes.ok ? incomes.data : [];
+      this.recurringExpenses = expenses.ok ? expenses.data : [];
       this.transactionCount = transactions.ok
         ? transactions.data.length
         : null;
@@ -374,6 +446,13 @@ export class PersonalFinance implements OnInit {
           (item) => item.active && item.next_occurrence === today,
         );
       this.hasActiveScheduleOccurrenceToday = incomeDue || expenseDue;
+      this.hasActiveScheduleOccurrenceWithinSevenDays =
+        hasActiveScheduleOccurrenceWithinDays(
+          this.incomes,
+          this.recurringExpenses,
+          today,
+          7,
+        );
       this.changeDetector.markForCheck();
     });
   }

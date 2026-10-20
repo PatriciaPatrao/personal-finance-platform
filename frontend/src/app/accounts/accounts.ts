@@ -1,6 +1,12 @@
 import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { Button } from 'primeng/button';
+import { Card } from 'primeng/card';
+import { InputText } from 'primeng/inputtext';
+import { Message } from 'primeng/message';
+import { Select } from 'primeng/select';
 
 import { CopyTable } from '../copy-table/copy-table';
 import {
@@ -9,6 +15,7 @@ import {
   AccountType,
   accountTypeLabel,
 } from './account';
+import { accountContextLabel } from './account-display';
 import { AccountService } from './account.service';
 
 const ACCOUNT_TYPES: AccountType[] = [
@@ -41,13 +48,34 @@ function parseOpeningBalance(value: string): number | null {
 
 @Component({
   selector: 'app-accounts',
-  imports: [CopyTable, CurrencyPipe, RouterLink],
+  imports: [
+    Button,
+    Card,
+    CopyTable,
+    CurrencyPipe,
+    FormsModule,
+    InputText,
+    Message,
+    RouterLink,
+    Select,
+  ],
   templateUrl: './accounts.html',
   styleUrl: './accounts.scss',
 })
 export class Accounts implements OnInit {
   readonly accountTypes = ACCOUNT_TYPES;
   readonly currencyOptions = CURRENCY_OPTIONS;
+  readonly accountTypeSelectOptions = [
+    { label: 'Select a type', value: '' },
+    ...ACCOUNT_TYPES.map((type) => ({
+      label: accountTypeLabel(type),
+      value: type,
+    })),
+  ];
+  readonly currencySelectOptions = CURRENCY_OPTIONS.map((currency) => ({
+    label: currency,
+    value: currency,
+  }));
 
   loading = true;
   errorMessage: string | null = null;
@@ -214,6 +242,10 @@ export class Accounts implements OnInit {
       currency: this.formCurrency,
       current_balance: balance,
     };
+  }
+
+  accountSubtitle(account: Account): string {
+    return accountContextLabel(account, this.accounts);
   }
 
   private loadAccounts(options?: { keepSuccessMessage?: boolean }): void {

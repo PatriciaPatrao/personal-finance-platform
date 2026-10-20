@@ -4,41 +4,56 @@
   </p>
 
   @if (loading) {
-    <p class="status status-loading" aria-live="polite">Loading account...</p>
+    <p-message
+      severity="info"
+      styleClass="status-loading"
+      text="Loading account..."
+      ariaLive="polite"
+    />
   }
 
   @if (errorMessage) {
-    <p class="status status-error" role="alert">{{ errorMessage }}</p>
+    <p-message
+      severity="error"
+      styleClass="status-error"
+      [text]="errorMessage"
+      role="alert"
+    />
   }
 
   @if (!loading && errorMessage === null && account; as loaded) {
     <header class="page-header">
       <h1>{{ loaded.name }}</h1>
+      <p class="account-heading-meta">
+        {{ displayType(loaded) }} · {{ loaded.currency }}
+      </p>
       <p class="page-intro">
         Current balance is the stored account position and is not calculated
         from transaction history.
       </p>
     </header>
 
-    <dl class="detail-list">
-      <div class="detail-row">
-        <dt>Type</dt>
-        <dd>{{ displayType(loaded) }}</dd>
-      </div>
-      <div class="detail-row">
-        <dt>Currency</dt>
-        <dd>{{ loaded.currency }}</dd>
-      </div>
-      <div class="detail-row">
-        <dt>Current balance</dt>
-        <dd class="amount">
-          {{ loaded.current_balance | currency: loaded.currency }}
-        </dd>
-      </div>
-      <div class="detail-row">
-        <dt>Created</dt>
-        <dd>{{ displayCreatedAt(loaded) }}</dd>
-      </div>
-    </dl>
+    <p-card styleClass="pfp-panel-card">
+      <dl class="detail-list">
+        <div class="detail-row">
+          <dt>Type</dt>
+          <dd>{{ displayType(loaded) }}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>Currency</dt>
+          <dd>{{ loaded.currency }}</dd>
+        </div>
+        <div class="detail-row">
+          <dt>Current balance</dt>
+          <dd class="amount">
+            {{ loaded.current_balance | currency: loaded.currency }}
+          </dd>
+        </div>
+        <div class="detail-row">
+          <dt>Created</dt>
+          <dd>{{ displayCreatedAt(loaded) }}</dd>
+        </div>
+      </dl>
+    </p-card>
   }
 </section>

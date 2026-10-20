@@ -14,6 +14,7 @@ export function resolveDashboardPrimaryAction(input: {
   schedulesLoading: boolean;
   schedulesLoadFailed: boolean;
   hasActiveScheduleOccurrenceToday: boolean;
+  hasActiveScheduleOccurrenceWithinSevenDays: boolean;
 }): DashboardPrimaryAction | null {
   if (input.accountsLoading || input.accountsError) {
     return null;
@@ -51,6 +52,19 @@ export function resolveDashboardPrimaryAction(input: {
       route: '/personal_finance/schedules',
       description:
         'An active schedule has an occurrence due today. Review or execute it on Schedules.',
+    };
+  }
+
+  if (
+    !input.schedulesLoading &&
+    !input.schedulesLoadFailed &&
+    input.hasActiveScheduleOccurrenceWithinSevenDays
+  ) {
+    return {
+      label: 'Review schedules',
+      route: '/personal_finance/schedules',
+      description:
+        'An active schedule has an upcoming occurrence within the next seven days.',
     };
   }
 

@@ -6,36 +6,76 @@
 >
   Skip to main content
 </a>
-<header>
-  <p class="brand">Personal Finance Platform</p>
-  <nav aria-label="Primary">
-    <a
-      routerLink="/personal_finance"
-      routerLinkActive="active"
-      [routerLinkActiveOptions]="{ exact: true }"
-    >
-      Dashboard
-    </a>
-    <a routerLink="/personal_finance/accounts" routerLinkActive="active">
-      Accounts
-    </a>
-    <a routerLink="/personal_finance/schedules" routerLinkActive="active">
-      Schedules
-    </a>
-    <a routerLink="/personal_finance/goals" routerLinkActive="active">
-      Goals
-    </a>
-    <a routerLink="/personal_finance/analysis" routerLinkActive="active">
-      Analysis
-    </a>
-    <a routerLink="/personal_finance/forecast" routerLinkActive="active">
-      Forecast
-    </a>
-    <a routerLink="/personal_finance/transactions" routerLinkActive="active">
-      Transactions
-    </a>
+
+<header class="app-shell-header">
+  <div class="app-shell-brand">
+    <span class="app-shell-logo" aria-hidden="true">◆</span>
+    <div>
+      <p class="brand-title">Personal Finance Platform</p>
+      <p class="brand-tagline">Household financial resilience</p>
+    </div>
+  </div>
+
+  <nav aria-label="Primary" class="desktop-nav">
+  <p-menubar [model]="navItems" class="app-menubar">
+    <ng-template #item let-item>
+      @if (item.routerLink) {
+        <a
+          class="p-menubar-item-link"
+          [routerLink]="item.routerLink"
+          routerLinkActive="active-nav"
+          [routerLinkActiveOptions]="item.routerLinkActiveOptions ?? { exact: false }"
+        >
+          @if (item.icon) {
+            <i [class]="item.icon"></i>
+          }
+          <span>{{ item.label }}</span>
+        </a>
+      }
+    </ng-template>
+  </p-menubar>
   </nav>
+
+  <div class="mobile-nav-bar">
+    <p-button
+      type="button"
+      icon="pi pi-bars"
+      [rounded]="true"
+      [text]="true"
+      severity="secondary"
+      ariaLabel="Open navigation menu"
+      (onClick)="mobileNavOpen = true"
+    />
+  </div>
 </header>
-<main id="main-content" tabindex="-1">
+
+<p-drawer
+  [(visible)]="mobileNavOpen"
+  position="left"
+  header="Navigate"
+  styleClass="app-mobile-drawer"
+>
+  <nav aria-label="Primary mobile">
+    <ul class="mobile-nav-list">
+      @for (item of navItems; track item.label) {
+        <li>
+          <a
+            [routerLink]="item.routerLink"
+            routerLinkActive="active-nav"
+            [routerLinkActiveOptions]="item.routerLinkActiveOptions ?? { exact: false }"
+            (click)="mobileNavOpen = false"
+          >
+            @if (item.icon) {
+              <i [class]="item.icon"></i>
+            }
+            {{ item.label }}
+          </a>
+        </li>
+      }
+    </ul>
+  </nav>
+</p-drawer>
+
+<main id="main-content" class="app-main" tabindex="-1">
   <router-outlet />
 </main>

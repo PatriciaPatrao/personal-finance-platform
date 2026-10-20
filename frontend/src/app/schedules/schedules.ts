@@ -1,9 +1,27 @@
 import { CurrencyPipe, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { Button } from 'primeng/button';
+import { Card } from 'primeng/card';
+import { InputText } from 'primeng/inputtext';
+import { Message } from 'primeng/message';
+import { Select } from 'primeng/select';
+import {
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+} from '@angular/core';
 import { catchError, forkJoin, of } from 'rxjs';
 
 import { Account } from '../accounts/account';
+import {
+  accountDisplayName,
+  accountSelectOptionLabel,
+} from '../accounts/account-display';
+import { trapFocusWithin } from '../shared/focus-trap';
 import { AccountService } from '../accounts/account.service';
 import { DateField } from '../analysis/date-field';
 import { Income, IncomeWrite, ScheduleFrequency } from './income';
@@ -167,14 +185,43 @@ function frequencyLabel(frequency: ScheduleFrequency): string {
   }
 }
 
+type PendingExecution = {
+  kind: ExecutionKind;
+  scheduleId: number;
+};
+
 @Component({
   selector: 'app-schedules',
-  imports: [CurrencyPipe, DateField, NgTemplateOutlet],
+  imports: [
+    Button,
+    Card,
+    CurrencyPipe,
+    DateField,
+    FormsModule,
+    InputText,
+    Message,
+    NgTemplateOutlet,
+    Select,
+  ],
   templateUrl: './schedules.html',
   styleUrl: './schedules.scss',
 })
-export class Schedules implements OnInit {
+export class Schedules implements OnInit, OnDestroy {
+  @ViewChild('executionConfirmPanel')
+  executionConfirmPanel?: ElementRef<HTMLElement>;
+
+  private executionConfirmFocusRelease: (() => void) | null = null;
+  pendingExecution: PendingExecution | null = null;
   readonly frequencyOptions = FREQUENCY_OPTIONS;
+  readonly activeFilterOptions = [
+    { label: 'All', value: 'all' as ActiveFilter },
+    { label: 'Active', value: 'active' as ActiveFilter },
+    { label: 'Inactive', value: 'inactive' as ActiveFilter },
+  ];
+  readonly frequencySelectOptions = FREQUENCY_OPTIONS.map((frequency) => ({
+    label: frequencyLabel(frequency),
+    value: frequency,
+  }));
 
   loading = true;
   errorMessage: string | null = null;
@@ -253,6 +300,16 @@ export class Schedules implements OnInit {
     return this.filterByActive(this.expenses, this.expenseFilter);
   }
 
+  get accountSelectOptions(): { label: string; value: string }[] {
+    return [
+      { label: 'Select account', value: '' },
+      ...this.accounts.map((account) => ({
+        label: this.accountOptionLabel(account),
+        value: this.accountIdValue(account.id),
+      })),
+    ];
+  }
+
   ngOnInit(): void {
     this.loadPage();
   }
@@ -262,7 +319,15 @@ export class Schedules implements OnInit {
   }
 
   accountName(accountId: number): string {
-    return this.accountNames.get(accountId) ?? `Account ${accountId}`;
+    return accountDisplayName(accountId, this.accounts);
+  }
+
+  accountOptionLabel(account: Account): string {
+    return accountSelectOptionLabel(account, this.accounts);
+  }
+
+  ngOnDestroy(): void {
+    this.releaseExecutionConfirmFocus();
   }
 
   accountCurrency(accountId: number): string | null {
@@ -345,7 +410,82 @@ export class Schedules implements OnInit {
     );
   }
 
-  executeFromPanel(kind: ExecutionKind, scheduleId: number): void {
+  requestExecutionFromPanel(kind: ExecutionKind, scheduleId: number): void {
+    if (!this.canExecuteSchedule(kind, scheduleId)) {
+      return;
+    }
+
+    this.pendingExecution = { kind, scheduleId };
+    this.changeDetector.detectChanges();
+    queueMicrotask(() => this.activateExecutionConfirmFocus());
+  }
+
+  cancelExecutionConfirm(): void {
+    if (this.executingKey !== null) {
+      return;
+    }
+
+    this.releaseExecutionConfirmFocus();
+    this.pendingExecution = null;
+    this.changeDetector.detectChanges();
+  }
+
+  confirmExecutionFromPanel(): void {
+    if (this.pendingExecution === null || this.executingKey !== null) {
+      return;
+    }
+
+    const { kind, scheduleId } = this.pendingExecution;
+    this.releaseExecutionConfirmFocus();
+    this.pendingExecution = null;
+    this.runExecutionFromPanel(kind, scheduleId);
+  }
+
+  executionConfirmSummary(): {
+    title: string;
+    kindLabel: string;
+    amount: string;
+    currency: string | null;
+    accountLabel: string;
+    dateDisplay: string;
+  } | null {
+    if (this.pendingExecution === null) {
+      return null;
+    }
+
+    const { kind, scheduleId } = this.pendingExecution;
+    if (kind === 'income') {
+      const income = this.incomes.find((item) => item.id === scheduleId);
+      if (!income) {
+        return null;
+      }
+
+      return {
+        title: 'Salary schedule',
+        kindLabel: 'Income',
+        amount: income.amount,
+        currency: this.accountCurrency(income.account_id),
+        accountLabel: this.accountName(income.account_id),
+        dateDisplay: this.executionDateDisplay(kind, scheduleId),
+      };
+    }
+
+    const expense = this.expenses.find((item) => item.id === scheduleId);
+    if (!expense) {
+      return null;
+    }
+
+    return {
+      title: expense.description,
+      kindLabel: 'Expense',
+      amount: expense.amount,
+      currency: this.accountCurrency(expense.account_id),
+      accountLabel: this.accountName(expense.account_id),
+      dateDisplay: this.executionDateDisplay(kind, scheduleId),
+    };
+  }
+
+  private runExecutionFromPanel(kind: ExecutionKind, scheduleId: number): void {
     if (kind === 'income') {
       const income = this.incomes.find((row) => row.id === scheduleId);
       if (income !== undefined) {
@@ -970,6 +1110,20 @@ export class Schedules implements OnInit {
       nextOccurrence,
       endDate,
     };
+  }
+
+  private activateExecutionConfirmFocus(): void {
+    const panel = this.executionConfirmPanel?.nativeElement;
+    if (!panel) {
+      return;
+    }
+
+    this.executionConfirmFocusRelease = trapFocusWithin(panel);
+  }
+
+  private releaseExecutionConfirmFocus(): void {
+    this.executionConfirmFocusRelease?.();
+    this.executionConfirmFocusRelease = null;
   }
 
   private executionKey(kind: ExecutionKind, scheduleId: number): string {
