@@ -163,6 +163,77 @@ body {
   text-align: right;
 }
 
+.row-actions .p-button.delete-button {
+  background: var(--color-danger-surface);
+  border: 1px solid var(--color-danger-border);
+  color: var(--color-danger-text);
+}
+
+.row-actions .p-button.delete-button:not(:disabled):hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: var(--pfp-danger);
+}
+
+.row-actions .p-button.delete-button:not(:disabled):active {
+  background: #fecaca;
+  border-color: #f87171;
+}
+
+.p-button.confirm-delete-button {
+  background: var(--pfp-danger);
+  border-color: var(--pfp-danger);
+  color: #fff;
+}
+
+.p-button.confirm-delete-button:not(:disabled):hover {
+  background: #991b1b;
+  border-color: #991b1b;
+}
+
+.schedule-card .card-actions .p-button.edit-button.p-button-secondary {
+  font-weight: 650;
+  background: var(--pfp-success-bg);
+  border: 1px solid #bbf7d0;
+  color: var(--pfp-success);
+}
+
+.schedule-card .card-actions .p-button.edit-button.p-button-secondary:not(:disabled):hover {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.schedule-card .card-actions .p-button.deactivate-button.p-button-secondary {
+  font-weight: 650;
+  background: var(--pfp-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  color: var(--pfp-danger);
+}
+
+.schedule-card
+  .card-actions
+  .p-button.deactivate-button.p-button-secondary:not(:disabled):hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+.schedule-card .card-actions .p-button.secondary-button.p-button-secondary {
+  font-weight: 650;
+  background: var(--pfp-success-bg);
+  border: 1px solid #bbf7d0;
+  color: var(--pfp-success);
+}
+
+.schedule-card
+  .card-actions
+  .p-button.secondary-button.p-button-secondary:not(:disabled):hover {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
 .money-positive {
   color: var(--pfp-money-positive);
   font-weight: 600;
