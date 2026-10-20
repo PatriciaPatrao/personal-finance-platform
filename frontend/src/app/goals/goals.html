@@ -70,9 +70,11 @@
             styleClass="pfp-panel-card goal-card"
             [class.goal-completed]="goal.completed === true"
             [class.goal-editing]="isEditing(goal)"
+            [class.goal-card-no-progress]="!hasProgress(goal) && !isEditing(goal)"
           >
           <div class="goal-header">
             <h2 class="goal-name">{{ goal.name }}</h2>
+            <span class="goal-currency-tag">{{ goal.currency }}</span>
             @if (goal.completed === true && !isEditing(goal)) {
               <span class="completed-badge">Completed</span>
             }
@@ -87,19 +89,16 @@
               <ng-container *ngTemplateOutlet="goalActions" />
             </form>
           } @else {
-            <dl class="goal-details">
-              <div>
+            <dl class="goal-metrics">
+              <div class="goal-metric">
                 <dt>Target</dt>
-                <dd>
-                  {{ goal.target_amount | currency: goal.currency }}
-                  <span class="currency-code">{{ goal.currency }}</span>
-                </dd>
+                <dd>{{ goal.target_amount | currency: goal.currency }}</dd>
               </div>
-              <div>
+              <div class="goal-metric">
                 <dt>Target date</dt>
                 <dd>{{ displayTargetDate(goal.target_date) }}</dd>
               </div>
-              <div>
+              <div class="goal-metric">
                 <dt>Funded</dt>
                 <dd>
                   @if (goal.current_amount === null) {
@@ -114,19 +113,29 @@
             <div class="goal-progress">
               @if (!hasProgress(goal)) {
                 <p class="progress-unavailable">
-                  Progress unavailable. No money allocated yet.
+                  Progress unavailable — no money designated yet.
                 </p>
               } @else {
-                <div class="progress-row">
-                  <progress
-                    class="progress-bar"
-                    max="100"
-                    [value]="progressPercent(goal)"
+                <div class="progress-panel">
+                  <div class="progress-header">
+                    <span class="progress-heading">Progress</span>
+                    <span class="progress-label">{{ progressLabel(goal) }}</span>
+                  </div>
+                  <span
+                    class="progress-track"
+                    role="progressbar"
                     [attr.aria-valuenow]="progressPercent(goal)"
                     aria-valuemin="0"
                     aria-valuemax="100"
-                  ></progress>
-                  <span class="progress-label">{{ progressLabel(goal) }}</span>
+                    [attr.aria-label]="
+                      'Progress toward target for ' + goal.name
+                    "
+                  >
+                    <span
+                      class="progress-fill"
+                      [style.width.%]="progressPercent(goal)"
+                    ></span>
+                  </span>
                 </div>
               }
             </div>
@@ -135,7 +144,8 @@
               <h3 class="allocations-heading">Allocations</h3>
               @if (goal.allocations.length === 0) {
                 <p class="allocations-empty">
-                  No allocations yet. Designate money from an account.
+                  No allocations yet. Use Add money to designate funds from an
+                  account.
                 </p>
               } @else {
                 <ul class="allocation-list">
@@ -210,7 +220,7 @@
                             type="button"
                             label="Reduce"
                             severity="secondary"
-                            styleClass="secondary-button"
+                            styleClass="secondary-button reduce-allocation-button"
                             [disabled]="allocating"
                             (onClick)="startReduce(allocation)"
                           />
@@ -218,7 +228,7 @@
                             type="button"
                             label="Remove"
                             severity="secondary"
-                            styleClass="secondary-button"
+                            styleClass="secondary-button remove-allocation-button"
                             [disabled]="allocating"
                             (onClick)="removeAllocation(goal, allocation)"
                           />
@@ -327,26 +337,33 @@
                     />
                   </div>
                 </form>
-              } @else {
+              }
+            </div>
+
+            <div class="goal-card-actions">
+              @if (!isAllocating(goal)) {
                 <p-button
                   type="button"
                   label="Add money"
-                  severity="secondary"
-                  styleClass="secondary-button"
+                  icon="pi pi-plus"
+                  severity="primary"
+                  styleClass="add-money-button"
                   [disabled]="allocating || formMode !== null"
                   (onClick)="startAddMoney(goal)"
                 />
               }
+              <p-button
+                type="button"
+                label="Edit"
+                icon="pi pi-pencil"
+                severity="secondary"
+                styleClass="edit-button"
+                [disabled]="
+                  allocatingGoalId !== null || reducingAllocationId !== null
+                "
+                (onClick)="startEdit(goal)"
+              />
             </div>
-
-            <p-button
-              type="button"
-              label="Edit"
-              severity="secondary"
-              styleClass="edit-button"
-              [disabled]="allocatingGoalId !== null || reducingAllocationId !== null"
-              (onClick)="startEdit(goal)"
-            />
           }
           </p-card>
         </li>

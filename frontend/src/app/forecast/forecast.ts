@@ -18,9 +18,11 @@ import {
 } from './forecast-response';
 import { ForecastService } from './forecast.service';
 import {
+  BalanceSparkTrend,
   isCurrentForecastPeriod,
   netIncomeSignLabel,
   projectedBalanceSparkPoints,
+  projectedBalanceSparkTrend,
 } from './forecast-visuals';
 import { formatPeriodRangeLabel } from '../analysis/analysis-period-presets';
 
@@ -192,8 +194,22 @@ export class Forecast implements OnInit {
     return netIncomeSignLabel(net);
   }
 
+  showBalanceSparkline(projection: ForecastCurrencyProjection): boolean {
+    return (
+      this.groupByForCurrency(projection.currency) === 'month' &&
+      projection.periods.length > 1
+    );
+  }
+
   balanceSparkline(projection: ForecastCurrencyProjection) {
-    return projectedBalanceSparkPoints(projection.periods);
+    return projectedBalanceSparkPoints(
+      projection.periods,
+      projection.starting_balance,
+    );
+  }
+
+  balanceSparkTrend(projection: ForecastCurrencyProjection): BalanceSparkTrend {
+    return projectedBalanceSparkTrend(projection.periods);
   }
 
   isCurrentPeriod(

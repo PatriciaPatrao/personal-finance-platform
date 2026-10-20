@@ -144,13 +144,10 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .goal-card {
-  padding: 1rem 1.15rem;
-  border: 1px solid #d8d8d8;
-  background: #fff;
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
@@ -170,15 +167,42 @@
 .goal-header {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.5rem 0.75rem;
   align-items: center;
-  justify-content: space-between;
+  padding-bottom: 0.15rem;
+  border-bottom: 1px solid var(--pfp-border);
+}
+
+.goal-header .goal-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.goal-header .completed-badge {
+  margin-left: auto;
+}
+
+.goal-progress {
+  margin: 0;
 }
 
 .goal-name {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   font-weight: 650;
+  color: var(--pfp-brand-navy);
+}
+
+.goal-currency-tag {
+  font-size: 0.75rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pfp-text-muted);
+  padding: 0.2rem 0.45rem;
+  border: 1px solid var(--pfp-border);
+  border-radius: var(--pfp-radius-md);
+  background: var(--pfp-surface-muted);
 }
 
 .completed-badge {
@@ -192,69 +216,120 @@
   padding: 0.2rem 0.5rem;
 }
 
-.goal-details {
+.goal-metrics {
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: 0.75rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.65rem;
 }
 
-.goal-details div {
+.goal-metric {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--pfp-border);
+  border-radius: var(--pfp-radius-md);
+  background: var(--pfp-surface-muted);
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.25rem;
 }
 
-.goal-details dt {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: #555;
-}
-
-.goal-details dd {
+.goal-metric dt {
   margin: 0;
-  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pfp-text-subtle);
+  font-weight: 650;
 }
 
-.currency-code {
-  margin-left: 0.35rem;
-  font-weight: 500;
-  color: #555;
+.goal-metric dd {
+  margin: 0;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--pfp-text);
+}
+
+.goal-card-no-progress .goal-metric:last-child dd {
+  color: var(--pfp-text-muted);
 }
 
 .progress-unavailable {
   margin: 0;
-  color: #555;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--pfp-radius-md);
+  border: 1px solid var(--pfp-border);
+  background: var(--pfp-info-bg);
+  color: var(--pfp-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
-.progress-row {
+.progress-panel {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--pfp-border);
+  border-radius: var(--pfp-radius-md);
+  background: var(--pfp-surface);
+}
+
+.progress-header {
   display: flex;
-  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 0.75rem;
-  align-items: center;
+  margin-bottom: 0.5rem;
 }
 
-.progress-bar {
-  flex: 1 1 12rem;
-  height: 0.85rem;
-  accent-color: #222;
+.progress-heading {
+  font-size: 0.75rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pfp-text-subtle);
 }
 
 .progress-label {
-  font-weight: 650;
-  min-width: 3rem;
+  font-weight: 700;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--pfp-brand-teal);
 }
 
-.edit-button,
-.secondary-button {
-  align-self: flex-start;
+.progress-track {
+  display: block;
+  height: 0.75rem;
+  border-radius: 999px;
+  background: var(--pfp-border);
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgb(15 23 42 / 8%);
+}
+
+.progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--pfp-brand-teal) 0%,
+    #33ad8f 100%
+  );
+  transition: width 0.35s ease;
+}
+
+.goal-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  padding-top: 0.25rem;
 }
 
 .allocations-block {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--pfp-border);
+  border-radius: var(--pfp-radius-md);
+  background: var(--pfp-surface-muted);
 }
 
 .allocations-heading {
@@ -265,7 +340,9 @@
 
 .allocations-empty {
   margin: 0;
-  color: #555;
+  color: var(--pfp-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 .allocation-list {
@@ -282,8 +359,9 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.75rem 0.85rem;
-  border: 1px solid #e0e0e0;
-  background: #fafafa;
+  border: 1px solid var(--pfp-border);
+  border-radius: var(--pfp-radius-md);
+  background: #fff;
 }
 
 .allocation-summary {

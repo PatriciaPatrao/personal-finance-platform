@@ -188,9 +188,18 @@
             />
           }
 
-          @if (balanceSparkline(projection).length > 1) {
+          @if (showBalanceSparkline(projection)) {
             <figure
               class="balance-sparkline"
+              [class.balance-sparkline-rising]="
+                balanceSparkTrend(projection) === 'rising'
+              "
+              [class.balance-sparkline-falling]="
+                balanceSparkTrend(projection) === 'falling'
+              "
+              [class.balance-sparkline-stable]="
+                balanceSparkTrend(projection) === 'stable'
+              "
               [attr.aria-label]="
                 projection.currency + ' projected balance trend'
               "
@@ -203,14 +212,21 @@
                   point of balanceSparkline(projection);
                   track point.period
                 ) {
-                  <li class="sparkline-bar-item">
-                    <span
-                      class="sparkline-bar balance-spark-bar"
-                      [style.height.%]="point.heightPercent"
-                      [title]="
-                        point.period + ': ' + point.projectedBalance
-                      "
-                    ></span>
+                  <li
+                    class="sparkline-bar-item balance-spark-bar-item"
+                    [class.spark-bar-up]="point.changeFromPrevious === 'up'"
+                    [class.spark-bar-down]="point.changeFromPrevious === 'down'"
+                    [class.spark-bar-flat]="point.changeFromPrevious === 'flat'"
+                  >
+                    <span class="sparkline-bar-track" aria-hidden="true">
+                      <span
+                        class="sparkline-bar balance-spark-bar"
+                        [style.height.%]="point.heightPercent"
+                        [title]="
+                          point.period + ': ' + point.projectedBalance
+                        "
+                      ></span>
+                    </span>
                     <span class="sparkline-label">{{ point.period }}</span>
                   </li>
                 }

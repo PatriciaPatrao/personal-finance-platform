@@ -203,6 +203,80 @@ describe('Forecast', () => {
     );
   });
 
+  it('should show the balance sparkline for monthly grouping with distinct bar heights', async () => {
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const projection = component.displayProjections[0];
+    expect(component.showBalanceSparkline(projection)).toBe(true);
+    expect(component.balanceSparkTrend(projection)).toBe('rising');
+
+    const root = fixture.nativeElement as HTMLElement;
+    const sparkline = root.querySelector('.balance-sparkline');
+    expect(sparkline).not.toBeNull();
+    expect(sparkline?.classList.contains('balance-sparkline-rising')).toBe(
+      true,
+    );
+
+    const bars = root.querySelectorAll('.balance-spark-bars .balance-spark-bar');
+    expect(bars.length).toBe(3);
+    const heights = Array.from(bars).map(
+      (bar) => (bar as HTMLElement).style.height,
+    );
+    expect(heights[0]).not.toBe(heights[2]);
+    expect(parseFloat(heights[0])).toBeLessThan(parseFloat(heights[2]));
+  });
+
+  it('should hide the balance sparkline when grouping is daily', async () => {
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    getForecast.mockClear();
+    getForecast.mockReturnValue(
+      of({
+        ...sampleForecast,
+        group_by: 'day',
+        projections: [
+          {
+            ...sampleForecast.projections[0],
+            group_by: 'day',
+            periods: [
+              {
+                period: '2026-10-20',
+                income: '100.00',
+                expenses: '0.00',
+                net_cash_flow: '100.00',
+                projected_balance: '2100.00',
+              },
+              {
+                period: '2026-10-21',
+                income: '100.00',
+                expenses: '0.00',
+                net_cash_flow: '100.00',
+                projected_balance: '2200.00',
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    const component = fixture.componentInstance;
+    component.onGroupByChange('EUR', 'day');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const projection = component.displayProjections[0];
+    expect(component.groupByForCurrency('EUR')).toBe('day');
+    expect(component.showBalanceSparkline(projection)).toBe(false);
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('.balance-sparkline')).toBeNull();
+  });
+
   it('should display forecast periods and ending projected balance', async () => {
     const fixture = TestBed.createComponent(Forecast);
     fixture.detectChanges();

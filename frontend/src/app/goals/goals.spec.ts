@@ -198,7 +198,7 @@ describe('Goals', () => {
     const { compiled } = await render();
     const text = compiled.textContent ?? '';
     expect(text).toContain('Progress unavailable');
-    expect(text).toContain('No money allocated yet');
+    expect(text).toContain('no money designated yet');
     expect(text).not.toMatch(/Progress unavailable[\s\S]*0%/);
     expect(compiled.querySelector('progress')).toBeNull();
   });
@@ -210,9 +210,10 @@ describe('Goals', () => {
     expect(text).not.toContain('Allocated');
     expect(text).toContain('Savings');
     expect(text).toContain('50%');
-    expect(
-      (compiled.querySelector('progress') as HTMLProgressElement).value,
-    ).toBe(50);
+    const progressBar = compiled.querySelector('[role="progressbar"]');
+    expect(progressBar?.getAttribute('aria-valuenow')).toBe('50');
+    const fill = compiled.querySelector('.progress-fill') as HTMLElement | null;
+    expect(fill?.style.width).toBe('50%');
   });
 
   it('should display allocations on the goal card', async () => {
@@ -226,9 +227,10 @@ describe('Goals', () => {
     listGoals.mockReturnValue(of([completedGoal]));
     const { compiled } = await render();
     expect(compiled.textContent).toContain('100%');
-    expect(
-      (compiled.querySelector('progress') as HTMLProgressElement).value,
-    ).toBe(100);
+    const progressBar = compiled.querySelector('[role="progressbar"]');
+    expect(progressBar?.getAttribute('aria-valuenow')).toBe('100');
+    const fill = compiled.querySelector('.progress-fill') as HTMLElement | null;
+    expect(fill?.style.width).toBe('100%');
   });
 
   it('should display completed state', async () => {

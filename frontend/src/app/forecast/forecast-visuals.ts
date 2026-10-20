@@ -41,14 +41,56 @@ export function isCurrentForecastPeriod(
   return period.period === currentForecastPeriodKey(groupBy, today);
 }
 
+export type BalanceSparkTrend = 'rising' | 'falling' | 'stable';
+
+export type BalanceSparkChange = 'up' | 'down' | 'flat';
+
 export interface BalanceSparkPoint {
   period: string;
   projectedBalance: string;
   heightPercent: number;
+  changeFromPrevious: BalanceSparkChange | null;
+}
+
+const SPARKLINE_MIN_HEIGHT_PERCENT = 15;
+const SPARKLINE_MAX_HEIGHT_PERCENT = 100;
+
+export function projectedBalanceSparkTrend(
+  periods: ForecastPeriod[],
+): BalanceSparkTrend {
+  if (periods.length < 2) {
+    return 'stable';
+  }
+
+  const first = parseMoneyMinorUnits(periods[0].projected_balance);
+  const last = parseMoneyMinorUnits(
+    periods[periods.length - 1].projected_balance,
+  );
+  if (last > first) {
+    return 'rising';
+  }
+  if (last < first) {
+    return 'falling';
+  }
+  return 'stable';
+}
+
+function balanceSparkChange(
+  current: bigint,
+  previous: bigint,
+): BalanceSparkChange {
+  if (current > previous) {
+    return 'up';
+  }
+  if (current < previous) {
+    return 'down';
+  }
+  return 'flat';
 }
 
 export function projectedBalanceSparkPoints(
   periods: ForecastPeriod[],
+  startingBalance?: string,
 ): BalanceSparkPoint[] {
   if (periods.length === 0) {
     return [];
@@ -69,20 +111,40 @@ export function projectedBalanceSparkPoints(
   }
 
   const span = max - min;
+  const heightRange =
+    SPARKLINE_MAX_HEIGHT_PERCENT - SPARKLINE_MIN_HEIGHT_PERCENT;
+
   return periods.map((period, index) => {
+    const previousBalance =
+      index === 0 && startingBalance !== undefined
+        ? parseMoneyMinorUnits(startingBalance)
+        : index > 0
+          ? balances[index - 1]
+          : null;
+
+    const changeFromPrevious =
+      previousBalance === null
+        ? null
+        : balanceSparkChange(balances[index], previousBalance);
+
     if (span === 0n) {
       return {
         period: period.period,
         projectedBalance: period.projected_balance,
-        heightPercent: 50,
+        heightPercent:
+          (SPARKLINE_MIN_HEIGHT_PERCENT + SPARKLINE_MAX_HEIGHT_PERCENT) / 2,
+        changeFromPrevious,
       };
     }
 
-    const heightPercent = Number(((balances[index] - min) * 100n) / span);
+    const scaledOffset = Number(
+      ((balances[index] - min) * BigInt(heightRange)) / span,
+    );
     return {
       period: period.period,
       projectedBalance: period.projected_balance,
-      heightPercent: Math.max(8, heightPercent),
+      heightPercent: SPARKLINE_MIN_HEIGHT_PERCENT + scaledOffset,
+      changeFromPrevious,
     };
   });
 }

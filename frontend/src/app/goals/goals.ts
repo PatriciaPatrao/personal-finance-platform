@@ -329,7 +329,7 @@ export class Goals implements OnInit {
       return 0;
     }
 
-    return Math.max(0, Math.min(100, value));
+    return Math.round(Math.max(0, Math.min(100, value)));
   }
 
   progressLabel(goal: FinancialGoal): string {
