@@ -254,9 +254,9 @@
 }
 
 .status-badge-inactive {
-  color: #555;
-  background: #f0f0f0;
-  border-color: #d0d0d0;
+  color: var(--pfp-danger);
+  background: var(--pfp-danger-bg);
+  border-color: var(--color-danger-border);
 }
 
 .schedule-details {
