@@ -826,7 +826,7 @@ describe('PersonalFinance', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Emergency fund');
     expect(text).toContain('1,000.00');
-    expect(text).toContain('Unavailable — no designated funding yet.');
+    expect(text).toContain('Progress unavailable — no designated funding yet.');
     expect(text).not.toContain('0%');
     expect(text).not.toContain('not fully funded');
   });

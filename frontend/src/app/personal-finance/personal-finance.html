@@ -490,6 +490,8 @@
               </header>
               @if (goal.progress === null) {
                 <p class="goal-summary-note">
+                  Target
+                  {{ goal.target_amount | currency: goal.currency }} —
                   Progress unavailable — no designated funding yet.
                 </p>
               } @else {
