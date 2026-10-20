@@ -185,6 +185,23 @@ describe('App routing', () => {
     expect(main?.getAttribute('tabindex')).toBe('-1');
   });
 
+  it('should focus main content when the skip link is activated', async () => {
+    const { compiled } = await renderAt('/personal_finance');
+    const skipLink = compiled.querySelector(
+      'a.skip-link',
+    ) as HTMLAnchorElement | null;
+    const main = compiled.querySelector(
+      'main#main-content',
+    ) as HTMLElement | null;
+
+    expect(skipLink).toBeTruthy();
+    expect(main).toBeTruthy();
+    skipLink?.click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(document.activeElement).toBe(main);
+  });
+
   it('should label primary navigation for assistive technologies', async () => {
     const { compiled } = await renderAt('/personal_finance');
     expect(compiled.querySelector('nav[aria-label="Primary"]')).toBeTruthy();

@@ -7,4 +7,24 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
   templateUrl: './personal-finance-layout.html',
   styleUrl: './personal-finance-layout.scss'
 })
-export class PersonalFinanceLayout {}
+export class PersonalFinanceLayout {
+  skipToMain(): void {
+    const main = document.getElementById('main-content');
+    if (!main) {
+      return;
+    }
+
+    queueMicrotask(() => {
+      main.focus({ preventScroll: false });
+    });
+  }
+
+  onSkipKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+
+    event.preventDefault();
+    this.skipToMain();
+  }
+}

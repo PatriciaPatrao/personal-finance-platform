@@ -13,6 +13,11 @@
   gap: 1rem;
 }
 
+.page-header-row > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .page-header h1 {
   margin: 0 0 0.35rem;
   font-size: 1.75rem;
@@ -28,9 +33,11 @@
 }
 
 .primary-action {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  max-width: 100%;
   padding: 0.65rem 1.1rem;
   border: 1px solid #222;
   background: #222;

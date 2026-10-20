@@ -1,4 +1,11 @@
-<a class="skip-link" href="#main-content">Skip to main content</a>
+<a
+  class="skip-link"
+  href="#main-content"
+  (click)="skipToMain()"
+  (keydown)="onSkipKeydown($event)"
+>
+  Skip to main content
+</a>
 <header>
   <p class="brand">Personal Finance Platform</p>
   <nav aria-label="Primary">
