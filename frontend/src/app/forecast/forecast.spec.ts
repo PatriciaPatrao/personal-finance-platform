@@ -220,6 +220,16 @@ describe('Forecast', () => {
     expect(sparkline?.classList.contains('balance-sparkline-rising')).toBe(
       true,
     );
+    expect(sparkline?.getAttribute('aria-label')).toBe(
+      'EUR projected balance trend, rising',
+    );
+
+    const accessibleSummary = root.querySelector(
+      '.balance-sparkline .visually-hidden',
+    );
+    expect(accessibleSummary?.textContent).toContain('2026-10');
+    expect(accessibleSummary?.textContent).toContain('2026-12');
+    expect(accessibleSummary?.textContent).toMatch(/3[,.]500\.00|3\.500,00/);
 
     const bars = root.querySelectorAll('.balance-spark-bars .balance-spark-bar');
     expect(bars.length).toBe(3);
@@ -228,6 +238,61 @@ describe('Forecast', () => {
     );
     expect(heights[0]).not.toBe(heights[2]);
     expect(parseFloat(heights[0])).toBeLessThan(parseFloat(heights[2]));
+  });
+
+  it('should expose a stable balance sparkline trend accessibly when balances are unchanged', async () => {
+    getForecast.mockReturnValue(
+      of({
+        ...sampleForecast,
+        projections: [
+          {
+            ...sampleForecast.projections[0],
+            periods: [
+              {
+                period: '2026-10',
+                income: '0.00',
+                expenses: '0.00',
+                net_cash_flow: '0.00',
+                projected_balance: '2000.00',
+              },
+              {
+                period: '2026-11',
+                income: '0.00',
+                expenses: '0.00',
+                net_cash_flow: '0.00',
+                projected_balance: '2000.00',
+              },
+              {
+                period: '2026-12',
+                income: '0.00',
+                expenses: '0.00',
+                net_cash_flow: '0.00',
+                projected_balance: '2000.00',
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    const fixture = TestBed.createComponent(Forecast);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const projection = component.displayProjections[0];
+    expect(component.balanceSparkTrend(projection)).toBe('stable');
+
+    const sparkline = (fixture.nativeElement as HTMLElement).querySelector(
+      '.balance-sparkline',
+    );
+    expect(sparkline?.getAttribute('aria-label')).toBe(
+      'EUR projected balance trend, stable',
+    );
+    expect(sparkline?.classList.contains('balance-sparkline-stable')).toBe(
+      true,
+    );
   });
 
   it('should hide the balance sparkline when grouping is daily', async () => {

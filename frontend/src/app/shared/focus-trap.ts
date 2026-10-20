@@ -7,8 +7,24 @@ function focusableElements(container: HTMLElement): HTMLElement[] {
   );
 }
 
-export function trapFocusWithin(container: HTMLElement): () => void {
+export type TrapFocusWithinOptions = {
+  onEscape?: () => void;
+};
+
+export function trapFocusWithin(
+  container: HTMLElement,
+  options?: TrapFocusWithinOptions,
+): () => void {
   const handleKeyDown = (event: KeyboardEvent): void => {
+    if (event.key === 'Escape') {
+      if (options?.onEscape) {
+        event.preventDefault();
+        event.stopPropagation();
+        options.onEscape();
+      }
+      return;
+    }
+
     if (event.key !== 'Tab') {
       return;
     }

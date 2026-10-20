@@ -1118,7 +1118,9 @@ export class Schedules implements OnInit, OnDestroy {
       return;
     }
 
-    this.executionConfirmFocusRelease = trapFocusWithin(panel);
+    this.executionConfirmFocusRelease = trapFocusWithin(panel, {
+      onEscape: () => this.cancelExecutionConfirm(),
+    });
   }
 
   private releaseExecutionConfirmFocus(): void {

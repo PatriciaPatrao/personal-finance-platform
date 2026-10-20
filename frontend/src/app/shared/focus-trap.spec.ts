@@ -22,4 +22,30 @@ describe('trapFocusWithin', () => {
     container.remove();
     outside.remove();
   });
+
+  it('invokes onEscape without leaving the trap active', () => {
+    const container = document.createElement('section');
+    const outside = document.createElement('button');
+    const first = document.createElement('button');
+    outside.textContent = 'Outside';
+    first.textContent = 'First';
+    document.body.append(outside, container);
+    container.append(first);
+
+    outside.focus();
+    const onEscape = vi.fn();
+    const release = trapFocusWithin(container, { onEscape });
+    expect(document.activeElement).toBe(first);
+
+    first.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+    expect(onEscape).toHaveBeenCalledTimes(1);
+
+    release();
+    expect(document.activeElement).toBe(outside);
+
+    container.remove();
+    outside.remove();
+  });
 });

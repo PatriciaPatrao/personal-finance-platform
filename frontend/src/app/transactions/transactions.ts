@@ -625,7 +625,9 @@ export class Transactions implements OnInit, OnDestroy {
       return;
     }
 
-    this.deleteFocusRelease = trapFocusWithin(panel);
+    this.deleteFocusRelease = trapFocusWithin(panel, {
+      onEscape: () => this.cancelDelete(),
+    });
   }
 
   private releaseDeleteFocus(): void {

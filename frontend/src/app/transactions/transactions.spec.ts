@@ -649,6 +649,62 @@ describe('Transactions', () => {
     expect(compiled.textContent).not.toContain('€12.00');
   });
 
+  it('should dismiss delete confirmation on Escape and restore focus', async () => {
+    const { fixture, compiled } = await render();
+    const deleteButton = compiled.querySelector(
+      '.delete-button',
+    ) as HTMLButtonElement;
+    deleteButton.focus();
+    openDelete(compiled, fixture);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const panel = compiled.querySelector('.delete-confirm') as HTMLElement;
+    panel.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+    fixture.detectChanges();
+
+    expect(deleteTransaction).not.toHaveBeenCalled();
+    expect(compiled.querySelector('.delete-confirm')).toBeNull();
+    expect(document.activeElement).toBe(deleteButton);
+  });
+
+  it('should ignore Escape when delete confirmation is closed', async () => {
+    const { fixture, compiled } = await render();
+    fixture.detectChanges();
+
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('.delete-confirm')).toBeNull();
+    expect(deleteTransaction).not.toHaveBeenCalled();
+  });
+
+  it('should not dismiss delete confirmation with Escape while deleting', async () => {
+    const pending = new Subject<void>();
+    deleteTransaction.mockReturnValue(pending.asObservable());
+
+    const { fixture, compiled } = await render();
+    openDelete(compiled, fixture);
+    (
+      compiled.querySelector('.confirm-delete-button') as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+
+    const panel = compiled.querySelector('.delete-confirm') as HTMLElement;
+    panel.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+    fixture.detectChanges();
+
+    expect(deleteTransaction).toHaveBeenCalledTimes(1);
+    expect(compiled.querySelector('.delete-confirm')).toBeTruthy();
+    expect(compiled.textContent).toContain('Deleting...');
+  });
+
   it('should leave the transaction in place when deletion is cancelled', async () => {
     const { fixture, compiled } = await render();
     openDelete(compiled, fixture);

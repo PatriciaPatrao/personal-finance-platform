@@ -212,6 +212,11 @@ export class Forecast implements OnInit {
     return projectedBalanceSparkTrend(projection.periods);
   }
 
+  balanceSparkAccessibleName(projection: ForecastCurrencyProjection): string {
+    const trend = this.balanceSparkTrend(projection);
+    return `${projection.currency} projected balance trend, ${trend}`;
+  }
+
   isCurrentPeriod(
     projection: ForecastCurrencyProjection,
     period: ForecastPeriod,

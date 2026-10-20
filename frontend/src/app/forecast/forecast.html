@@ -200,9 +200,7 @@
               [class.balance-sparkline-stable]="
                 balanceSparkTrend(projection) === 'stable'
               "
-              [attr.aria-label]="
-                projection.currency + ' projected balance trend'
-              "
+              [attr.aria-label]="balanceSparkAccessibleName(projection)"
             >
               <figcaption class="sparkline-caption">
                 Projected balance trend ({{ projection.currency }})

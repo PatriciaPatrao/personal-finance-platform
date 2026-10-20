@@ -719,6 +719,50 @@ describe('Schedules', () => {
     vi.useRealTimers();
   });
 
+  it('should dismiss execution confirmation on Escape and restore focus', async () => {
+    vi.setSystemTime(new Date(2026, 1, 15));
+    const eligibleIncome = {
+      ...activeIncome,
+      next_occurrence: '2026-02-15',
+    };
+    listIncomes.mockReturnValue(of([eligibleIncome]));
+
+    const { fixture, compiled } = await render();
+    fixture.detectChanges();
+
+    const executeButton = compiled.querySelector(
+      '.execute-button',
+    ) as HTMLButtonElement;
+    executeButton.focus();
+    executeButton.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const panel = compiled.querySelector('.execution-confirm') as HTMLElement;
+    panel.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+    fixture.detectChanges();
+
+    expect(executeIncome).not.toHaveBeenCalled();
+    expect(compiled.querySelector('.execution-confirm')).toBeNull();
+    expect(document.activeElement).toBe(executeButton);
+    vi.useRealTimers();
+  });
+
+  it('should ignore Escape when execution confirmation is closed', async () => {
+    const { fixture, compiled } = await render();
+    fixture.detectChanges();
+
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('.execution-confirm')).toBeNull();
+    expect(executeIncome).not.toHaveBeenCalled();
+  });
+
   it('should not execute when confirmation is cancelled', async () => {
     vi.setSystemTime(new Date(2026, 1, 15));
     const eligibleIncome = {
