@@ -7,6 +7,9 @@ import {
   deriveFinancialSignals,
   deriveFinancialSignalsByCurrency,
   quietCheckDetail,
+  signalActionIcon,
+  signalActionLabel,
+  signalActionRoute,
 } from './financial-signals';
 
 function eurSummary(
@@ -387,5 +390,21 @@ describe('deriveFinancialSignals', () => {
     expect(detail).toContain(
       'Checked recorded cash flow from 01-10-2026 to 05-10-2026: no income or expenses were recorded.',
     );
+  });
+
+  it('should map signal titles to action labels and routes', () => {
+    expect(signalActionRoute('Expenses exceeded income')).toBe(
+      '/personal_finance/analysis',
+    );
+    expect(signalActionLabel('Expenses exceeded income')).toBe('Open Analysis');
+    expect(signalActionIcon('Expenses exceeded income')).toBe('pi pi-chart-bar');
+
+    expect(signalActionLabel('Balance projected to increase')).toBe(
+      'Open Forecast',
+    );
+    expect(signalActionRoute('No scheduled income')).toBe(
+      '/personal_finance/schedules',
+    );
+    expect(signalActionLabel('No scheduled income')).toBe('Open Schedules');
   });
 });

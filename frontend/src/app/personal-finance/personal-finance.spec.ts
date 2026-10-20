@@ -1000,7 +1000,7 @@ describe('PersonalFinance', () => {
     expect(text).toContain('Open Schedules');
     const schedulesLink = (
       fixture.nativeElement as HTMLElement
-    ).querySelector('a.inline-link[href="/personal_finance/schedules"]');
+    ).querySelector('button.open-schedules-link, a.open-schedules-link');
     expect(schedulesLink).toBeTruthy();
   });
 });

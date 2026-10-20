@@ -78,9 +78,18 @@
       <ul class="attention-list">
         @for (item of attentionItems; track item.id) {
           <li class="attention-item">
-            <h3>{{ item.title }}</h3>
-            <p>{{ item.detail }}</p>
-            <a class="attention-link" [routerLink]="item.route">Review</a>
+            <div class="attention-copy">
+              <h3>{{ item.title }}</h3>
+              <p>{{ item.detail }}</p>
+            </div>
+            <p-button
+              label="Review"
+              icon="pi pi-arrow-right"
+              iconPos="right"
+              severity="primary"
+              styleClass="attention-review-button"
+              [routerLink]="item.route"
+            />
           </li>
         }
       </ul>
@@ -92,17 +101,32 @@
     !accountsError &&
     currentPosition?.kind !== 'empty'
   ) {
-    <p-card styleClass="pfp-panel-card panel upcoming-panel" aria-labelledby="upcoming-heading">
-      <h2 id="upcoming-heading">Upcoming commitments</h2>
-      <p class="panel-intro">
-        One row per active schedule showing the next occurrence date returned
-        by the API (not a full recurrence calendar). Amounts stay in each
-        linked account’s currency with no conversion.
-      </p>
-
-      @if (commitmentRangeLabel) {
-        <p class="range-note">Forecast window: {{ commitmentRangeLabel }}</p>
-      }
+    <p-card
+      styleClass="pfp-panel-card panel upcoming-panel"
+      aria-labelledby="upcoming-heading"
+    >
+      <div class="upcoming-panel-header">
+        <div>
+          <h2 id="upcoming-heading">Upcoming commitments</h2>
+          <p class="panel-intro">
+            Next occurrence for each active schedule — amounts stay in the
+            linked account’s currency.
+          </p>
+        </div>
+        @if (commitmentRangeLabel && upcomingCommitments.length > 0) {
+          <p class="upcoming-summary-badge" aria-live="polite">
+            {{ upcomingCommitments.length }}
+            {{
+              upcomingCommitments.length === 1 ? 'commitment' : 'commitments'
+            }}
+            · {{ commitmentRangeLabel }}
+          </p>
+        } @else if (commitmentRangeLabel) {
+          <p class="upcoming-summary-badge upcoming-summary-badge-quiet">
+            Window: {{ commitmentRangeLabel }}
+          </p>
+        }
+      </div>
 
       @if (schedulesLoading) {
         <p-message
@@ -124,34 +148,46 @@
         </p>
       } @else {
         @for (group of upcomingByCurrency; track group.currency) {
-          <div>
+          <section class="upcoming-currency-block">
             <h3 class="panel-subheading">{{ group.currency }}</h3>
-            <ul class="signal-list">
+            <ul class="commitment-grid">
               @for (item of group.items; track item.key) {
-                <li class="signal commitment-item">
-                  <p class="commitment-meta">
-                    <span>{{
-                      displayEuropeanDate(item.occurrenceDate)
-                    }}</span>
-                    <span class="commitment-kind">{{
-                      item.kind === 'income' ? 'Income' : 'Expense'
-                    }}</span>
-                  </p>
-                  <h4>{{ item.description }}</h4>
-                  <p>
-                    {{ item.amount | currency: item.currency }} ·
-                    {{ item.accountLabel }}
-                  </p>
+                <li>
+                  <article
+                    class="commitment-card"
+                    [class.commitment-income]="item.kind === 'income'"
+                    [class.commitment-expense]="item.kind === 'expense'"
+                  >
+                    <header class="commitment-card-header">
+                      <time class="commitment-date">{{
+                        displayEuropeanDate(item.occurrenceDate)
+                      }}</time>
+                      <span class="commitment-kind-badge">{{
+                        item.kind === 'income' ? 'Income' : 'Expense'
+                      }}</span>
+                    </header>
+                    <h4 class="commitment-title">{{ item.description }}</h4>
+                    <p class="commitment-amount">
+                      {{ item.amount | currency: item.currency }}
+                    </p>
+                    <p class="commitment-account">{{ item.accountLabel }}</p>
+                  </article>
                 </li>
               }
             </ul>
-          </div>
+          </section>
         }
       }
 
-      <a class="inline-link" routerLink="/personal_finance/schedules">
-        Open Schedules
-      </a>
+      <div class="panel-footer-actions">
+        <p-button
+          label="Open Schedules"
+          icon="pi pi-calendar"
+          severity="primary"
+          styleClass="panel-footer-action open-schedules-link"
+          routerLink="/personal_finance/schedules"
+        />
+      </div>
     </p-card>
   }
 
@@ -217,19 +253,27 @@
 
       @if (signalsSuppressed) {
         @for (group of perCurrencySignals; track group.currency) {
-          <div>
-            <h3 class="panel-subheading">{{ group.currency }}</h3>
+          <section class="signal-currency-block">
+            <h3 class="signal-currency-heading">{{ group.currency }}</h3>
             @if (group.signals.length > 0) {
-              <ul class="signal-list">
+              <ul class="signal-card-grid">
                 @for (signal of group.signals; track signal.title) {
-                  <li class="signal">
-                    <h4>{{ signal.title }}</h4>
-                    <p>{{ signal.detail }}</p>
-                    @if (signalRoute(signal); as route) {
-                      <a class="signal-link" [routerLink]="route">
-                        Open related view
-                      </a>
-                    }
+                  <li>
+                    <article class="signal-card">
+                      <div class="signal-card-copy">
+                        <h4>{{ signal.title }}</h4>
+                        <p>{{ signal.detail }}</p>
+                      </div>
+                      @if (signalRoute(signal); as route) {
+                        <p-button
+                          [label]="signalActionButtonLabel(signal)"
+                          [icon]="signalActionButtonIcon(signal)"
+                          severity="primary"
+                          styleClass="signal-action-button signal-link"
+                          [routerLink]="route"
+                        />
+                      }
+                    </article>
                   </li>
                 }
               </ul>
@@ -240,29 +284,43 @@
               !analysisError &&
               !forecastError
             ) {
-              <article class="signal signal-neutral">
-                <h4>No directional signals</h4>
-                <p>{{ group.quietDetail }}</p>
+              <article class="signal-card signal-card-neutral">
+                <div class="signal-card-copy">
+                  <h4>No directional signals</h4>
+                  <p>{{ group.quietDetail }}</p>
+                </div>
               </article>
             }
-          </div>
+          </section>
         }
       } @else if (signals.length > 0) {
-        <ul class="signal-list">
+        <ul class="signal-card-grid">
           @for (signal of signals; track signal.title) {
-            <li class="signal">
-              <h3>{{ signal.title }}</h3>
-              <p>{{ signal.detail }}</p>
-              @if (signalRoute(signal); as route) {
-                <a class="signal-link" [routerLink]="route">Open related view</a>
-              }
+            <li>
+              <article class="signal-card">
+                <div class="signal-card-copy">
+                  <h4>{{ signal.title }}</h4>
+                  <p>{{ signal.detail }}</p>
+                </div>
+                @if (signalRoute(signal); as route) {
+                  <p-button
+                    [label]="signalActionButtonLabel(signal)"
+                    [icon]="signalActionButtonIcon(signal)"
+                    severity="primary"
+                    styleClass="signal-action-button signal-link"
+                    [routerLink]="route"
+                  />
+                }
+              </article>
             </li>
           }
         </ul>
       } @else if (quietCheckText) {
-        <article class="signal signal-neutral">
-          <h3>No directional signals</h3>
-          <p>{{ quietCheckText }}</p>
+        <article class="signal-card signal-card-neutral">
+          <div class="signal-card-copy">
+            <h4>No directional signals</h4>
+            <p>{{ quietCheckText }}</p>
+          </div>
         </article>
       }
 
@@ -305,13 +363,29 @@
       />
     } @else if (goals.length === 0) {
       <p class="empty-state">No financial goals yet.</p>
-      <a class="inline-link" routerLink="/personal_finance/goals">Open Goals</a>
+      <div class="panel-footer-actions">
+        <p-button
+          label="Open Goals"
+          icon="pi pi-flag"
+          severity="primary"
+          styleClass="panel-footer-action open-goals-link"
+          routerLink="/personal_finance/goals"
+        />
+      </div>
     } @else {
       <ul class="goal-list">
         @for (goal of goals; track goal.id) {
           <li>
-            <p-card styleClass="pfp-panel-card goal-card">
-            <h3>{{ goal.name }}</h3>
+            <p-card
+              [styleClass]="
+                'pfp-panel-card goal-card' +
+                (goal.progress === null ? ' goal-card-unavailable' : '')
+              "
+            >
+            <header class="goal-card-header">
+              <h3>{{ goal.name }}</h3>
+              <span class="goal-currency-tag">{{ goal.currency }}</span>
+            </header>
             <dl class="goal-metrics">
               <div>
                 <dt>Target</dt>
@@ -360,18 +434,36 @@
           </li>
         }
       </ul>
-      <a class="inline-link" routerLink="/personal_finance/goals">
-        Manage goals
-      </a>
+      <div class="panel-footer-actions">
+        <p-button
+          label="Manage goals"
+          icon="pi pi-flag"
+          severity="primary"
+          styleClass="panel-footer-action manage-goals-link"
+          routerLink="/personal_finance/goals"
+        />
+      </div>
     }
   </p-card>
 
   <p-card styleClass="pfp-panel-card panel quick-panel" aria-labelledby="quick-heading">
     <h2 id="quick-heading">Quick access</h2>
-    <ul class="quick-links">
+    <p class="panel-intro">
+      Jump to the tools you use most — same routes as the main navigation.
+    </p>
+    <ul class="quick-access-grid">
       @for (link of quickLinks; track link.route) {
         <li>
-          <a class="quick-link" [routerLink]="link.route">{{ link.label }}</a>
+          <a class="quick-access-card quick-link" [routerLink]="link.route">
+            <span class="quick-access-icon" aria-hidden="true">
+              <i [class]="link.icon"></i>
+            </span>
+            <span class="quick-access-text">
+              <span class="quick-access-label">{{ link.label }}</span>
+              <span class="quick-access-desc">{{ link.description }}</span>
+            </span>
+            <i class="pi pi-arrow-right quick-access-chevron" aria-hidden="true"></i>
+          </a>
         </li>
       }
     </ul>

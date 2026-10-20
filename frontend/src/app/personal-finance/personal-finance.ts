@@ -1,6 +1,7 @@
 import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Button } from 'primeng/button';
 import { Card } from 'primeng/card';
 import { Message } from 'primeng/message';
 import { catchError, forkJoin, map, of } from 'rxjs';
@@ -42,6 +43,8 @@ import {
   deriveFinancialSignalsByCurrency,
   FinancialSignal,
   quietCheckDetail,
+  signalActionIcon,
+  signalActionLabel,
   signalActionRoute,
 } from './financial-signals';
 
@@ -114,7 +117,7 @@ export type CurrentPositionState =
 
 @Component({
   selector: 'app-personal-finance',
-  imports: [Card, CurrencyPipe, Message, RouterLink],
+  imports: [Button, Card, CurrencyPipe, Message, RouterLink],
   templateUrl: './personal-finance.html',
   styleUrl: './personal-finance.scss',
 })
@@ -146,12 +149,42 @@ export class PersonalFinance implements OnInit {
   commitmentWindowTo = '';
 
   readonly quickLinks = [
-    { label: 'Transactions', route: '/personal_finance/transactions' },
-    { label: 'Accounts', route: '/personal_finance/accounts' },
-    { label: 'Schedules', route: '/personal_finance/schedules' },
-    { label: 'Forecast', route: '/personal_finance/forecast' },
-    { label: 'Analysis', route: '/personal_finance/analysis' },
-    { label: 'Goals', route: '/personal_finance/goals' },
+    {
+      label: 'Transactions',
+      route: '/personal_finance/transactions',
+      icon: 'pi pi-list',
+      description: 'Record and review history',
+    },
+    {
+      label: 'Accounts',
+      route: '/personal_finance/accounts',
+      icon: 'pi pi-wallet',
+      description: 'Balances and account details',
+    },
+    {
+      label: 'Schedules',
+      route: '/personal_finance/schedules',
+      icon: 'pi pi-calendar',
+      description: 'Salary and recurring expenses',
+    },
+    {
+      label: 'Forecast',
+      route: '/personal_finance/forecast',
+      icon: 'pi pi-chart-line',
+      description: 'Projected balances',
+    },
+    {
+      label: 'Analysis',
+      route: '/personal_finance/analysis',
+      icon: 'pi pi-chart-bar',
+      description: 'Past income and spending',
+    },
+    {
+      label: 'Goals',
+      route: '/personal_finance/goals',
+      icon: 'pi pi-flag',
+      description: 'Targets and allocations',
+    },
   ] as const;
 
   constructor(
@@ -289,6 +322,14 @@ export class PersonalFinance implements OnInit {
 
   signalRoute(signal: FinancialSignal): string | null {
     return signalActionRoute(signal.title);
+  }
+
+  signalActionButtonLabel(signal: FinancialSignal): string {
+    return signalActionLabel(signal.title);
+  }
+
+  signalActionButtonIcon(signal: FinancialSignal): string {
+    return signalActionIcon(signal.title);
   }
 
   displayEuropeanDate(isoDate: string): string {

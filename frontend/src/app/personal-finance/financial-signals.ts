@@ -253,6 +253,36 @@ export function signalActionRoute(title: string): string | null {
   }
 }
 
+export function signalActionLabel(title: string): string {
+  switch (title) {
+    case 'Positive cash flow':
+    case 'Expenses exceeded income':
+      return 'Open Analysis';
+    case 'No scheduled income':
+      return 'Open Schedules';
+    case 'Balance projected to decrease':
+    case 'Balance projected to increase':
+      return 'Open Forecast';
+    default:
+      return 'Open related view';
+  }
+}
+
+export function signalActionIcon(title: string): string {
+  switch (title) {
+    case 'Positive cash flow':
+    case 'Expenses exceeded income':
+      return 'pi pi-chart-bar';
+    case 'No scheduled income':
+      return 'pi pi-calendar';
+    case 'Balance projected to decrease':
+    case 'Balance projected to increase':
+      return 'pi pi-chart-line';
+    default:
+      return 'pi pi-arrow-right';
+  }
+}
+
 export function quietCheckDetail(
   summary: AnalysisSummary | null,
   forecast: ForecastResponse | null,
