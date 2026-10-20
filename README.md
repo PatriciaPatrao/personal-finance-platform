@@ -82,7 +82,7 @@ Layout under `backend/app/`: `api`, `services`, `repositories`, `schemas`, `mode
 
 | Method | Path | Role |
 | --- | --- | --- |
-| GET | `/`, `/health` | Process status; `/health` includes `current_domain_date` (authoritative calendar date for schedule execution and Forecast `as_of`) |
+| GET | `/`, `/health` | Process status; `/health` includes `current_domain_date` (authoritative calendar date for schedule execution and Forecast `as_of`). The value is the API server’s local calendar date (`date.today()` in Python). Schedule eligibility and execution use that date; the app does not apply per-user time zones. |
 | POST, GET | `/accounts`, `/accounts/{id}` | Accounts |
 | POST, GET, PUT, DELETE | `/transactions`, `/transactions/{id}` | Transactions; each response includes `linked_to_schedule_execution` |
 | POST, GET, PUT | `/incomes`, `/incomes/{id}` | Salary schedules |
@@ -121,7 +121,7 @@ The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for
 | Route | Screen |
 | --- | --- |
 | `/` | Redirects to `/personal_finance` |
-| `/personal_finance` | Dashboard: one stored total per currency, financial signals when currencies match, goal progress, links to Accounts, Schedules, Transactions, Goals, Analysis, and Forecast |
+| `/personal_finance` | Dashboard: one stored total per currency, **financial signal groups per currency** (no cross-currency totals or FX), goal progress, links to Accounts, Schedules, Transactions, Goals, Analysis, and Forecast |
 | `/personal_finance/accounts` | Stored accounts list and create form: name, type, currency, and opening/current balance |
 | `/personal_finance/accounts/:id` | Read-only account detail: stored balance, type, currency, and created date. No update or delete. |
 | `/personal_finance/schedules` | Salary and fixed recurring expenses: list, create, edit, deactivate, activate, and execute today’s occurrence (ADR 005). Dates are DD-MM-YYYY. Schedule CRUD informs Forecast only; execution creates transactions and updates balance. |
@@ -130,7 +130,7 @@ The shell is `PersonalFinanceLayout` at `/personal_finance`, with navigation for
 | `/personal_finance/forecast` | Projected income, expenses, net cash flow, and running balance. Default range starts today and ends on the last day of the calendar month two months ahead. Grouping is monthly or daily. |
 | `/personal_finance/transactions` | Recorded income and expense events: list, client-side filters, create, edit, and delete. Dates are entered as DD-MM-YYYY. |
 
-If accounts use more than one currency, the Dashboard shows a separate total for each currency and does not show Analysis or Forecast signals. Household Forecast returns one projection per account currency (no cross-currency sum or FX).
+If accounts use more than one currency, the Dashboard shows a separate total for each currency and **separate financial signal groups per currency** (Analysis and Forecast are still loaded; amounts are never combined across codes and there is no FX). Household Forecast returns one projection per account currency (no cross-currency sum or FX).
 
 ## Run the backend
 
@@ -149,7 +149,7 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE
 APP_ENV=development
 ```
 
-Optional in development: `CORS_ORIGINS` (comma-separated). When unset, the API allows `http://localhost:4200` for the Angular dev server.
+Optional in development: `CORS_ORIGINS` (comma-separated). When unset, the API allows **`http://localhost:4200`** for the Angular dev server. If you open the app at **`http://127.0.0.1:4200`** instead, add that exact origin to `CORS_ORIGINS` (for example `http://127.0.0.1:4200`) or use `localhost` consistently; otherwise browser requests to the API will fail.
 
 Apply migrations (default schema is `public`). Alembic loads `DATABASE_URL` through the same settings as the API: `backend/.env`, overridden by the process environment when that variable is set:
 
@@ -215,6 +215,16 @@ NG_APP_API_BASE_URL=https://YOUR-API-ORIGIN.example npm run build
 Use the API origin **without** a trailing slash (for example `https://api.example.com`). Static files are emitted under `frontend/dist/frontend`.
 
 Development (`npm start`) is unchanged and does not use `NG_APP_API_BASE_URL`.
+
+### Post-deployment smoke test
+
+Run after each deployment (replace placeholders with your real URLs):
+
+1. Request `GET /health` on the deployed API and confirm **200** with a JSON body containing `current_domain_date`.
+2. Open the deployed frontend origin and load the Dashboard (`/personal_finance`). Confirm current position or empty-state copy loads without console/API errors.
+3. Open Analysis, keep or set a valid date range, and click **Apply**. Confirm summary or empty-state copy appears (not a persistent error banner).
+4. Open Forecast and confirm **separate projections per currency** when multiple account currencies exist (no combined cross-currency total).
+5. If any step fails, treat the deployment as **not verified** until the error is investigated; do not assume partial success is acceptable for handover.
 
 ## Tests
 

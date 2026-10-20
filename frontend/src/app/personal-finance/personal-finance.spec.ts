@@ -975,6 +975,18 @@ describe('PersonalFinance', () => {
     ]);
   });
 
+  it('should expose responsive dashboard layout hooks for upcoming and quick access', async () => {
+    const fixture = TestBed.createComponent(PersonalFinance);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('.dashboard-page')).toBeTruthy();
+    expect(root.querySelector('.upcoming-panel')).toBeTruthy();
+    expect(root.querySelector('.quick-access-grid')).toBeTruthy();
+  });
+
   it('should show near-term outlook from loaded forecast projections by currency', async () => {
     const fixture = TestBed.createComponent(PersonalFinance);
     fixture.detectChanges();
