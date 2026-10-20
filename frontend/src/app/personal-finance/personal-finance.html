@@ -205,6 +205,13 @@
         text="Loading financial signals..."
         ariaLive="polite"
       />
+    } @else if (accountsError) {
+      <p-message
+        severity="error"
+        styleClass="status-error"
+        text="Financial signals are unavailable because your account balances could not be loaded."
+        role="alert"
+      />
     } @else if (currentPosition?.kind === 'empty') {
       <p-message
         severity="info"

@@ -13,6 +13,8 @@ import { GoalService } from '../goals/goal.service';
 import { IncomeService } from '../schedules/income.service';
 import { RecurringExpenseService } from '../schedules/recurring-expense.service';
 import { TransactionService } from '../transactions/transactions.service';
+import { calendarDateToIso } from '../shared/calendar-date';
+import { DomainDateService } from '../shared/domain-date.service';
 import { PersonalFinance } from './personal-finance';
 
 describe('PersonalFinance', () => {
@@ -159,6 +161,7 @@ describe('PersonalFinance', () => {
   let listTransactions: ReturnType<typeof vi.fn>;
   let listIncomes: ReturnType<typeof vi.fn>;
   let listRecurringExpenses: ReturnType<typeof vi.fn>;
+  let loadCurrentDomainDate: ReturnType<typeof vi.fn>;
 
   function currentMonthRange(): { from: string; to: string } {
     const today = new Date();
@@ -194,6 +197,7 @@ describe('PersonalFinance', () => {
     listTransactions = vi.fn().mockReturnValue(of([]));
     listIncomes = vi.fn().mockReturnValue(of([]));
     listRecurringExpenses = vi.fn().mockReturnValue(of([]));
+    loadCurrentDomainDate = vi.fn(() => of(calendarDateToIso(new Date())));
 
     await TestBed.configureTestingModule({
       imports: [PersonalFinance],
@@ -236,6 +240,14 @@ describe('PersonalFinance', () => {
         {
           provide: RecurringExpenseService,
           useValue: { listRecurringExpenses },
+        },
+        {
+          provide: DomainDateService,
+          useValue: {
+            loadCurrentDomainDate,
+            resetForTests: vi.fn(),
+            localCalendarDateIso: () => calendarDateToIso(new Date()),
+          },
         },
       ],
     }).compileComponents();
@@ -524,9 +536,14 @@ describe('PersonalFinance', () => {
     const text = compiled.textContent ?? '';
     expect(text).toContain('Unable to load your current balance.');
     expect(text).toContain(
+      'Financial signals are unavailable because your account balances could not be loaded.',
+    );
+    expect(text).not.toContain(
       'Unable to load recorded cash flow for the current month.',
     );
-    expect(text).toContain('Unable to load the scheduled forecast.');
+    expect(text).not.toContain('Unable to load the scheduled forecast.');
+    expect(getSummary).not.toHaveBeenCalled();
+    expect(getForecast).not.toHaveBeenCalled();
     expect(text).not.toContain('5,000.00');
     expect(text).not.toContain('€0.00');
     expect(text).not.toContain('No directional signals');
@@ -710,7 +727,7 @@ describe('PersonalFinance', () => {
     );
   });
 
-  it('should still request analysis when accounts fail to load', async () => {
+  it('should not request analysis or forecast when accounts fail to load', async () => {
     listAccounts.mockReturnValue(
       throwError(() => new Error('network')),
     );
@@ -723,10 +740,14 @@ describe('PersonalFinance', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(getSummary).toHaveBeenCalledTimes(1);
+    expect(getSummary).not.toHaveBeenCalled();
+    expect(getForecast).not.toHaveBeenCalled();
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Unable to load your current balance.');
     expect(text).toContain(
+      'Financial signals are unavailable because your account balances could not be loaded.',
+    );
+    expect(text).not.toContain(
       'Unable to load recorded cash flow for the current month.',
     );
   });

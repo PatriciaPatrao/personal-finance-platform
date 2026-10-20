@@ -124,6 +124,7 @@ export class Analysis implements OnInit {
   }
 
   applyPreset(preset: PeriodPresetId): void {
+    this.maxTo = formatDate(new Date());
     const range = preset === 'this-month' ? thisMonthRange() : lastMonthRange();
     this.from = range.from;
     this.to = range.to;
@@ -157,6 +158,7 @@ export class Analysis implements OnInit {
   }
 
   apply(): void {
+    this.maxTo = formatDate(new Date());
     const from = parseEuropeanDate(this.fromDisplay);
     const to = parseEuropeanDate(this.toDisplay);
     if (!from || !to) {

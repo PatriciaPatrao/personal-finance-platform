@@ -22,6 +22,7 @@ import {
   accountSelectOptionLabel,
 } from '../accounts/account-display';
 import { FieldControlA11y } from '../shared/field-control-a11y.directive';
+import { DomainDateService } from '../shared/domain-date.service';
 import { trapFocusWithin } from '../shared/focus-trap';
 import { AccountService } from '../accounts/account.service';
 import { DateField } from '../analysis/date-field';
@@ -133,18 +134,6 @@ function fieldLabel(field: string): string {
     default:
       return field;
   }
-}
-
-function todayIsoDate(): string {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function todayEuropeanDate(): string {
-  return toEuropeanDate(todayIsoDate());
 }
 
 function toEuropeanDate(isoDate: string): string {
@@ -266,10 +255,15 @@ export class Schedules implements OnInit, OnDestroy {
   formEndDateError: string | null = null;
   formError: string | null = null;
 
+  /** Authoritative API calendar date for execution (null while loading or on error). */
+  domainDateIso: string | null = null;
+  domainDateUnavailable = false;
+
   constructor(
     private incomeService: IncomeService,
     private recurringExpenseService: RecurringExpenseService,
     private accountService: AccountService,
+    private domainDateService: DomainDateService,
     private changeDetector: ChangeDetectorRef,
   ) {}
 
@@ -313,6 +307,12 @@ export class Schedules implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.domainDateService.loadCurrentDomainDate().subscribe((iso) => {
+      this.domainDateIso = iso;
+      this.domainDateUnavailable = iso === null;
+      this.syncExecutionDateDisplaysToDomainDate();
+      this.changeDetector.markForCheck();
+    });
     this.loadPage();
   }
 
@@ -345,7 +345,11 @@ export class Schedules implements OnInit, OnDestroy {
   }
 
   currentDomainDateDisplay(): string {
-    return todayEuropeanDate();
+    if (this.domainDateIso === null) {
+      return this.domainDateUnavailable ? 'Unavailable' : 'Loading…';
+    }
+
+    return toEuropeanDate(this.domainDateIso);
   }
 
   executionDateDisplay(kind: ExecutionKind, scheduleId: number): string {
@@ -355,9 +359,23 @@ export class Schedules implements OnInit, OnDestroy {
       return existing;
     }
 
-    const initial = todayEuropeanDate();
+    const initial =
+      this.domainDateIso === null
+        ? ''
+        : toEuropeanDate(this.domainDateIso);
     this.executionDateDisplays.set(key, initial);
     return initial;
+  }
+
+  private syncExecutionDateDisplaysToDomainDate(): void {
+    if (this.domainDateIso === null) {
+      return;
+    }
+
+    const display = toEuropeanDate(this.domainDateIso);
+    for (const key of this.executionDateDisplays.keys()) {
+      this.executionDateDisplays.set(key, display);
+    }
   }
 
   executionError(kind: ExecutionKind, scheduleId: number): string | null {
@@ -373,7 +391,8 @@ export class Schedules implements OnInit, OnDestroy {
       this.loading ||
       this.errorMessage !== null ||
       this.saving ||
-      this.executingKey !== null
+      this.executingKey !== null ||
+      this.domainDateIso === null
     ) {
       return false;
     }
@@ -381,7 +400,7 @@ export class Schedules implements OnInit, OnDestroy {
     const iso = parseEuropeanDate(
       this.executionDateDisplay(kind, scheduleId),
     );
-    return iso === todayIsoDate();
+    return iso === this.domainDateIso;
   }
 
   onExecutionDateChange(
@@ -1169,10 +1188,19 @@ export class Schedules implements OnInit, OnDestroy {
       return;
     }
 
-    if (iso !== todayIsoDate()) {
+    if (this.domainDateIso === null) {
       this.executionErrors.set(
         key,
-        `Only today's date (${todayEuropeanDate()}) can be executed.`,
+        'Unable to verify the server date. Execution is unavailable.',
+      );
+      this.changeDetector.detectChanges();
+      return;
+    }
+
+    if (iso !== this.domainDateIso) {
+      this.executionErrors.set(
+        key,
+        `Only today's date (${toEuropeanDate(this.domainDateIso)}) can be executed.`,
       );
       this.changeDetector.detectChanges();
       return;

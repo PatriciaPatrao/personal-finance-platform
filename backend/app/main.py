@@ -11,6 +11,7 @@ from app.api.recurring_expenses import router as recurring_expenses_router
 from app.api.transactions import router as transactions_router
 from app.core.config import Settings
 from app.core.config import settings
+from app.services.domain_date import current_domain_date
 
 
 def build_app(config: Settings | None = None) -> FastAPI:
@@ -46,7 +47,10 @@ def build_app(config: Settings | None = None) -> FastAPI:
 
     @application.get("/health")
     def health_check():
-        return {"status": "ok"}
+        return {
+            "status": "ok",
+            "current_domain_date": current_domain_date().isoformat(),
+        }
 
     return application
 

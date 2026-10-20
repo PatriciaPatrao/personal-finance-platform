@@ -82,7 +82,7 @@ Layout under `backend/app/`: `api`, `services`, `repositories`, `schemas`, `mode
 
 | Method | Path | Role |
 | --- | --- | --- |
-| GET | `/`, `/health` | Process status |
+| GET | `/`, `/health` | Process status; `/health` includes `current_domain_date` (authoritative calendar date for schedule execution and Forecast `as_of`) |
 | POST, GET | `/accounts`, `/accounts/{id}` | Accounts |
 | POST, GET, PUT, DELETE | `/transactions`, `/transactions/{id}` | Transactions; each response includes `linked_to_schedule_execution` |
 | POST, GET, PUT | `/incomes`, `/incomes/{id}` | Salary schedules |
@@ -236,6 +236,8 @@ cd frontend
 npm test
 ```
 
+Before client delivery, run the manual checks in [docs/staging-uat-checklist.md](docs/staging-uat-checklist.md) against a staging API. Automated tests do not replace that checklist.
+
 ## Demo data
 
 `backend/scripts/seed_demo_data.py` loads a deterministic dataset. It is safe to run more than once: existing historical transactions are left in place, and missing forecast rows are inserted without duplicates.
@@ -271,6 +273,7 @@ The script stops if more than one account is already named Demo Main Account.
 - [docs/architecture.md](docs/architecture.md) — structure of the current application
 - [docs/design-system.md](docs/design-system.md) — design tokens, PrimeNG usage, migration status
 - [docs/milestone-recurring-schedules.md](docs/milestone-recurring-schedules.md) — recurring schedules and schedule execution milestone (validation, tests, status)
+- [docs/staging-uat-checklist.md](docs/staging-uat-checklist.md) — manual staging UAT before delivery
 - [docs/decisions/](docs/decisions/) — modular monolith, Analysis versus Forecast, Dashboard responsibility, Financial Goals, and schedule occurrence execution (ADR 005)
 - [frontend/README.md](frontend/README.md) — Angular CLI serve, build, and unit-test commands
 - `http://127.0.0.1:8000/docs` — generated OpenAPI for the running API

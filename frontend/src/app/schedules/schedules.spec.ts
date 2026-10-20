@@ -8,6 +8,8 @@ import { Income } from './income';
 import { IncomeService } from './income.service';
 import { RecurringExpense } from './recurring-expense';
 import { RecurringExpenseService } from './recurring-expense.service';
+import { calendarDateToIso } from '../shared/calendar-date';
+import { DomainDateService } from '../shared/domain-date.service';
 import { Schedules } from './schedules';
 
 describe('Schedules', () => {
@@ -83,6 +85,7 @@ describe('Schedules', () => {
   let executeIncome: ReturnType<typeof vi.fn>;
   let executeRecurringExpense: ReturnType<typeof vi.fn>;
   let listAccounts: ReturnType<typeof vi.fn>;
+  let loadCurrentDomainDate: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     listIncomes = vi.fn().mockReturnValue(of([activeIncome]));
@@ -94,6 +97,7 @@ describe('Schedules', () => {
     executeIncome = vi.fn();
     executeRecurringExpense = vi.fn();
     listAccounts = vi.fn().mockReturnValue(of(sampleAccounts));
+    loadCurrentDomainDate = vi.fn(() => of(calendarDateToIso(new Date())));
 
     await TestBed.configureTestingModule({
       imports: [Schedules],
@@ -119,6 +123,14 @@ describe('Schedules', () => {
         {
           provide: AccountService,
           useValue: { listAccounts },
+        },
+        {
+          provide: DomainDateService,
+          useValue: {
+            loadCurrentDomainDate,
+            resetForTests: vi.fn(),
+            localCalendarDateIso: () => calendarDateToIso(new Date()),
+          },
         },
       ],
     }).compileComponents();

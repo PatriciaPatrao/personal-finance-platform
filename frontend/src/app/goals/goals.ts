@@ -12,6 +12,11 @@ import { Select } from 'primeng/select';
 import { Account } from '../accounts/account';
 import { accountDisplayName, accountSelectOptionLabel } from '../accounts/account-display';
 import { AccountService } from '../accounts/account.service';
+import {
+  formatMoneyMinorUnits,
+  minorUnitsToApiAmount,
+  parseMoneyMinorUnits,
+} from '../shared/money-units';
 import { DateField } from '../analysis/date-field';
 import { FieldControlA11y } from '../shared/field-control-a11y.directive';
 import {
@@ -268,26 +273,44 @@ export class Goals implements OnInit {
   }
 
   designatedOnAccount(accountId: number): number {
-    let total = 0;
-    for (const goal of this.goals) {
-      for (const allocation of goal.allocations) {
-        if (allocation.account_id === accountId) {
-          total += Number(allocation.amount);
-        }
-      }
-    }
-    return total;
+    return minorUnitsToApiAmount(this.designatedMinorOnAccount(accountId));
   }
 
   availableOnAccount(accountId: number): number {
+    const availableMinor = this.availableMinorOnAccount(accountId);
+    return availableMinor > 0n
+      ? minorUnitsToApiAmount(availableMinor)
+      : 0;
+  }
+
+  private availableMinorOnAccount(accountId: number): bigint {
     const account = this.accounts.find((item) => item.id === accountId);
     if (!account) {
-      return 0;
+      return 0n;
     }
 
-    const balance = Number(account.current_balance);
-    const capacity = Number.isNaN(balance) ? 0 : Math.max(0, balance);
-    return Math.max(0, capacity - this.designatedOnAccount(accountId));
+    let balanceMinor: bigint;
+    try {
+      balanceMinor = parseMoneyMinorUnits(account.current_balance);
+    } catch {
+      return 0n;
+    }
+
+    const capacityMinor = balanceMinor > 0n ? balanceMinor : 0n;
+    const availableMinor = capacityMinor - this.designatedMinorOnAccount(accountId);
+    return availableMinor > 0n ? availableMinor : 0n;
+  }
+
+  private designatedMinorOnAccount(accountId: number): bigint {
+    let totalMinor = 0n;
+    for (const goal of this.goals) {
+      for (const allocation of goal.allocations) {
+        if (allocation.account_id === accountId) {
+          totalMinor += parseMoneyMinorUnits(allocation.amount);
+        }
+      }
+    }
+    return totalMinor;
   }
 
   compatibleAccounts(goal: FinancialGoal): Account[] {
@@ -468,10 +491,12 @@ export class Goals implements OnInit {
       return;
     }
 
-    const available = this.availableOnAccount(accountId);
-    if (amount > available) {
+    const availableMinor =
+      this.availableMinorOnAccount(accountId);
+    const amountMinor = parseMoneyMinorUnits(amount.toFixed(2));
+    if (amountMinor > availableMinor) {
       this.allocateAmountError =
-        `Only ${available.toFixed(2)} is available on this account.`;
+        `Only ${formatMoneyMinorUnits(availableMinor)} is available on this account.`;
       this.changeDetector.detectChanges();
       return;
     }
@@ -482,13 +507,13 @@ export class Goals implements OnInit {
 
     const request = existing
       ? this.goalService.updateAllocation(goal.id, existing.id, {
-          amount: Number(
-            (Number(existing.amount) + amount).toFixed(2),
+          amount: minorUnitsToApiAmount(
+            parseMoneyMinorUnits(existing.amount) + amountMinor,
           ),
         })
       : this.goalService.createAllocation(goal.id, {
           account_id: accountId,
-          amount,
+          amount: minorUnitsToApiAmount(amountMinor),
         });
 
     request.subscribe({

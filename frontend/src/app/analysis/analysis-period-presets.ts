@@ -24,8 +24,7 @@ export function lastMonthRange(today: Date = new Date()): {
   from: string;
   to: string;
 } {
-  const firstOfThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const lastOfPrevious = new Date(firstOfThisMonth.getTime() - 86400000);
+  const lastOfPrevious = new Date(today.getFullYear(), today.getMonth(), 0);
   return {
     from: formatIsoDate(
       new Date(lastOfPrevious.getFullYear(), lastOfPrevious.getMonth(), 1),

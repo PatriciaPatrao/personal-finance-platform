@@ -47,6 +47,7 @@ import {
   signalActionLabel,
   signalActionRoute,
 } from './financial-signals';
+import { DomainDateService } from '../shared/domain-date.service';
 
 function formatDate(date: Date): string {
   const year = date.getFullYear();
@@ -195,6 +196,7 @@ export class PersonalFinance implements OnInit {
     private transactionService: TransactionService,
     private incomeService: IncomeService,
     private recurringExpenseService: RecurringExpenseService,
+    private domainDateService: DomainDateService,
     private changeDetector: ChangeDetectorRef,
   ) {}
 
@@ -219,7 +221,7 @@ export class PersonalFinance implements OnInit {
   }
 
   get perCurrencySignals(): CurrencyFinancialSignalGroup[] {
-    if (this.accountsLoading || !this.signalsSuppressed) {
+    if (this.accountsLoading || this.accountsError || !this.signalsSuppressed) {
       return [];
     }
 
@@ -230,7 +232,7 @@ export class PersonalFinance implements OnInit {
   }
 
   get signals(): FinancialSignal[] {
-    if (this.accountsLoading || this.signalsSuppressed) {
+    if (this.accountsLoading || this.accountsError || this.signalsSuppressed) {
       return [];
     }
 
@@ -243,6 +245,7 @@ export class PersonalFinance implements OnInit {
   get quietCheckText(): string {
     if (
       this.accountsLoading ||
+      this.accountsError ||
       this.analysisLoading ||
       this.forecastLoading ||
       this.signalsSuppressed ||
@@ -425,7 +428,9 @@ export class PersonalFinance implements OnInit {
           this.transactionsLoading = false;
           this.schedulesLoading = false;
         }
-        if (this.currentPosition?.kind === 'empty') {
+        if (!accounts.ok) {
+          this.skipFinancialSignals();
+        } else if (this.currentPosition?.kind === 'empty') {
           this.skipFinancialSignals();
         } else {
           this.loadAnalysis(analysisRange);
@@ -449,11 +454,11 @@ export class PersonalFinance implements OnInit {
   }
 
   private loadSupportingContext(): void {
-    const today = formatDate(new Date());
     this.transactionsLoading = true;
     this.schedulesLoading = true;
 
     forkJoin({
+      domainDate: this.domainDateService.loadCurrentDomainDate(),
       transactions: this.transactionService.listTransactions().pipe(
         map((data) => ({ ok: true as const, data })),
         catchError(() => of({ ok: false as const, data: [] })),
@@ -466,7 +471,8 @@ export class PersonalFinance implements OnInit {
         map((data) => ({ ok: true as const, data })),
         catchError(() => of({ ok: false as const, data: [] })),
       ),
-    }).subscribe(({ transactions, incomes, expenses }) => {
+    }).subscribe(({ domainDate, transactions, incomes, expenses }) => {
+      const today = domainDate;
       this.transactionsLoading = false;
       this.schedulesLoading = false;
       this.transactionsLoadFailed = !transactions.ok;
@@ -476,24 +482,29 @@ export class PersonalFinance implements OnInit {
       this.transactionCount = transactions.ok
         ? transactions.data.length
         : null;
-      const incomeDue =
-        incomes.ok &&
-        incomes.data.some(
-          (item) => item.active && item.next_occurrence === today,
-        );
-      const expenseDue =
-        expenses.ok &&
-        expenses.data.some(
-          (item) => item.active && item.next_occurrence === today,
-        );
-      this.hasActiveScheduleOccurrenceToday = incomeDue || expenseDue;
-      this.hasActiveScheduleOccurrenceWithinSevenDays =
-        hasActiveScheduleOccurrenceWithinDays(
-          this.incomes,
-          this.recurringExpenses,
-          today,
-          7,
-        );
+      if (today === null) {
+        this.hasActiveScheduleOccurrenceToday = false;
+        this.hasActiveScheduleOccurrenceWithinSevenDays = false;
+      } else {
+        const incomeDue =
+          incomes.ok &&
+          incomes.data.some(
+            (item) => item.active && item.next_occurrence === today,
+          );
+        const expenseDue =
+          expenses.ok &&
+          expenses.data.some(
+            (item) => item.active && item.next_occurrence === today,
+          );
+        this.hasActiveScheduleOccurrenceToday = incomeDue || expenseDue;
+        this.hasActiveScheduleOccurrenceWithinSevenDays =
+          hasActiveScheduleOccurrenceWithinDays(
+            this.incomes,
+            this.recurringExpenses,
+            today,
+            7,
+          );
+      }
       this.changeDetector.markForCheck();
     });
   }

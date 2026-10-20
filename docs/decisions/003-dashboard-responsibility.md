@@ -4,7 +4,7 @@
 
 Accepted
 
-**Revision note.** The Dashboard shows one stored total per currency, reads Financial Goals, withholds Analysis and Forecast signals when account currencies differ, and links to Accounts, Transactions, Goals, Analysis, and Forecast. Forecast’s mixed-currency sum is unchanged.
+**Revision note.** The Dashboard shows one stored total per currency, reads Financial Goals, shows **per-currency** Analysis and Forecast signal groups when account currencies differ (no cross-currency totals or FX), uses `GET /health` → `current_domain_date` for schedule “due today” and execution alignment, and links to Accounts, Transactions, Goals, Analysis, and Forecast. Forecast’s mixed-currency sum is unchanged.
 
 ## Context
 
@@ -23,7 +23,7 @@ Treat Dashboard as an orchestration and presentation layer, not a financial doma
 - `GET /forecast` grouped by month, from today through the last day of the calendar month two months ahead
 - `GET /financial-goals` for each goal’s name, target, funded amount, and backend-derived progress
 
-It surfaces a small set of transparent text signals when every loaded account uses the same currency. When currencies differ, it does not show Analysis or Forecast signals, because those APIs add amounts without conversion and Forecast still labels its result EUR. That Forecast calculation is unchanged.
+It surfaces transparent text signals from Analysis and Forecast. When every loaded account shares one currency, signals appear in a single block. When currencies differ, it shows **one signal block per currency** (each block uses only that currency’s analysis totals and forecast projection). Amounts are never combined across currencies and no FX conversion is implied. That Forecast API behaviour is unchanged.
 
 Account, analysis, forecast, and goal requests load and fail independently. A failure does not hide data from a request that succeeded, and it does not turn missing data into zero. When a successful check produces no directional signal, the screen says what was checked and over which period.
 
@@ -32,7 +32,7 @@ Dashboard does not duplicate Analysis, Forecast, or Goal calculations, does not 
 ## Consequences
 
 - Domain boundaries stay in Accounts, Analysis, Forecast, and Goals. The home screen cannot become a second definition of cash flow, projection, or goal progress.
-- Signals in `financial-signals.ts` only interpret responses already returned by Analysis and Forecast: the sign of this month’s net cash flow, whether any forecast period has scheduled income, and whether projected balance rises or falls. A zero net cash flow, or an ending projected balance equal to the starting balance, produces no directional signal. The quiet state names the checked period. It does not say that nothing requires attention. Each signal is explainable text. They are not a score and they do not recompute those domains. Mixed account currencies suppress these signals.
+- Signals in `financial-signals.ts` only interpret responses already returned by Analysis and Forecast: the sign of this month’s net cash flow, whether any forecast period has scheduled income, and whether projected balance rises or falls. A zero net cash flow, or an ending projected balance equal to the starting balance, produces no directional signal. The quiet state names the checked period. It does not say that nothing requires attention. Each signal is explainable text. They are not a score and they do not recompute those domains. Mixed account currencies use **per-currency signal groups**, not suppression.
 - Current position is presentation of stored signed balances, grouped by currency. The screen labels it as current position, not a forecast. It does not convert currencies. The Accounts create form’s EUR/USD/GBP list is a UI constraint, not a dashboard or domain rule; the API still accepts any 3-character code.
 - Forecast still sums every stored balance and returns currency `EUR` when accounts differ. The Dashboard does not repeat that figure. Changing the Forecast sum is separate work.
 - Goal progress, funded amount, and completion come from the goal response. Null progress is shown as unavailable. A goal with allocations and a funded amount of zero can show 0%. An allocation whose `funded_amount` is below its designated `amount` is flagged. The Dashboard does not add goal amounts across currencies, and it does not flag a passed target date.
