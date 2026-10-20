@@ -226,9 +226,11 @@
       <div class="panel-header">
         <h2 id="cash-flow-heading">Cash flow over time</h2>
         <label class="field group-by-field">
-          <span class="field-label">Grouping</span>
+          <span class="field-label" id="analysis-groupby-label">Grouping</span>
           <p-select
             name="groupBy"
+            inputId="analysis-groupby"
+            ariaLabelledBy="analysis-groupby-label"
             [options]="groupByOptions"
             optionLabel="label"
             optionValue="value"

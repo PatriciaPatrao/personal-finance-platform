@@ -9,6 +9,7 @@ import { Message } from 'primeng/message';
 import { Select } from 'primeng/select';
 
 import { CopyTable } from '../copy-table/copy-table';
+import { FieldControlA11y } from '../shared/field-control-a11y.directive';
 import {
   Account,
   AccountCreate,
@@ -53,6 +54,7 @@ function parseOpeningBalance(value: string): number | null {
     Card,
     CopyTable,
     CurrencyPipe,
+    FieldControlA11y,
     FormsModule,
     InputText,
     Message,

@@ -95,6 +95,11 @@
   font-weight: 650;
 }
 
+:host ::ng-deep .p-menubar-item-link:focus-visible {
+  outline: var(--focus-outline-width) solid var(--color-focus);
+  outline-offset: var(--focus-outline-offset);
+}
+
 .mobile-nav-bar {
   display: none;
   margin-left: auto;
@@ -123,6 +128,11 @@
   background: rgb(13 148 136 / 12%);
   color: var(--pfp-brand-teal);
   font-weight: 650;
+}
+
+.mobile-nav-list a:focus-visible {
+  outline: var(--focus-outline-width) solid var(--color-focus);
+  outline-offset: var(--focus-outline-offset);
 }
 
 .app-main {

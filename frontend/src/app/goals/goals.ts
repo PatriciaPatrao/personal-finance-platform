@@ -13,6 +13,7 @@ import { Account } from '../accounts/account';
 import { accountDisplayName, accountSelectOptionLabel } from '../accounts/account-display';
 import { AccountService } from '../accounts/account.service';
 import { DateField } from '../analysis/date-field';
+import { FieldControlA11y } from '../shared/field-control-a11y.directive';
 import {
   FinancialGoal,
   FinancialGoalWrite,
@@ -141,6 +142,7 @@ function parseEuropeanDate(value: string): string | null {
     Card,
     CurrencyPipe,
     DateField,
+    FieldControlA11y,
     FormsModule,
     InputText,
     Message,

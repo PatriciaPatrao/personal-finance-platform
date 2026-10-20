@@ -11,6 +11,9 @@
     autocomplete="off"
     class="w-full"
     [value]="value"
+    [attr.aria-describedby]="errorDescribedBy"
+    [attr.aria-invalid]="invalid ? 'true' : null"
+    [attr.aria-required]="required ? 'true' : null"
     (input)="onInput($event)"
   />
   <p-button
@@ -30,7 +33,7 @@
       type="button"
       class="calendar-backdrop"
       aria-label="Close calendar"
-      (click)="open = false"
+      (click)="closeCalendar()"
     ></button>
     <div class="calendar" role="dialog" [id]="calendarId" [attr.aria-label]="'Choose ' + label">
       <div class="calendar-header">

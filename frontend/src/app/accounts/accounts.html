@@ -32,39 +32,61 @@
           <h2>New account</h2>
           <div class="form-fields">
             <label class="field">
-              <span class="field-label">Name</span>
+              <span class="field-label" id="account-create-name-label">Name</span>
               <input
                 pInputText
+                id="account-create-name"
                 name="name"
                 type="text"
                 maxlength="100"
                 class="w-full"
+                aria-required="true"
+                pfpFieldControl
+                [pfpFieldErrorId]="
+                  formNameError ? 'account-create-name-error' : null
+                "
                 [value]="formName"
                 (input)="formName = $any($event.target).value"
               />
               @if (formNameError) {
-                <span class="field-error">{{ formNameError }}</span>
+                <span id="account-create-name-error" class="field-error">{{
+                  formNameError
+                }}</span>
               }
             </label>
             <label class="field">
-              <span class="field-label">Type</span>
+              <span class="field-label" id="account-create-type-label">Type</span>
               <p-select
                 name="accountType"
+                inputId="account-create-type"
+                ariaLabelledBy="account-create-type-label"
+                [required]="true"
                 [options]="accountTypeSelectOptions"
                 optionLabel="label"
                 optionValue="value"
                 [ngModel]="formAccountType"
                 (ngModelChange)="onFormTypeChange($event)"
+                pfpFieldControl
+                [pfpFieldErrorId]="
+                  formTypeError ? 'account-create-type-error' : null
+                "
                 styleClass="w-full"
               />
               @if (formTypeError) {
-                <span class="field-error">{{ formTypeError }}</span>
+                <span id="account-create-type-error" class="field-error">{{
+                  formTypeError
+                }}</span>
               }
             </label>
             <label class="field">
-              <span class="field-label">Currency</span>
+              <span class="field-label" id="account-create-currency-label"
+                >Currency</span
+              >
               <p-select
                 name="currency"
+                inputId="account-create-currency"
+                ariaLabelledBy="account-create-currency-label"
+                [required]="true"
                 [options]="currencySelectOptions"
                 optionLabel="label"
                 optionValue="value"
@@ -74,18 +96,28 @@
               />
             </label>
             <label class="field">
-              <span class="field-label">Opening balance</span>
+              <span class="field-label" id="account-create-balance-label"
+                >Opening balance</span
+              >
               <input
                 pInputText
+                id="account-create-balance"
                 name="currentBalance"
                 type="text"
                 inputmode="decimal"
                 class="w-full"
+                aria-required="true"
+                pfpFieldControl
+                [pfpFieldErrorId]="
+                  formBalanceError ? 'account-create-balance-error' : null
+                "
                 [value]="formBalance"
                 (input)="formBalance = $any($event.target).value"
               />
               @if (formBalanceError) {
-                <span class="field-error">{{ formBalanceError }}</span>
+                <span id="account-create-balance-error" class="field-error">{{
+                  formBalanceError
+                }}</span>
               }
             </label>
           </div>

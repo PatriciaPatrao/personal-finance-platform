@@ -22,9 +22,11 @@
         (valueChange)="toDisplay = $event"
       />
       <label class="field">
-        <span class="field-label">Type</span>
+        <span class="field-label" id="transactions-filter-type-label">Type</span>
         <p-select
           name="type"
+          inputId="transactions-filter-type"
+          ariaLabelledBy="transactions-filter-type-label"
           [options]="typeFilterOptions"
           optionLabel="label"
           optionValue="value"
@@ -34,9 +36,13 @@
         />
       </label>
       <label class="field">
-        <span class="field-label">Category</span>
+        <span class="field-label" id="transactions-filter-category-label"
+          >Category</span
+        >
         <p-select
           name="category"
+          inputId="transactions-filter-category"
+          ariaLabelledBy="transactions-filter-category-label"
           [options]="categoryFilterOptions"
           optionLabel="label"
           optionValue="value"
@@ -146,9 +152,14 @@
         <h2>{{ formTitle }}</h2>
         <div class="form-fields">
           <label class="field">
-            <span class="field-label">Account</span>
+            <span class="field-label" id="transactions-form-account-label"
+              >Account</span
+            >
             <p-select
               name="account"
+              inputId="transactions-form-account"
+              ariaLabelledBy="transactions-form-account-label"
+              [required]="true"
               [options]="accountSelectOptions"
               optionLabel="label"
               optionValue="value"
@@ -182,9 +193,12 @@
             />
           </label>
           <label class="field">
-            <span class="field-label">Type</span>
+            <span class="field-label" id="transactions-form-type-label">Type</span>
             <p-select
               name="transactionType"
+              inputId="transactions-form-type"
+              ariaLabelledBy="transactions-form-type-label"
+              [required]="true"
               [options]="transactionTypeOptions"
               optionLabel="label"
               optionValue="value"
@@ -201,9 +215,13 @@
             (valueChange)="formDateDisplay = $event"
           />
           <label class="field field-category">
-            <span class="field-label">Category</span>
+            <span class="field-label" id="transactions-form-category-label"
+              >Category</span
+            >
             <p-select
               name="category"
+              inputId="transactions-form-category"
+              ariaLabelledBy="transactions-form-category-label"
               [options]="formCategorySelectOptions"
               optionLabel="label"
               optionValue="value"

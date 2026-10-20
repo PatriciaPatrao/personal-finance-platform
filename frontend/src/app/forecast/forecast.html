@@ -28,9 +28,11 @@
         (valueChange)="toDisplay = $event"
       />
       <label class="field account-field">
-        <span class="field-label">Account</span>
+        <span class="field-label" id="forecast-account-label">Account</span>
         <p-select
           name="account"
+          inputId="forecast-account"
+          ariaLabelledBy="forecast-account-label"
           [options]="accountFilterOptions"
           optionLabel="label"
           optionValue="value"
@@ -165,9 +167,15 @@
             </div>
 
             <label class="field group-by-field">
-              <span class="field-label">Grouping</span>
+              <span
+                class="field-label"
+                [id]="'forecast-groupby-label-' + projection.currency"
+                >Grouping</span
+              >
               <p-select
                 [name]="'groupBy-' + projection.currency"
+                [inputId]="'forecast-groupby-' + projection.currency"
+                [ariaLabelledBy]="'forecast-groupby-label-' + projection.currency"
                 [options]="groupByOptions"
                 optionLabel="label"
                 optionValue="value"

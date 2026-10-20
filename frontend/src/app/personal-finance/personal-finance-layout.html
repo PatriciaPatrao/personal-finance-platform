@@ -38,13 +38,14 @@
 
   <div class="mobile-nav-bar">
     <p-button
+      #mobileNavTrigger
       type="button"
       icon="pi pi-bars"
       [rounded]="true"
       [text]="true"
       severity="secondary"
       ariaLabel="Open navigation menu"
-      (onClick)="mobileNavOpen = true"
+      (onClick)="openMobileNav()"
     />
   </div>
 </header>
@@ -54,6 +55,7 @@
   position="left"
   header="Navigate"
   styleClass="app-mobile-drawer"
+  (onHide)="onMobileNavHide()"
 >
   <nav aria-label="Primary mobile">
     <ul class="mobile-nav-list">

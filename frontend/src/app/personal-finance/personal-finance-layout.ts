@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ElementRef, ViewChild } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MenuItem } from 'primeng/api';
 import { Button } from 'primeng/button';
@@ -12,6 +12,9 @@ import { Menubar } from 'primeng/menubar';
   styleUrl: './personal-finance-layout.scss',
 })
 export class PersonalFinanceLayout {
+  @ViewChild('mobileNavTrigger', { read: ElementRef })
+  private mobileNavTriggerRef?: ElementRef<HTMLElement>;
+
   mobileNavOpen = false;
 
   readonly navItems: MenuItem[] = [
@@ -52,6 +55,22 @@ export class PersonalFinanceLayout {
       routerLink: '/personal_finance/goals',
     },
   ];
+
+  openMobileNav(): void {
+    this.mobileNavOpen = true;
+  }
+
+  onMobileNavHide(): void {
+    queueMicrotask(() => this.focusMobileNavTrigger());
+  }
+
+  private focusMobileNavTrigger(): void {
+    const host = this.mobileNavTriggerRef?.nativeElement;
+    const button = host?.querySelector('button');
+    if (button instanceof HTMLButtonElement) {
+      button.focus();
+    }
+  }
 
   skipToMain(): void {
     const main = document.getElementById('main-content');

@@ -251,6 +251,15 @@ describe('Schedules', () => {
     expect(component.formAmountError).toBe(
       'Enter a positive amount with at most two decimal places.',
     );
+
+    const accountControl = compiled.querySelector(
+      '#schedule-income-account[role="combobox"]',
+    ) as HTMLElement;
+    expect(accountControl.getAttribute('aria-invalid')).toBe('true');
+    expect(accountControl.getAttribute('aria-describedby')).toBe(
+      'schedule-income-account-error',
+    );
+    expect(accountControl.getAttribute('aria-required')).toBe('true');
   });
 
   it('should reject zero, negative, and over-precision schedule amounts', async () => {

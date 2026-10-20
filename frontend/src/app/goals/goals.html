@@ -173,17 +173,44 @@
                       @if (isReducing(allocation)) {
                         <div class="reduce-form">
                           <label class="field">
-                            <span class="field-label">New amount</span>
+                            <span
+                              class="field-label"
+                              [id]="
+                                'goal-reduce-' +
+                                allocation.id +
+                                '-amount-label'
+                              "
+                              >New amount</span
+                            >
                             <input
                               pInputText
                               type="text"
                               inputmode="decimal"
                               class="w-full"
+                              aria-required="true"
+                              [id]="
+                                'goal-reduce-' + allocation.id + '-amount'
+                              "
+                              pfpFieldControl
+                              [pfpFieldErrorId]="
+                                reduceAmountError
+                                  ? 'goal-reduce-' +
+                                    allocation.id +
+                                    '-amount-error'
+                                  : null
+                              "
                               [value]="reduceAmount"
                               (input)="reduceAmount = $any($event.target).value"
                             />
                             @if (reduceAmountError) {
-                              <span class="field-error">
+                              <span
+                                [id]="
+                                  'goal-reduce-' +
+                                  allocation.id +
+                                  '-amount-error'
+                                "
+                                class="field-error"
+                              >
                                 {{ reduceAmountError }}
                               </span>
                             }
@@ -250,14 +277,29 @@
                     account balance.
                   </p>
                   <label class="field">
-                    <span class="field-label">Account</span>
+                    <span
+                      class="field-label"
+                      [id]="'goal-allocate-' + goal.id + '-account-label'"
+                      >Account</span
+                    >
                     <p-select
                       name="allocateAccountId"
+                      [inputId]="'goal-allocate-' + goal.id + '-account'"
+                      [ariaLabelledBy]="
+                        'goal-allocate-' + goal.id + '-account-label'
+                      "
+                      [required]="true"
                       [options]="allocateAccountSelectOptions(goal)"
                       optionLabel="label"
                       optionValue="value"
                       [ngModel]="allocateAccountId"
                       (ngModelChange)="onAllocateAccountChange($event)"
+                      pfpFieldControl
+                              [pfpFieldErrorId]="
+                        allocateError === 'Select an account.'
+                          ? 'goal-allocate-' + goal.id + '-form-error'
+                          : null
+                      "
                       styleClass="w-full"
                     />
                     @if (accountsLoadFailed) {
@@ -298,22 +340,39 @@
                     </dl>
                   }
                   <label class="field">
-                    <span class="field-label">Amount to designate</span>
+                    <span
+                      class="field-label"
+                      [id]="'goal-allocate-' + goal.id + '-amount-label'"
+                      >Amount to designate</span
+                    >
                     <input
                       pInputText
                       name="allocateAmount"
                       type="text"
                       inputmode="decimal"
                       class="w-full"
+                      aria-required="true"
+                      [id]="'goal-allocate-' + goal.id + '-amount'"
+                      pfpFieldControl
+                              [pfpFieldErrorId]="
+                        allocateAmountError
+                          ? 'goal-allocate-' + goal.id + '-amount-error'
+                          : null
+                      "
                       [value]="allocateAmount"
                       (input)="allocateAmount = $any($event.target).value"
                     />
                     @if (allocateAmountError) {
-                      <span class="field-error">{{ allocateAmountError }}</span>
+                      <span
+                        [id]="'goal-allocate-' + goal.id + '-amount-error'"
+                        class="field-error"
+                        >{{ allocateAmountError }}</span
+                      >
                     }
                   </label>
                   @if (allocateError) {
                     <p-message
+                      [id]="'goal-allocate-' + goal.id + '-form-error'"
                       severity="error"
                       styleClass="status-error"
                       [text]="allocateError"
@@ -375,41 +434,60 @@
 <ng-template #goalFields>
   <div class="form-fields">
     <label class="field">
-      <span class="field-label">Name</span>
+      <span class="field-label" id="goal-form-name-label">Name</span>
       <input
         pInputText
+        id="goal-form-name"
         name="name"
         type="text"
         maxlength="100"
         class="w-full"
+        aria-required="true"
+        pfpFieldControl
+        [pfpFieldErrorId]="formNameError ? 'goal-form-name-error' : null"
         [value]="formName"
         (input)="formName = $any($event.target).value"
       />
       @if (formNameError) {
-        <span class="field-error">{{ formNameError }}</span>
+        <span id="goal-form-name-error" class="field-error">{{
+          formNameError
+        }}</span>
       }
     </label>
 
     <label class="field">
-      <span class="field-label">Target amount</span>
+      <span class="field-label" id="goal-form-target-amount-label"
+        >Target amount</span
+      >
       <input
         pInputText
+        id="goal-form-target-amount"
         name="targetAmount"
         type="text"
         inputmode="decimal"
         class="w-full"
+        aria-required="true"
+        pfpFieldControl
+        [pfpFieldErrorId]="
+          formTargetAmountError ? 'goal-form-target-amount-error' : null
+        "
         [value]="formTargetAmount"
         (input)="formTargetAmount = $any($event.target).value"
       />
       @if (formTargetAmountError) {
-        <span class="field-error">{{ formTargetAmountError }}</span>
+        <span id="goal-form-target-amount-error" class="field-error">{{
+          formTargetAmountError
+        }}</span>
       }
     </label>
 
     <label class="field">
-      <span class="field-label">Currency</span>
+      <span class="field-label" id="goal-form-currency-label">Currency</span>
       <p-select
         name="currency"
+        inputId="goal-form-currency"
+        ariaLabelledBy="goal-form-currency-label"
+        [required]="true"
         [options]="currencySelectOptions"
         optionLabel="label"
         optionValue="value"
@@ -430,10 +508,16 @@
         label="Target date (optional)"
         name="targetDate"
         [value]="formTargetDateDisplay"
+        [errorDescribedBy]="
+          formTargetDateError ? 'goal-form-target-date-error' : null
+        "
+        [invalid]="formTargetDateError !== null"
         (valueChange)="formTargetDateDisplay = $event"
       />
       @if (formTargetDateError) {
-        <span class="field-error">{{ formTargetDateError }}</span>
+        <span id="goal-form-target-date-error" class="field-error">{{
+          formTargetDateError
+        }}</span>
       }
     </div>
   </div>

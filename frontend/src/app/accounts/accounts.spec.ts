@@ -290,6 +290,17 @@ describe('Accounts', () => {
 
     expect(createAccount).not.toHaveBeenCalled();
     expect(compiled.textContent).toContain('Select an account type.');
+
+    const typeControl = compiled.querySelector(
+      '#account-create-type[role="combobox"]',
+    ) as HTMLElement;
+    expect(typeControl.getAttribute('aria-invalid')).toBe('true');
+    expect(typeControl.getAttribute('aria-describedby')).toBe(
+      'account-create-type-error',
+    );
+    expect(typeControl.getAttribute('aria-labelledby')).toBe(
+      'account-create-type-label',
+    );
   });
 
   it('should default the currency to EUR', async () => {

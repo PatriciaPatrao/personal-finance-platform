@@ -253,6 +253,15 @@ describe('Goals', () => {
     expect(component.formTargetAmountError).toBe(
       'Enter a target amount greater than zero.',
     );
+
+    const nameInput = compiled.querySelector(
+      '#goal-form-name',
+    ) as HTMLInputElement;
+    expect(nameInput.getAttribute('aria-invalid')).toBe('true');
+    expect(nameInput.getAttribute('aria-describedby')).toBe(
+      'goal-form-name-error',
+    );
+    expect(nameInput.getAttribute('aria-required')).toBe('true');
   });
 
   it('should create an unallocated goal', async () => {

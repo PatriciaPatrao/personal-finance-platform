@@ -113,9 +113,11 @@
         <h2 id="salary-heading">Salary</h2>
         <div class="section-controls">
           <label class="filter-field">
-            <span class="field-label">Show</span>
+            <span class="field-label" id="schedule-income-filter-label">Show</span>
             <p-select
               name="incomeFilter"
+              inputId="schedule-income-filter"
+              ariaLabelledBy="schedule-income-filter-label"
               [options]="activeFilterOptions"
               optionLabel="label"
               optionValue="value"
@@ -284,9 +286,11 @@
         <h2 id="recurring-expenses-heading">Recurring expenses</h2>
         <div class="section-controls">
           <label class="filter-field">
-            <span class="field-label">Show</span>
+            <span class="field-label" id="schedule-expense-filter-label">Show</span>
             <p-select
               name="expenseFilter"
+              inputId="schedule-expense-filter"
+              ariaLabelledBy="schedule-expense-filter-label"
               [options]="activeFilterOptions"
               optionLabel="label"
               optionValue="value"
@@ -515,41 +519,63 @@
 <ng-template #incomeFields>
   <div class="form-fields">
     <label class="field">
-      <span class="field-label">Account</span>
+      <span class="field-label" id="schedule-income-account-label">Account</span>
       <p-select
         name="incomeAccount"
+        inputId="schedule-income-account"
+        ariaLabelledBy="schedule-income-account-label"
+        [required]="true"
         [options]="accountSelectOptions"
         optionLabel="label"
         optionValue="value"
         [ngModel]="formAccountId"
         (ngModelChange)="onFormAccountChange($event)"
+        pfpFieldControl
+        [pfpFieldErrorId]="
+          formAccountError ? 'schedule-income-account-error' : null
+        "
         styleClass="w-full"
       />
       @if (formAccountError) {
-        <span class="field-error">{{ formAccountError }}</span>
+        <span id="schedule-income-account-error" class="field-error">{{
+          formAccountError
+        }}</span>
       }
     </label>
 
     <label class="field">
-      <span class="field-label">Amount</span>
+      <span class="field-label" id="schedule-income-amount-label">Amount</span>
       <input
         pInputText
+        id="schedule-income-amount"
         name="incomeAmount"
         type="text"
         inputmode="decimal"
         class="w-full"
+        aria-required="true"
+        pfpFieldControl
+        [pfpFieldErrorId]="
+          formAmountError ? 'schedule-income-amount-error' : null
+        "
         [value]="formAmount"
         (input)="formAmount = $any($event.target).value"
       />
       @if (formAmountError) {
-        <span class="field-error">{{ formAmountError }}</span>
+        <span id="schedule-income-amount-error" class="field-error">{{
+          formAmountError
+        }}</span>
       }
     </label>
 
     <label class="field">
-      <span class="field-label">Frequency</span>
+      <span class="field-label" id="schedule-income-frequency-label"
+        >Frequency</span
+      >
       <p-select
         name="incomeFrequency"
+        inputId="schedule-income-frequency"
+        ariaLabelledBy="schedule-income-frequency-label"
+        [required]="true"
         [options]="frequencySelectOptions"
         optionLabel="label"
         optionValue="value"
@@ -564,10 +590,17 @@
         label="Start date"
         name="incomeStartDate"
         [value]="formStartDateDisplay"
+        [required]="true"
+        [errorDescribedBy]="
+          formStartDateError ? 'schedule-income-start-date-error' : null
+        "
+        [invalid]="formStartDateError !== null"
         (valueChange)="formStartDateDisplay = $event"
       />
       @if (formStartDateError) {
-        <span class="field-error">{{ formStartDateError }}</span>
+        <span id="schedule-income-start-date-error" class="field-error">{{
+          formStartDateError
+        }}</span>
       }
     </div>
 
@@ -576,10 +609,17 @@
         label="Next occurrence"
         name="incomeNextOccurrence"
         [value]="formNextOccurrenceDisplay"
+        [required]="true"
+        [errorDescribedBy]="
+          formNextOccurrenceError ? 'schedule-income-next-occurrence-error' : null
+        "
+        [invalid]="formNextOccurrenceError !== null"
         (valueChange)="formNextOccurrenceDisplay = $event"
       />
       @if (formNextOccurrenceError) {
-        <span class="field-error">{{ formNextOccurrenceError }}</span>
+        <span id="schedule-income-next-occurrence-error" class="field-error">{{
+          formNextOccurrenceError
+        }}</span>
       }
     </div>
 
@@ -588,10 +628,16 @@
         label="End date (optional)"
         name="incomeEndDate"
         [value]="formEndDateDisplay"
+        [errorDescribedBy]="
+          formEndDateError ? 'schedule-income-end-date-error' : null
+        "
+        [invalid]="formEndDateError !== null"
         (valueChange)="formEndDateDisplay = $event"
       />
       @if (formEndDateError) {
-        <span class="field-error">{{ formEndDateError }}</span>
+        <span id="schedule-income-end-date-error" class="field-error">{{
+          formEndDateError
+        }}</span>
       }
     </div>
 
@@ -621,73 +667,116 @@
 <ng-template #expenseFields>
   <div class="form-fields">
     <label class="field">
-      <span class="field-label">Account</span>
+      <span class="field-label" id="schedule-expense-account-label"
+        >Account</span
+      >
       <p-select
         name="expenseAccount"
+        inputId="schedule-expense-account"
+        ariaLabelledBy="schedule-expense-account-label"
+        [required]="true"
         [options]="accountSelectOptions"
         optionLabel="label"
         optionValue="value"
         [ngModel]="formAccountId"
         (ngModelChange)="onFormAccountChange($event)"
+        pfpFieldControl
+        [pfpFieldErrorId]="
+          formAccountError ? 'schedule-expense-account-error' : null
+        "
         styleClass="w-full"
       />
       @if (formAccountError) {
-        <span class="field-error">{{ formAccountError }}</span>
+        <span id="schedule-expense-account-error" class="field-error">{{
+          formAccountError
+        }}</span>
       }
     </label>
 
     <label class="field">
-      <span class="field-label">Description</span>
+      <span class="field-label" id="schedule-expense-description-label"
+        >Description</span
+      >
       <input
         pInputText
+        id="schedule-expense-description"
         name="expenseDescription"
         type="text"
         maxlength="255"
         class="w-full"
+        aria-required="true"
+        pfpFieldControl
+        [pfpFieldErrorId]="
+          formDescriptionError ? 'schedule-expense-description-error' : null
+        "
         [value]="formDescription"
         (input)="formDescription = $any($event.target).value"
       />
       @if (formDescriptionError) {
-        <span class="field-error">{{ formDescriptionError }}</span>
+        <span id="schedule-expense-description-error" class="field-error">{{
+          formDescriptionError
+        }}</span>
       }
     </label>
 
     <label class="field">
-      <span class="field-label">Amount</span>
+      <span class="field-label" id="schedule-expense-amount-label">Amount</span>
       <input
         pInputText
+        id="schedule-expense-amount"
         name="expenseAmount"
         type="text"
         inputmode="decimal"
         class="w-full"
+        aria-required="true"
+        pfpFieldControl
+        [pfpFieldErrorId]="
+          formAmountError ? 'schedule-expense-amount-error' : null
+        "
         [value]="formAmount"
         (input)="formAmount = $any($event.target).value"
       />
       @if (formAmountError) {
-        <span class="field-error">{{ formAmountError }}</span>
+        <span id="schedule-expense-amount-error" class="field-error">{{
+          formAmountError
+        }}</span>
       }
     </label>
 
     <label class="field">
-      <span class="field-label">Category (optional)</span>
+      <span class="field-label" id="schedule-expense-category-label"
+        >Category (optional)</span
+      >
       <input
         pInputText
+        id="schedule-expense-category"
         name="expenseCategory"
         type="text"
         maxlength="100"
         class="w-full"
+        pfpFieldControl
+        [pfpFieldErrorId]="
+          formCategoryError ? 'schedule-expense-category-error' : null
+        "
         [value]="formCategory"
         (input)="formCategory = $any($event.target).value"
       />
       @if (formCategoryError) {
-        <span class="field-error">{{ formCategoryError }}</span>
+        <span id="schedule-expense-category-error" class="field-error">{{
+          formCategoryError
+        }}</span>
       }
     </label>
 
     <label class="field">
-      <span class="field-label">Frequency</span>
+      <span class="field-label" id="schedule-expense-frequency-label"
+        >Frequency</span
+      >
       <p-select
         name="expenseFrequency"
+        inputId="schedule-expense-frequency"
+        ariaLabelledBy="schedule-expense-frequency-label"
+        [required]="true"
         [options]="frequencySelectOptions"
         optionLabel="label"
         optionValue="value"
@@ -702,10 +791,17 @@
         label="Start date"
         name="expenseStartDate"
         [value]="formStartDateDisplay"
+        [required]="true"
+        [errorDescribedBy]="
+          formStartDateError ? 'schedule-expense-start-date-error' : null
+        "
+        [invalid]="formStartDateError !== null"
         (valueChange)="formStartDateDisplay = $event"
       />
       @if (formStartDateError) {
-        <span class="field-error">{{ formStartDateError }}</span>
+        <span id="schedule-expense-start-date-error" class="field-error">{{
+          formStartDateError
+        }}</span>
       }
     </div>
 
@@ -714,10 +810,19 @@
         label="Next occurrence"
         name="expenseNextOccurrence"
         [value]="formNextOccurrenceDisplay"
+        [required]="true"
+        [errorDescribedBy]="
+          formNextOccurrenceError
+            ? 'schedule-expense-next-occurrence-error'
+            : null
+        "
+        [invalid]="formNextOccurrenceError !== null"
         (valueChange)="formNextOccurrenceDisplay = $event"
       />
       @if (formNextOccurrenceError) {
-        <span class="field-error">{{ formNextOccurrenceError }}</span>
+        <span id="schedule-expense-next-occurrence-error" class="field-error">{{
+          formNextOccurrenceError
+        }}</span>
       }
     </div>
 
@@ -726,10 +831,16 @@
         label="End date (optional)"
         name="expenseEndDate"
         [value]="formEndDateDisplay"
+        [errorDescribedBy]="
+          formEndDateError ? 'schedule-expense-end-date-error' : null
+        "
+        [invalid]="formEndDateError !== null"
         (valueChange)="formEndDateDisplay = $event"
       />
       @if (formEndDateError) {
-        <span class="field-error">{{ formEndDateError }}</span>
+        <span id="schedule-expense-end-date-error" class="field-error">{{
+          formEndDateError
+        }}</span>
       }
     </div>
 
@@ -771,6 +882,13 @@
         label="Occurrence date"
         [name]="'execution-' + kind + '-' + scheduleId"
         [value]="executionDateDisplay(kind, scheduleId)"
+        [required]="true"
+        [errorDescribedBy]="
+          executionError(kind, scheduleId)
+            ? 'execution-' + kind + '-' + scheduleId + '-error'
+            : null
+        "
+        [invalid]="executionError(kind, scheduleId) !== null"
         (valueChange)="onExecutionDateChange(kind, scheduleId, $event)"
       />
     </div>
@@ -786,7 +904,11 @@
       (onClick)="requestExecutionFromPanel(kind, scheduleId)"
     />
     @if (executionError(kind, scheduleId); as executionMessage) {
-      <p class="field-error execution-error" role="alert">
+      <p
+        [id]="'execution-' + kind + '-' + scheduleId + '-error'"
+        class="field-error execution-error"
+        role="alert"
+      >
         {{ executionMessage }}
       </p>
     }

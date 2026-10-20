@@ -21,6 +21,7 @@ import {
   accountDisplayName,
   accountSelectOptionLabel,
 } from '../accounts/account-display';
+import { FieldControlA11y } from '../shared/field-control-a11y.directive';
 import { trapFocusWithin } from '../shared/focus-trap';
 import { AccountService } from '../accounts/account.service';
 import { DateField } from '../analysis/date-field';
@@ -197,6 +198,7 @@ type PendingExecution = {
     Card,
     CurrencyPipe,
     DateField,
+    FieldControlA11y,
     FormsModule,
     InputText,
     Message,

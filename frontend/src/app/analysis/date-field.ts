@@ -2,12 +2,14 @@ import {
   Component,
   ElementRef,
   EventEmitter,
-  HostListener,
   Input,
+  OnDestroy,
   Output,
 } from '@angular/core';
 import { Button } from 'primeng/button';
 import { InputText } from 'primeng/inputtext';
+
+import { trapFocusWithin } from '../shared/focus-trap';
 
 const MONTH_NAMES = [
   'January',
@@ -73,11 +75,15 @@ function parseEuropeanDate(value: string): Date | null {
   templateUrl: './date-field.html',
   styleUrl: './date-field.scss',
 })
-export class DateField {
+export class DateField implements OnDestroy {
   @Input({ required: true }) label = '';
   @Input({ required: true }) name = '';
   @Input() value = '';
   @Input() maxIsoDate: string | null = null;
+  /** Id of the field error element shown below this control. */
+  @Input() errorDescribedBy: string | null = null;
+  @Input() invalid = false;
+  @Input() required = false;
   @Output() valueChange = new EventEmitter<string>();
 
   open = false;
@@ -86,7 +92,13 @@ export class DateField {
   calendarDays: CalendarDay[] = [];
   readonly weekdays = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
+  private calendarFocusRelease: (() => void) | null = null;
+
   constructor(private host: ElementRef<HTMLElement>) {}
+
+  ngOnDestroy(): void {
+    this.releaseCalendarFocusTrap(false);
+  }
 
   get inputId(): string {
     return `${this.name}-date`;
@@ -148,11 +160,24 @@ export class DateField {
   toggleCalendar(event: Event): void {
     event.preventDefault();
     event.stopPropagation();
-    this.open = !this.open;
     if (this.open) {
-      this.syncViewToValue();
-      this.refreshDays();
+      this.closeCalendar();
+      return;
     }
+
+    this.open = true;
+    this.syncViewToValue();
+    this.refreshDays();
+    queueMicrotask(() => this.activateCalendarFocusTrap());
+  }
+
+  closeCalendar(): void {
+    if (!this.open && this.calendarFocusRelease === null) {
+      return;
+    }
+
+    this.open = false;
+    this.releaseCalendarFocusTrap(true);
   }
 
   previousMonth(): void {
@@ -184,12 +209,48 @@ export class DateField {
     this.valueChange.emit(
       toEuropeanDate(new Date(year, month - 1, dayNumber)),
     );
-    this.open = false;
+    this.closeCalendar();
   }
 
-  @HostListener('document:keydown.escape')
-  closeOnEscape(): void {
-    this.open = false;
+  private activateCalendarFocusTrap(): void {
+    if (!this.open) {
+      return;
+    }
+
+    const calendar = this.host.nativeElement.querySelector(
+      `#${this.calendarId}`,
+    );
+    if (!(calendar instanceof HTMLElement)) {
+      return;
+    }
+
+    this.releaseCalendarFocusTrap(false);
+    this.calendarFocusRelease = trapFocusWithin(calendar, {
+      onEscape: () => this.closeCalendar(),
+    });
+  }
+
+  private releaseCalendarFocusTrap(restoreInputFocus: boolean): void {
+    if (!this.calendarFocusRelease) {
+      if (restoreInputFocus) {
+        this.focusDateInput();
+      }
+      return;
+    }
+
+    const release = this.calendarFocusRelease;
+    this.calendarFocusRelease = null;
+    release();
+    if (restoreInputFocus) {
+      this.focusDateInput();
+    }
+  }
+
+  private focusDateInput(): void {
+    const input = this.host.nativeElement.querySelector('input');
+    if (input instanceof HTMLInputElement) {
+      input.focus();
+    }
   }
 
   private syncViewToValue(): void {

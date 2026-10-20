@@ -63,6 +63,24 @@ body {
   line-height: 1.5;
 }
 
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role='combobox']:focus-visible {
+  outline: var(--focus-outline-width) solid var(--color-focus);
+  outline-offset: var(--focus-outline-offset);
+}
+
+.p-button:focus-visible,
+.p-button:not(:disabled):focus-visible,
+.p-select:focus-visible,
+.p-select:not(.p-disabled):focus-within {
+  outline: var(--focus-outline-width) solid var(--color-focus);
+  outline-offset: var(--focus-outline-offset);
+}
+
 .pfp-page,
 .analysis-page,
 .forecast-page,
@@ -623,13 +641,23 @@ body {
       content: ' — stable';
       color: var(--pfp-text-muted);
     }
+
+    .sparkline-bar-item {
+      min-width: 2.35rem;
+    }
+
+    .sparkline-caption {
+      line-height: 1.35;
+    }
   }
 
   .sparkline-label {
-    font-size: 0.65rem;
+    font-size: 0.75rem;
+    line-height: 1.25;
     color: var(--pfp-text-muted);
     text-align: center;
-    word-break: break-all;
+    overflow-wrap: anywhere;
+    hyphens: auto;
   }
 
   .period-latest {

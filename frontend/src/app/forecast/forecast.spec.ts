@@ -224,6 +224,21 @@ describe('Forecast', () => {
       'EUR projected balance trend, rising',
     );
 
+    const accountControl = root.querySelector(
+      '#forecast-account[role="combobox"]',
+    ) as HTMLElement;
+    expect(accountControl.getAttribute('aria-labelledby')).toBe(
+      'forecast-account-label',
+    );
+
+    const periodLabels = root.querySelectorAll(
+      '.balance-sparkline .sparkline-label',
+    );
+    expect(periodLabels.length).toBeGreaterThan(0);
+    expect(
+      root.querySelector('.balance-spark-bars')?.getAttribute('aria-hidden'),
+    ).toBe('true');
+
     const accessibleSummary = root.querySelector(
       '.balance-sparkline .visually-hidden',
     );
