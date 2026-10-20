@@ -77,6 +77,37 @@
   }
 
   @if (!loading && errorMessage === null) {
+    <div class="page-create-actions">
+      @if (formKind !== 'income' || formMode !== 'create') {
+        <p-button
+          type="button"
+          label="Create income"
+          styleClass="create-schedule-button"
+          [disabled]="
+            !hasAccounts ||
+            accountsLoadFailed ||
+            saving ||
+            executingKey !== null
+          "
+          (onClick)="startCreateIncome()"
+        />
+      }
+      @if (formKind !== 'expense' || formMode !== 'create') {
+        <p-button
+          type="button"
+          label="Create expense"
+          styleClass="create-schedule-button"
+          [disabled]="
+            !hasAccounts ||
+            accountsLoadFailed ||
+            saving ||
+            executingKey !== null
+          "
+          (onClick)="startCreateExpense()"
+        />
+      }
+    </div>
+
     <p-card styleClass="pfp-panel-card schedule-section" aria-labelledby="salary-heading">
       <div class="section-header">
         <h2 id="salary-heading">Salary</h2>
@@ -93,13 +124,10 @@
               styleClass="w-full"
             />
           </label>
-          @if (
-            formKind !== 'income' ||
-            formMode !== 'create'
-          ) {
+          @if (formKind !== 'income' || formMode !== 'create') {
             <p-button
               type="button"
-              label="Create salary"
+              label="Create income"
               styleClass="create-schedule-button"
               [disabled]="
                 !hasAccounts ||
@@ -267,13 +295,10 @@
               styleClass="w-full"
             />
           </label>
-          @if (
-            formKind !== 'expense' ||
-            formMode !== 'create'
-          ) {
+          @if (formKind !== 'expense' || formMode !== 'create') {
             <p-button
               type="button"
-              label="Create recurring expense"
+              label="Create expense"
               styleClass="create-schedule-button"
               [disabled]="
                 !hasAccounts ||
@@ -778,8 +803,8 @@
           : formMode === 'edit'
             ? 'Save'
             : formKind === 'income'
-              ? 'Create salary'
-              : 'Create recurring expense'
+              ? 'Create income'
+              : 'Create expense'
       "
       styleClass="save-button"
       [disabled]="!canSubmit"
