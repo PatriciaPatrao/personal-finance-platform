@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from sqlalchemy import DateTime
 from sqlalchemy import Enum
+from sqlalchemy import ForeignKey
 from sqlalchemy import Numeric
 from sqlalchemy import String
 from sqlalchemy import func
@@ -33,6 +34,11 @@ class Account(Base):
     id: Mapped[int] = mapped_column(
         primary_key=True,
         nullable=False,
+    )
+    household_id: Mapped[int] = mapped_column(
+        ForeignKey("households.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     name: Mapped[str] = mapped_column(
         String(100),

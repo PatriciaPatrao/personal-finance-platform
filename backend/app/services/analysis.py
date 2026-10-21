@@ -64,10 +64,20 @@ def _monthly_periods(from_date: date, to_date: date) -> list[str]:
 class AnalysisService:
     """Coordinate historical analysis without writing data."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        household_id: int,
+    ) -> None:
         """Bind the service to one database session."""
-        self._repository = AnalysisRepository(session)
-        self._summary = FinancialSummaryService(session)
+        self._repository = AnalysisRepository(
+            session,
+            household_id,
+        )
+        self._summary = FinancialSummaryService(
+            session,
+            household_id,
+        )
 
     def get_summary(
         self,

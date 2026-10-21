@@ -1,12 +1,12 @@
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { AuthService } from '@auth0/auth0-angular';
+import { of } from 'rxjs';
 import { Title } from '@angular/platform-browser';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter, Router } from '@angular/router';
 import { providePrimeNG } from 'primeng/config';
-import { of } from 'rxjs';
-
 import { PfpPreset } from './design-system/pfp-preset';
 
 import { AccountService } from './accounts/account.service';
@@ -36,6 +36,16 @@ describe('App routing', { timeout: 20_000 }, () => {
         provideRouter(routes),
         provideHttpClient(),
         provideHttpClientTesting(),
+        {
+          provide: AuthService,
+          useValue: {
+            isAuthenticated$: of(true),
+            user$: of({ sub: 'test-user' }),
+            loginWithRedirect: () => of(undefined),
+            logout: () => of(undefined),
+            getAccessTokenSilently: () => of('test-token'),
+          },
+        },
         {
           provide: AccountService,
           useValue: {

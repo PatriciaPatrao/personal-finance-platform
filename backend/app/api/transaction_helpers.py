@@ -10,12 +10,16 @@ def transaction_response(
     session: Session,
     transaction: Transaction,
     *,
+    household_id: int,
     linked_to_schedule_execution: bool | None = None,
 ) -> TransactionResponse:
     """Build a transaction API response with schedule linkage."""
     if linked_to_schedule_execution is None:
         linked_to_schedule_execution = (
-            ScheduleExecutionRepository(session).get_by_transaction_id(
+            ScheduleExecutionRepository(
+                session,
+                household_id,
+            ).get_by_transaction_id(
                 transaction.id,
             )
             is not None
@@ -33,15 +37,21 @@ def transaction_response(
 def transaction_responses_for_list(
     session: Session,
     transactions: list[Transaction],
+    *,
+    household_id: int,
 ) -> list[TransactionResponse]:
     """Build transaction responses using one bulk execution lookup."""
     linked_ids = ScheduleExecutionRepository(
         session,
-    ).linked_transaction_ids(transaction.id for transaction in transactions)
+        household_id,
+    ).linked_transaction_ids(
+        transaction.id for transaction in transactions
+    )
     return [
         transaction_response(
             session,
             transaction,
+            household_id=household_id,
             linked_to_schedule_execution=(
                 transaction.id in linked_ids
             ),

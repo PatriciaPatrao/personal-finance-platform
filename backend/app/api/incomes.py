@@ -5,6 +5,8 @@ from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status
 
+from app.api.deps import get_current_member
+from app.core.auth.context import AuthenticatedMember
 from app.db.session import Session
 from app.db.session import get_db
 from app.schemas.income import IncomeCreate
@@ -33,9 +35,10 @@ router = APIRouter()
 def create_income(
     data: IncomeCreate,
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> IncomeResponse:
     """Create an income and return the stored record."""
-    service = IncomeService(session)
+    service = IncomeService(session, member.household_id)
     try:
         income = service.create(data)
     except AccountNotFoundError:
@@ -57,9 +60,10 @@ def create_income(
 )
 def list_incomes(
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> list[IncomeResponse]:
     """Return every stored income."""
-    service = IncomeService(session)
+    service = IncomeService(session, member.household_id)
     incomes = service.list_all()
     return [
         IncomeResponse.model_validate(item)
@@ -74,9 +78,10 @@ def list_incomes(
 def get_income(
     income_id: int,
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> IncomeResponse:
     """Return one stored income."""
-    service = IncomeService(session)
+    service = IncomeService(session, member.household_id)
     income = service.get_by_id(income_id)
     if income is None:
         raise HTTPException(
@@ -94,9 +99,10 @@ def update_income(
     income_id: int,
     data: IncomeUpdate,
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> IncomeResponse:
     """Fully update an income and return it."""
-    service = IncomeService(session)
+    service = IncomeService(session, member.household_id)
     try:
         income = service.update(income_id, data)
     except AccountNotFoundError:
@@ -125,9 +131,13 @@ def execute_income_occurrence(
     income_id: int,
     data: ScheduleExecutionCreate,
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ):
     """Materialize one income occurrence as a transaction."""
-    service = ScheduleExecutionService(session)
+    service = ScheduleExecutionService(
+        session,
+        member.household_id,
+    )
     try:
         result = service.execute_income(
             income_id,

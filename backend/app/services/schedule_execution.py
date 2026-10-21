@@ -43,14 +43,34 @@ class ScheduleExecutionResult:
 class ScheduleExecutionService:
     """Execute one schedule occurrence with idempotency."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        household_id: int,
+    ) -> None:
         """Bind the service to one database session."""
         self._session = session
-        self._executions = ScheduleExecutionRepository(session)
-        self._incomes = IncomeRepository(session)
-        self._expenses = RecurringExpenseRepository(session)
-        self._transactions = TransactionRepository(session)
-        self._transaction_service = TransactionService(session)
+        self._household_id = household_id
+        self._executions = ScheduleExecutionRepository(
+            session,
+            household_id,
+        )
+        self._incomes = IncomeRepository(
+            session,
+            household_id,
+        )
+        self._expenses = RecurringExpenseRepository(
+            session,
+            household_id,
+        )
+        self._transactions = TransactionRepository(
+            session,
+            household_id,
+        )
+        self._transaction_service = TransactionService(
+            session,
+            household_id,
+        )
 
     def _existing_result(
         self,

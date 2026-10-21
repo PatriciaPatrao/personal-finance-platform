@@ -7,6 +7,8 @@ from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import Query
 
+from app.api.deps import get_current_member
+from app.core.auth.context import AuthenticatedMember
 from app.db.session import Session
 from app.db.session import get_db
 from app.schemas.forecast import ForecastQuery
@@ -25,9 +27,10 @@ router = APIRouter()
 def get_forecast(
     query: Annotated[ForecastQuery, Query()],
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> ForecastResponse:
     """Return projected income, expenses, and balances."""
-    service = ForecastService(session)
+    service = ForecastService(session, member.household_id)
     try:
         return service.get_forecast(
             from_date=query.from_date,

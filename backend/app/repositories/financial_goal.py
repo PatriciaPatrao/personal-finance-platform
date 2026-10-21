@@ -12,11 +12,16 @@ from app.models.goal_allocation import GoalAllocation
 
 
 class FinancialGoalRepository:
-    """Store financial goal rows."""
+    """Store financial goal rows scoped to one household."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        household_id: int,
+    ) -> None:
         """Bind the repository to one database session."""
         self._session = session
+        self._household_id = household_id
 
     def create(
         self,
@@ -27,6 +32,7 @@ class FinancialGoalRepository:
     ) -> FinancialGoal:
         """Insert a financial goal and return it."""
         goal = FinancialGoal(
+            household_id=self._household_id,
             name=name,
             target_amount=target_amount,
             currency=currency,
@@ -38,7 +44,7 @@ class FinancialGoalRepository:
         return goal
 
     def list_all(self) -> list[FinancialGoal]:
-        """Return every goal, newest first, with allocations loaded."""
+        """Return every goal in the household, newest first."""
         statement = (
             select(FinancialGoal)
             .options(
@@ -47,6 +53,7 @@ class FinancialGoalRepository:
                 ),
             )
             .execution_options(populate_existing=True)
+            .where(FinancialGoal.household_id == self._household_id)
             .order_by(
                 FinancialGoal.created_at.desc(),
                 FinancialGoal.id.desc(),
@@ -55,7 +62,7 @@ class FinancialGoalRepository:
         return list(self._session.scalars(statement).unique().all())
 
     def get_by_id(self, goal_id: int) -> FinancialGoal | None:
-        """Return one goal by primary key, with allocations loaded."""
+        """Return one goal in this household."""
         statement = (
             select(FinancialGoal)
             .options(
@@ -64,7 +71,10 @@ class FinancialGoalRepository:
                 ),
             )
             .execution_options(populate_existing=True)
-            .where(FinancialGoal.id == goal_id)
+            .where(
+                FinancialGoal.id == goal_id,
+                FinancialGoal.household_id == self._household_id,
+            )
         )
         return self._session.scalars(statement).unique().one_or_none()
 

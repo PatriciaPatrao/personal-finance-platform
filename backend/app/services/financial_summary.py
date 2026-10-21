@@ -17,9 +17,16 @@ _ZERO = Decimal("0.00")
 class FinancialSummaryService:
     """Coordinate financial summary calculation."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        household_id: int,
+    ) -> None:
         """Bind the service to one database session."""
-        self._repository = FinancialSummaryRepository(session)
+        self._repository = FinancialSummaryRepository(
+            session,
+            household_id,
+        )
 
     def get_summary(
         self,

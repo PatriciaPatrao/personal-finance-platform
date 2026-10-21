@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter } from '@angular/router';
+import { AuthService } from '@auth0/auth0-angular';
 import { providePrimeNG } from 'primeng/config';
+import { of } from 'rxjs';
 
 import { PfpPreset } from '../design-system/pfp-preset';
 import { PersonalFinanceLayout } from './personal-finance-layout';
@@ -19,6 +21,13 @@ describe('PersonalFinanceLayout', () => {
             options: { prefix: 'p', darkModeSelector: false },
           },
         }),
+        {
+          provide: AuthService,
+          useValue: {
+            isAuthenticated$: of(true),
+            logout: () => of(undefined),
+          },
+        },
       ],
     }).compileComponents();
   });

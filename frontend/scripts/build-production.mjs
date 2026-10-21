@@ -39,13 +39,27 @@ if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
 }
 
 const normalized = rawUrl.replace(/\/+$/, '');
+const auth0Domain = process.env.NG_APP_AUTH0_DOMAIN?.trim();
+const auth0ClientId = process.env.NG_APP_AUTH0_CLIENT_ID?.trim();
+const auth0Audience = process.env.NG_APP_AUTH0_AUDIENCE?.trim();
+if (!auth0Domain || !auth0ClientId || !auth0Audience) {
+  fail(
+    'NG_APP_AUTH0_DOMAIN, NG_APP_AUTH0_CLIENT_ID, and NG_APP_AUTH0_AUDIENCE ' +
+      'are required for production builds.',
+  );
+}
 const frontendDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..',
 );
 
-const defineArg = `--define=NG_APP_API_BASE_URL=${JSON.stringify(normalized)}`;
-const result = spawnSync('npx', ['ng', 'build', defineArg], {
+const defineArgs = [
+  `--define=NG_APP_API_BASE_URL=${JSON.stringify(normalized)}`,
+  `--define=NG_APP_AUTH0_DOMAIN=${JSON.stringify(auth0Domain)}`,
+  `--define=NG_APP_AUTH0_CLIENT_ID=${JSON.stringify(auth0ClientId)}`,
+  `--define=NG_APP_AUTH0_AUDIENCE=${JSON.stringify(auth0Audience)}`,
+];
+const result = spawnSync('npx', ['ng', 'build', ...defineArgs], {
   cwd: frontendDir,
   stdio: 'inherit',
   shell: false,

@@ -9,9 +9,16 @@ from app.schemas.account import AccountCreate
 class AccountService:
     """Coordinate account operations."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        household_id: int,
+    ) -> None:
         """Bind the service to one database session."""
-        self._repository = AccountRepository(session)
+        self._repository = AccountRepository(
+            session,
+            household_id,
+        )
 
     def create(self, data: AccountCreate) -> Account:
         """Persist a new account from incoming data."""

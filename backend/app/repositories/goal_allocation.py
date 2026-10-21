@@ -6,15 +6,22 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from app.db.session import Session
+from app.models.account import Account
+from app.models.financial_goal import FinancialGoal
 from app.models.goal_allocation import GoalAllocation
 
 
 class GoalAllocationRepository:
-    """Store goal allocation rows."""
+    """Store goal allocation rows scoped to one household."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        household_id: int,
+    ) -> None:
         """Bind the repository to one database session."""
         self._session = session
+        self._household_id = household_id
 
     def create(
         self,
@@ -37,14 +44,21 @@ class GoalAllocationRepository:
         self,
         allocation_id: int,
     ) -> GoalAllocation | None:
-        """Return one allocation by primary key."""
+        """Return one allocation in this household."""
         statement = (
             select(GoalAllocation)
+            .join(
+                FinancialGoal,
+                GoalAllocation.goal_id == FinancialGoal.id,
+            )
             .options(
                 joinedload(GoalAllocation.account),
                 joinedload(GoalAllocation.goal),
             )
-            .where(GoalAllocation.id == allocation_id)
+            .where(
+                GoalAllocation.id == allocation_id,
+                FinancialGoal.household_id == self._household_id,
+            )
         )
         return self._session.scalars(statement).unique().one_or_none()
 
@@ -54,9 +68,17 @@ class GoalAllocationRepository:
         account_id: int,
     ) -> GoalAllocation | None:
         """Return the allocation for a goal and account pair."""
-        statement = select(GoalAllocation).where(
-            GoalAllocation.goal_id == goal_id,
-            GoalAllocation.account_id == account_id,
+        statement = (
+            select(GoalAllocation)
+            .join(
+                FinancialGoal,
+                GoalAllocation.goal_id == FinancialGoal.id,
+            )
+            .where(
+                GoalAllocation.goal_id == goal_id,
+                GoalAllocation.account_id == account_id,
+                FinancialGoal.household_id == self._household_id,
+            )
         )
         return self._session.scalars(statement).one_or_none()
 
@@ -64,10 +86,19 @@ class GoalAllocationRepository:
         self,
         account_id: int,
     ) -> list[GoalAllocation]:
-        """Return every allocation for an account, funding order."""
+        """Return every allocation for an account in this household."""
         statement = (
             select(GoalAllocation)
-            .where(GoalAllocation.account_id == account_id)
+            .join(
+                FinancialGoal,
+                GoalAllocation.goal_id == FinancialGoal.id,
+            )
+            .join(Account, GoalAllocation.account_id == Account.id)
+            .where(
+                GoalAllocation.account_id == account_id,
+                FinancialGoal.household_id == self._household_id,
+                Account.household_id == self._household_id,
+            )
             .order_by(
                 GoalAllocation.created_at.asc(),
                 GoalAllocation.id.asc(),
@@ -79,11 +110,18 @@ class GoalAllocationRepository:
         self,
         goal_id: int,
     ) -> list[GoalAllocation]:
-        """Return every allocation for a goal."""
+        """Return every allocation for a goal in this household."""
         statement = (
             select(GoalAllocation)
+            .join(
+                FinancialGoal,
+                GoalAllocation.goal_id == FinancialGoal.id,
+            )
             .options(joinedload(GoalAllocation.account))
-            .where(GoalAllocation.goal_id == goal_id)
+            .where(
+                GoalAllocation.goal_id == goal_id,
+                FinancialGoal.household_id == self._household_id,
+            )
             .order_by(
                 GoalAllocation.created_at.asc(),
                 GoalAllocation.id.asc(),

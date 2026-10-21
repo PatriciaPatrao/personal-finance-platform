@@ -52,13 +52,24 @@ class CurrencyChangeBlockedError(Exception):
 class FinancialGoalService:
     """Coordinate financial goal and allocation operations."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        household_id: int,
+    ) -> None:
         """Bind the service to one database session."""
-        self._repository = FinancialGoalRepository(session)
+        self._repository = FinancialGoalRepository(
+            session,
+            household_id,
+        )
         self._allocation_repository = GoalAllocationRepository(
             session,
+            household_id,
         )
-        self._account_repository = AccountRepository(session)
+        self._account_repository = AccountRepository(
+            session,
+            household_id,
+        )
 
     def _available_capacity(self, account: Account) -> Decimal:
         """Return the positive capacity available for designations."""

@@ -5,6 +5,8 @@ from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status
 
+from app.api.deps import get_current_member
+from app.core.auth.context import AuthenticatedMember
 from app.db.session import Session
 from app.db.session import get_db
 from app.schemas.recurring_expense import RecurringExpenseCreate
@@ -37,9 +39,10 @@ router = APIRouter()
 def create_recurring_expense(
     data: RecurringExpenseCreate,
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> RecurringExpenseResponse:
     """Create a recurring expense and return the stored record."""
-    service = RecurringExpenseService(session)
+    service = RecurringExpenseService(session, member.household_id)
     try:
         recurring_expense = service.create(data)
     except AccountNotFoundError:
@@ -63,9 +66,10 @@ def create_recurring_expense(
 )
 def list_recurring_expenses(
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> list[RecurringExpenseResponse]:
     """Return every stored recurring expense."""
-    service = RecurringExpenseService(session)
+    service = RecurringExpenseService(session, member.household_id)
     recurring_expenses = service.list_all()
     return [
         RecurringExpenseResponse.model_validate(item)
@@ -80,9 +84,10 @@ def list_recurring_expenses(
 def get_recurring_expense(
     recurring_expense_id: int,
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> RecurringExpenseResponse:
     """Return one stored recurring expense."""
-    service = RecurringExpenseService(session)
+    service = RecurringExpenseService(session, member.household_id)
     recurring_expense = service.get_by_id(
         recurring_expense_id,
     )
@@ -104,9 +109,10 @@ def update_recurring_expense(
     recurring_expense_id: int,
     data: RecurringExpenseUpdate,
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> RecurringExpenseResponse:
     """Fully update a recurring expense and return it."""
-    service = RecurringExpenseService(session)
+    service = RecurringExpenseService(session, member.household_id)
     try:
         recurring_expense = service.update(
             recurring_expense_id,
@@ -140,9 +146,10 @@ def execute_recurring_expense_occurrence(
     recurring_expense_id: int,
     data: ScheduleExecutionCreate,
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ):
     """Materialize one recurring expense occurrence as a transaction."""
-    service = ScheduleExecutionService(session)
+    service = ScheduleExecutionService(session, member.household_id)
     try:
         result = service.execute_recurring_expense(
             recurring_expense_id,

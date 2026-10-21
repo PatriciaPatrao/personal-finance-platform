@@ -5,6 +5,8 @@ from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status
 
+from app.api.deps import get_current_member
+from app.core.auth.context import AuthenticatedMember
 from app.db.session import Session
 from app.db.session import get_db
 from app.schemas.account import AccountCreate
@@ -23,9 +25,10 @@ router = APIRouter()
 def create_account(
     data: AccountCreate,
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> AccountResponse:
     """Create an account and return the stored record."""
-    service = AccountService(session)
+    service = AccountService(session, member.household_id)
     account = service.create(data)
     return AccountResponse.model_validate(account)
 
@@ -36,9 +39,10 @@ def create_account(
 )
 def list_accounts(
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> list[AccountResponse]:
     """Return every stored account."""
-    service = AccountService(session)
+    service = AccountService(session, member.household_id)
     accounts = service.list_all()
     return [
         AccountResponse.model_validate(account)
@@ -53,9 +57,10 @@ def list_accounts(
 def get_account(
     account_id: int,
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> AccountResponse:
     """Return one stored account."""
-    service = AccountService(session)
+    service = AccountService(session, member.household_id)
     account = service.get_by_id(account_id)
     if account is None:
         raise HTTPException(

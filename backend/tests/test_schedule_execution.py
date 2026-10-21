@@ -70,6 +70,17 @@ class _InitialAbsenceSynchroniser:
             yield
 
 
+def _household_id_for_account(account_id: int) -> int:
+    """Read household_id for an account from a fresh session."""
+    session = SessionLocal()
+    try:
+        account = session.get(Account, account_id)
+        assert account is not None
+        return account.household_id
+    finally:
+        session.close()
+
+
 def _account_balance(account_id: int) -> Decimal:
     """Read stored balance from a fresh session."""
     session = SessionLocal()
@@ -168,6 +179,7 @@ def _assert_same_occurrence_race_outcome(
 def _run_income_execute_worker(
     income_id: int,
     occurrence_date: date,
+    household_id: int,
     synchroniser: _InitialAbsenceSynchroniser,
     results: list[ScheduleExecutionResult],
     errors: list[BaseException],
@@ -175,7 +187,10 @@ def _run_income_execute_worker(
     session = SessionLocal()
     try:
         with synchroniser.patch():
-            service = ScheduleExecutionService(session)
+            service = ScheduleExecutionService(
+                session,
+                household_id,
+            )
             results.append(
                 service.execute_income(
                     income_id,
@@ -192,6 +207,7 @@ def _run_income_execute_worker(
 def _run_expense_execute_worker(
     expense_id: int,
     occurrence_date: date,
+    household_id: int,
     synchroniser: _InitialAbsenceSynchroniser,
     results: list[ScheduleExecutionResult],
     errors: list[BaseException],
@@ -199,7 +215,10 @@ def _run_expense_execute_worker(
     session = SessionLocal()
     try:
         with synchroniser.patch():
-            service = ScheduleExecutionService(session)
+            service = ScheduleExecutionService(
+                session,
+                household_id,
+            )
             results.append(
                 service.execute_recurring_expense(
                     expense_id,
@@ -502,6 +521,7 @@ def test_concurrent_income_execution_same_occurrence(
         amount=150.0,
         next_occurrence=today,
     )
+    household_id = _household_id_for_account(account["id"])
     synchroniser = _InitialAbsenceSynchroniser()
     results: list[ScheduleExecutionResult] = []
     errors: list[BaseException] = []
@@ -511,6 +531,7 @@ def test_concurrent_income_execution_same_occurrence(
             args=(
                 income["id"],
                 today,
+                household_id,
                 synchroniser,
                 results,
                 errors,
@@ -521,6 +542,7 @@ def test_concurrent_income_execution_same_occurrence(
             args=(
                 income["id"],
                 today,
+                household_id,
                 synchroniser,
                 results,
                 errors,
@@ -552,6 +574,7 @@ def test_concurrent_expense_execution_same_occurrence(
         amount=40.0,
         next_occurrence=today,
     )
+    household_id = _household_id_for_account(account["id"])
     synchroniser = _InitialAbsenceSynchroniser()
     results: list[ScheduleExecutionResult] = []
     errors: list[BaseException] = []
@@ -561,6 +584,7 @@ def test_concurrent_expense_execution_same_occurrence(
             args=(
                 expense["id"],
                 today,
+                household_id,
                 synchroniser,
                 results,
                 errors,
@@ -571,6 +595,7 @@ def test_concurrent_expense_execution_same_occurrence(
             args=(
                 expense["id"],
                 today,
+                household_id,
                 synchroniser,
                 results,
                 errors,
@@ -611,10 +636,15 @@ def test_concurrent_distinct_occurrences_same_account(
     results: list[ScheduleExecutionResult] = []
     errors: list[BaseException] = []
 
+    household_id = _household_id_for_account(account["id"])
+
     def run_one(income_id: int) -> None:
         session = SessionLocal()
         try:
-            service = ScheduleExecutionService(session)
+            service = ScheduleExecutionService(
+                session,
+                household_id,
+            )
             results.append(
                 service.execute_income(
                     income_id,

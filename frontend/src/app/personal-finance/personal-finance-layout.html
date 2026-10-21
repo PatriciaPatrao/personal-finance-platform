@@ -16,6 +16,16 @@
     </div>
   </div>
 
+  @if (isAuthenticated$ | async) {
+    <p-button
+      class="sign-out-btn"
+      label="Sign out"
+      severity="secondary"
+      [text]="true"
+      (onClick)="signOut()"
+    />
+  }
+
   <nav aria-label="Primary" class="desktop-nav">
   <p-menubar [model]="navItems" class="app-menubar">
     <ng-template #item let-item>

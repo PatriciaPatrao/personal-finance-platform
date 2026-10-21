@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     database_url: str
     app_env: str = "development"
     cors_origins: str | None = None
+    auth0_domain: str = ""
+    auth0_audience: str = ""
+    auth0_jwks_json: str | None = None
 
     @field_validator("app_env")
     @classmethod

@@ -26,13 +26,25 @@ class TransactionLinkedToScheduleError(Exception):
 class TransactionService:
     """Coordinate transaction writes and account balance updates."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        household_id: int,
+    ) -> None:
         """Bind the service to one database session."""
         self._session = session
-        self._repository = TransactionRepository(session)
-        self._account_repository = AccountRepository(session)
+        self._household_id = household_id
+        self._repository = TransactionRepository(
+            session,
+            household_id,
+        )
+        self._account_repository = AccountRepository(
+            session,
+            household_id,
+        )
         self._execution_repository = ScheduleExecutionRepository(
             session,
+            household_id,
         )
 
     def _ensure_not_schedule_linked(

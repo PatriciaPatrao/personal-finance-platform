@@ -6,6 +6,8 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import Query
 
+from app.api.deps import get_current_member
+from app.core.auth.context import AuthenticatedMember
 from app.db.session import Session
 from app.db.session import get_db
 from app.schemas.financial_summary import FinancialSummaryQuery
@@ -23,9 +25,13 @@ router = APIRouter()
 def get_financial_summary(
     query: Annotated[FinancialSummaryQuery, Query()],
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> FinancialSummaryResponse:
     """Return income, expenses, and net cash flow for a date range."""
-    service = FinancialSummaryService(session)
+    service = FinancialSummaryService(
+        session,
+        member.household_id,
+    )
     return service.get_summary(
         from_date=query.from_date,
         to_date=query.to_date,

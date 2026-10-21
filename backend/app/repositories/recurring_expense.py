@@ -6,16 +6,22 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from app.db.session import Session
+from app.models.account import Account
 from app.models.recurring_expense import RecurringExpense
 from app.models.recurring_expense import RecurringFrequency
 
 
 class RecurringExpenseRepository:
-    """Store recurring expense rows."""
+    """Store recurring expense rows scoped to one household."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        household_id: int,
+    ) -> None:
         """Bind the repository to one database session."""
         self._session = session
+        self._household_id = household_id
 
     def create(
         self,
@@ -47,10 +53,15 @@ class RecurringExpenseRepository:
         return recurring_expense
 
     def list_all(self) -> list[RecurringExpense]:
-        """Return every recurring expense, next due first."""
-        statement = select(RecurringExpense).order_by(
-            RecurringExpense.next_occurrence.asc(),
-            RecurringExpense.id.asc(),
+        """Return every recurring expense in the household."""
+        statement = (
+            select(RecurringExpense)
+            .join(Account, RecurringExpense.account_id == Account.id)
+            .where(Account.household_id == self._household_id)
+            .order_by(
+                RecurringExpense.next_occurrence.asc(),
+                RecurringExpense.id.asc(),
+            )
         )
         return list(self._session.scalars(statement).all())
 
@@ -58,9 +69,14 @@ class RecurringExpenseRepository:
         self,
         recurring_expense_id: int,
     ) -> RecurringExpense | None:
-        """Return one recurring expense by primary key."""
-        statement = select(RecurringExpense).where(
-            RecurringExpense.id == recurring_expense_id,
+        """Return one recurring expense in this household."""
+        statement = (
+            select(RecurringExpense)
+            .join(Account, RecurringExpense.account_id == Account.id)
+            .where(
+                RecurringExpense.id == recurring_expense_id,
+                Account.household_id == self._household_id,
+            )
         )
         return self._session.scalars(statement).one_or_none()
 

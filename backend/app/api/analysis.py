@@ -6,6 +6,8 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import Query
 
+from app.api.deps import get_current_member
+from app.core.auth.context import AuthenticatedMember
 from app.db.session import Session
 from app.db.session import get_db
 from app.schemas.analysis import AnalysisCashFlowQuery
@@ -26,9 +28,10 @@ router = APIRouter(prefix="/analysis")
 def get_analysis_summary(
     query: Annotated[AnalysisDateRangeQuery, Query()],
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> FinancialSummaryResponse:
     """Return historical income, expenses, and net cash flow."""
-    service = AnalysisService(session)
+    service = AnalysisService(session, member.household_id)
     return service.get_summary(
         from_date=query.from_date,
         to_date=query.to_date,
@@ -42,9 +45,10 @@ def get_analysis_summary(
 def get_analysis_expenses(
     query: Annotated[AnalysisDateRangeQuery, Query()],
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> ExpensesByCategoryResponse:
     """Return historical expenses grouped by category."""
-    service = AnalysisService(session)
+    service = AnalysisService(session, member.household_id)
     return service.get_expenses_by_category(
         from_date=query.from_date,
         to_date=query.to_date,
@@ -58,9 +62,10 @@ def get_analysis_expenses(
 def get_analysis_cash_flow(
     query: Annotated[AnalysisCashFlowQuery, Query()],
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> CashFlowResponse:
     """Return historical cash flow grouped by day or month."""
-    service = AnalysisService(session)
+    service = AnalysisService(session, member.household_id)
     return service.get_cash_flow(
         from_date=query.from_date,
         to_date=query.to_date,

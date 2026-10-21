@@ -2,6 +2,9 @@
 
 from app.models.account import Account
 from app.models.financial_goal import FinancialGoal
+from app.models.household import Household
+from app.models.household_membership import HouseholdMembership
+from app.models.household_membership import HouseholdRole
 from app.models.goal_allocation import GoalAllocation
 from app.models.income import Income
 from app.models.recurring_expense import RecurringExpense
@@ -12,6 +15,9 @@ from app.models.transaction import Transaction
 __all__ = [
     "Account",
     "FinancialGoal",
+    "Household",
+    "HouseholdMembership",
+    "HouseholdRole",
     "GoalAllocation",
     "Income",
     "RecurringExpense",

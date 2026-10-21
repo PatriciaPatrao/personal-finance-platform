@@ -286,12 +286,28 @@ def _household_projections(
 class ForecastService:
     """Calculate future projections without writing data."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        household_id: int,
+    ) -> None:
         """Bind the service to one database session."""
-        self._accounts = AccountRepository(session)
-        self._incomes = IncomeRepository(session)
-        self._expenses = RecurringExpenseRepository(session)
-        self._executions = ScheduleExecutionRepository(session)
+        self._accounts = AccountRepository(
+            session,
+            household_id,
+        )
+        self._incomes = IncomeRepository(
+            session,
+            household_id,
+        )
+        self._expenses = RecurringExpenseRepository(
+            session,
+            household_id,
+        )
+        self._executions = ScheduleExecutionRepository(
+            session,
+            household_id,
+        )
 
     def get_forecast(
         self,

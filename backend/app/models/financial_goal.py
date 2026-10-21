@@ -12,6 +12,7 @@ from decimal import Decimal
 from sqlalchemy import CheckConstraint
 from sqlalchemy import Date
 from sqlalchemy import DateTime
+from sqlalchemy import ForeignKey
 from sqlalchemy import Numeric
 from sqlalchemy import String
 from sqlalchemy import func
@@ -36,6 +37,11 @@ class FinancialGoal(Base):
     id: Mapped[int] = mapped_column(
         primary_key=True,
         nullable=False,
+    )
+    household_id: Mapped[int] = mapped_column(
+        ForeignKey("households.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     name: Mapped[str] = mapped_column(
         String(100),

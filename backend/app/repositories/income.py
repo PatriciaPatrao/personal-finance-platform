@@ -6,16 +6,22 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from app.db.session import Session
+from app.models.account import Account
 from app.models.income import Income
 from app.models.income import IncomeFrequency
 
 
 class IncomeRepository:
-    """Store income rows."""
+    """Store income rows scoped to one household."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        household_id: int,
+    ) -> None:
         """Bind the repository to one database session."""
         self._session = session
+        self._household_id = household_id
 
     def create(
         self,
@@ -43,17 +49,27 @@ class IncomeRepository:
         return income
 
     def list_all(self) -> list[Income]:
-        """Return every income, next due first."""
-        statement = select(Income).order_by(
-            Income.next_occurrence.asc(),
-            Income.id.asc(),
+        """Return every income in the household, next due first."""
+        statement = (
+            select(Income)
+            .join(Account, Income.account_id == Account.id)
+            .where(Account.household_id == self._household_id)
+            .order_by(
+                Income.next_occurrence.asc(),
+                Income.id.asc(),
+            )
         )
         return list(self._session.scalars(statement).all())
 
     def get_by_id(self, income_id: int) -> Income | None:
-        """Return one income by primary key."""
-        statement = select(Income).where(
-            Income.id == income_id,
+        """Return one income in this household."""
+        statement = (
+            select(Income)
+            .join(Account, Income.account_id == Account.id)
+            .where(
+                Income.id == income_id,
+                Account.household_id == self._household_id,
+            )
         )
         return self._session.scalars(statement).one_or_none()
 

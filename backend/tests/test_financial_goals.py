@@ -28,6 +28,7 @@ from app.schemas.financial_goal import GoalAllocationUpdate
 from app.services.financial_goal import AllocationCapacityExceededError
 from app.services.financial_goal import CurrencyMismatchError
 from app.services.financial_goal import FinancialGoalService
+from tests.test_household_helpers import household_id_for_session
 
 
 def _account(
@@ -37,6 +38,7 @@ def _account(
     currency: str = "EUR",
 ) -> Account:
     account = Account(
+        household_id=household_id_for_session(session),
         name=name,
         account_type=AccountType.BANK,
         currency=currency,
@@ -53,6 +55,7 @@ def test_goal_can_exist_without_allocation(
 ) -> None:
     """A Goal with no allocations is a valid objective."""
     goal = FinancialGoal(
+        household_id=household_id_for_session(db_session),
         name="Emergency Fund",
         target_amount=Decimal("10000.00"),
     )
@@ -70,6 +73,7 @@ def test_allocation_requires_goal_and_account(
     """An allocation links an existing Goal and Account."""
     account = _account(db_session)
     goal = FinancialGoal(
+        household_id=household_id_for_session(db_session),
         name="Vacation",
         target_amount=Decimal("2500.00"),
     )
@@ -96,11 +100,14 @@ def test_two_goals_can_share_one_account(
 ) -> None:
     """An Account may fund multiple Goals through allocations."""
     account = _account(db_session, balance=Decimal("20000.00"))
+    hid = household_id_for_session(db_session)
     first = FinancialGoal(
+        household_id=hid,
         name="Emergency Fund",
         target_amount=Decimal("10000.00"),
     )
     second = FinancialGoal(
+        household_id=hid,
         name="Holiday",
         target_amount=Decimal("5000.00"),
     )
@@ -125,7 +132,10 @@ def test_two_goals_can_share_one_account(
     )
     db_session.commit()
 
-    service = FinancialGoalService(db_session)
+    service = FinancialGoalService(
+        db_session,
+        household_id_for_session(db_session),
+    )
     emergency = service.get_by_id(first.id)
     holiday = service.get_by_id(second.id)
     assert emergency is not None
@@ -145,6 +155,7 @@ def test_one_goal_can_use_multiple_accounts(
         balance=Decimal("2000.00"),
     )
     goal = FinancialGoal(
+        household_id=household_id_for_session(db_session),
         name="Emergency Fund",
         target_amount=Decimal("10000.00"),
     )
@@ -152,7 +163,10 @@ def test_one_goal_can_use_multiple_accounts(
     db_session.commit()
     db_session.refresh(goal)
 
-    service = FinancialGoalService(db_session)
+    service = FinancialGoalService(
+        db_session,
+        household_id_for_session(db_session),
+    )
     service.create_allocation(
         goal.id,
         GoalAllocationCreate(
@@ -178,6 +192,7 @@ def test_duplicate_goal_account_allocation_rejected(
     """At most one allocation exists for a Goal and Account pair."""
     account = _account(db_session)
     goal = FinancialGoal(
+        household_id=household_id_for_session(db_session),
         name="Emergency Fund",
         target_amount=Decimal("10000.00"),
     )
@@ -216,6 +231,7 @@ def test_allocation_amount_must_be_positive(
     """Allocation amount must be greater than zero."""
     account = _account(db_session)
     goal = FinancialGoal(
+        household_id=household_id_for_session(db_session),
         name="Emergency Fund",
         target_amount=Decimal("10000.00"),
     )
@@ -245,6 +261,7 @@ def test_goal_target_amount_must_be_positive(
 ) -> None:
     """Goal target_amount must be greater than zero."""
     goal = FinancialGoal(
+        household_id=household_id_for_session(db_session),
         name="Broken",
         target_amount=target_amount,
     )
@@ -259,7 +276,10 @@ def test_service_rejects_currency_mismatch(
 ) -> None:
     """Allocation currency must match the Goal."""
     account = _account(db_session, currency="USD")
-    service = FinancialGoalService(db_session)
+    service = FinancialGoalService(
+        db_session,
+        household_id_for_session(db_session),
+    )
     goal = service.create(
         FinancialGoalCreate(
             name="Emergency Fund",
@@ -283,7 +303,10 @@ def test_service_rejects_over_capacity(
 ) -> None:
     """Designated amounts may not exceed available capacity."""
     account = _account(db_session, balance=Decimal("1000.00"))
-    service = FinancialGoalService(db_session)
+    service = FinancialGoalService(
+        db_session,
+        household_id_for_session(db_session),
+    )
     goal = service.create(
         FinancialGoalCreate(
             name="Emergency Fund",
@@ -306,7 +329,10 @@ def test_service_allows_exact_capacity(
 ) -> None:
     """Exact available capacity may be designated."""
     account = _account(db_session, balance=Decimal("1000.00"))
-    service = FinancialGoalService(db_session)
+    service = FinancialGoalService(
+        db_session,
+        household_id_for_session(db_session),
+    )
     goal = service.create(
         FinancialGoalCreate(
             name="Emergency Fund",
@@ -331,7 +357,10 @@ def test_allocation_does_not_change_account_balance(
 ) -> None:
     """Creating an allocation leaves Account.current_balance unchanged."""
     account = _account(db_session, balance=Decimal("5000.00"))
-    service = FinancialGoalService(db_session)
+    service = FinancialGoalService(
+        db_session,
+        household_id_for_session(db_session),
+    )
     goal = service.create(
         FinancialGoalCreate(
             name="Emergency Fund",
@@ -354,7 +383,10 @@ def test_progress_and_completion_from_allocations(
 ) -> None:
     """Progress and completion are derived from funded allocations."""
     account = _account(db_session, balance=Decimal("15000.00"))
-    service = FinancialGoalService(db_session)
+    service = FinancialGoalService(
+        db_session,
+        household_id_for_session(db_session),
+    )
     goal = service.create(
         FinancialGoalCreate(
             name="Emergency Fund",
@@ -386,7 +418,10 @@ def test_progress_capped_at_one(
 ) -> None:
     """Progress stays at most 1 when funded amount exceeds the target."""
     account = _account(db_session, balance=Decimal("20000.00"))
-    service = FinancialGoalService(db_session)
+    service = FinancialGoalService(
+        db_session,
+        household_id_for_session(db_session),
+    )
     goal = service.create(
         FinancialGoalCreate(
             name="Emergency Fund",
@@ -409,7 +444,10 @@ def test_unallocated_goal_has_null_progress(
     db_session: Session,
 ) -> None:
     """A Goal with no allocations has unavailable progress fields."""
-    service = FinancialGoalService(db_session)
+    service = FinancialGoalService(
+        db_session,
+        household_id_for_session(db_session),
+    )
     goal = service.create(
         FinancialGoalCreate(
             name="Idea",
@@ -426,7 +464,10 @@ def test_balance_decrease_funds_in_creation_order(
 ) -> None:
     """Later lower balance funds earlier allocations first."""
     account = _account(db_session, balance=Decimal("10000.00"))
-    service = FinancialGoalService(db_session)
+    service = FinancialGoalService(
+        db_session,
+        household_id_for_session(db_session),
+    )
     goal_a = service.create(
         FinancialGoalCreate(
             name="Goal A",
@@ -482,7 +523,10 @@ def test_negative_balance_funds_nothing(
 ) -> None:
     """Negative Account balance does not create positive Goal progress."""
     account = _account(db_session, balance=Decimal("1000.00"))
-    service = FinancialGoalService(db_session)
+    service = FinancialGoalService(
+        db_session,
+        household_id_for_session(db_session),
+    )
     goal = service.create(
         FinancialGoalCreate(
             name="Emergency Fund",
@@ -514,7 +558,10 @@ def test_reduce_and_delete_allocation(
 ) -> None:
     """Allocation amounts can be reduced and rows can be deleted."""
     account = _account(db_session, balance=Decimal("5000.00"))
-    service = FinancialGoalService(db_session)
+    service = FinancialGoalService(
+        db_session,
+        household_id_for_session(db_session),
+    )
     goal = service.create(
         FinancialGoalCreate(
             name="Emergency Fund",
@@ -548,7 +595,10 @@ def test_allocation_does_not_create_transactions(
 ) -> None:
     """Allocation writes do not insert Transaction rows."""
     account = _account(db_session)
-    service = FinancialGoalService(db_session)
+    service = FinancialGoalService(
+        db_session,
+        household_id_for_session(db_session),
+    )
     goal = service.create(
         FinancialGoalCreate(
             name="Emergency Fund",
@@ -573,7 +623,10 @@ def test_goal_update_rejects_currency_change_with_allocations(
     from app.services.financial_goal import CurrencyChangeBlockedError
 
     account = _account(db_session)
-    service = FinancialGoalService(db_session)
+    service = FinancialGoalService(
+        db_session,
+        household_id_for_session(db_session),
+    )
     goal = service.create(
         FinancialGoalCreate(
             name="Emergency Fund",
@@ -650,7 +703,10 @@ def test_concurrent_creates_cannot_exceed_capacity(
     uncommitted, and both 800 amounts can commit.
     """
     account = _account(db_session, balance=Decimal("1000.00"))
-    service = FinancialGoalService(db_session)
+    service = FinancialGoalService(
+        db_session,
+        household_id_for_session(db_session),
+    )
     goal_a = service.create(
         FinancialGoalCreate(
             name="Goal A",
@@ -663,6 +719,7 @@ def test_concurrent_creates_cannot_exceed_capacity(
             target_amount=Decimal("1000.00"),
         ),
     )
+    household_id = household_id_for_session(db_session)
     held = threading.Event()
     release = threading.Event()
     outcome: list[str] = []
@@ -697,7 +754,10 @@ def test_concurrent_creates_cannot_exceed_capacity(
     def contend() -> None:
         session = SessionLocal()
         try:
-            FinancialGoalService(session).create_allocation(
+            FinancialGoalService(
+                session,
+                household_id,
+            ).create_allocation(
                 goal_b.id,
                 GoalAllocationCreate(
                     account_id=account.id,
@@ -736,7 +796,10 @@ def test_concurrent_increases_cannot_exceed_capacity(
 ) -> None:
     """An increase waits for an in-flight increase before checking capacity."""
     account = _account(db_session, balance=Decimal("1000.00"))
-    service = FinancialGoalService(db_session)
+    service = FinancialGoalService(
+        db_session,
+        household_id_for_session(db_session),
+    )
     allocation_ids: list[int] = []
     goals: list[int] = []
     for name in ("Goal A", "Goal B"):
@@ -756,6 +819,7 @@ def test_concurrent_increases_cannot_exceed_capacity(
         goals.append(goal.id)
         allocation_ids.append(created.allocations[0].id)
 
+    household_id = household_id_for_session(db_session)
     held = threading.Event()
     release = threading.Event()
     outcome: list[str] = []
@@ -789,7 +853,10 @@ def test_concurrent_increases_cannot_exceed_capacity(
     def contend() -> None:
         session = SessionLocal()
         try:
-            FinancialGoalService(session).update_allocation(
+            FinancialGoalService(
+                session,
+                household_id,
+            ).update_allocation(
                 goals[1],
                 allocation_ids[1],
                 GoalAllocationUpdate(amount=Decimal("900.00")),

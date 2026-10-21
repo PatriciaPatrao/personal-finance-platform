@@ -1,5 +1,7 @@
-import { Component, ElementRef, ViewChild } from '@angular/core';
+import { AsyncPipe } from '@angular/common';
+import { Component, ElementRef, inject, ViewChild } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { AuthService } from '@auth0/auth0-angular';
 import { MenuItem } from 'primeng/api';
 import { Button } from 'primeng/button';
 import { Drawer } from 'primeng/drawer';
@@ -7,11 +9,23 @@ import { Menubar } from 'primeng/menubar';
 
 @Component({
   selector: 'app-personal-finance-layout',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, Menubar, Drawer, Button],
+  imports: [
+    AsyncPipe,
+    RouterLink,
+    RouterLinkActive,
+    RouterOutlet,
+    Menubar,
+    Drawer,
+    Button,
+  ],
   templateUrl: './personal-finance-layout.html',
   styleUrl: './personal-finance-layout.scss',
 })
 export class PersonalFinanceLayout {
+  private readonly auth = inject(AuthService);
+
+  readonly isAuthenticated$ = this.auth.isAuthenticated$;
+
   @ViewChild('mobileNavTrigger', { read: ElementRef })
   private mobileNavTriggerRef?: ElementRef<HTMLElement>;
 
@@ -55,6 +69,14 @@ export class PersonalFinanceLayout {
       routerLink: '/personal_finance/goals',
     },
   ];
+
+  signOut(): void {
+    void this.auth.logout({
+      logoutParams: {
+        returnTo: window.location.origin,
+      },
+    });
+  }
 
   openMobileNav(): void {
     this.mobileNavOpen = true;

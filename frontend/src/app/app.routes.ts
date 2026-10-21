@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { authGuardFn } from '@auth0/auth0-angular';
 
 import { pageTitle } from './app-page-titles';
 
@@ -9,7 +10,19 @@ export const routes: Routes = [
     pathMatch: 'full',
   },
   {
+    path: 'callback',
+    loadComponent: () =>
+      import('./auth/callback').then((m) => m.AuthCallback),
+  },
+  {
+    path: 'sign-in',
+    title: pageTitle('Sign in'),
+    loadComponent: () =>
+      import('./auth/sign-in').then((m) => m.SignIn),
+  },
+  {
     path: 'personal_finance',
+    canActivate: [authGuardFn],
     loadComponent: () =>
       import('./personal-finance/personal-finance-layout').then(
         (m) => m.PersonalFinanceLayout,

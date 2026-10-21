@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.accounts import router as accounts_router
+from app.api.households import router as households_router
 from app.api.analysis import router as analysis_router
 from app.api.financial_goals import router as financial_goals_router
 from app.api.financial_summary import router as financial_summary_router
@@ -17,9 +18,13 @@ from app.services.domain_date import current_domain_date
 def build_app(config: Settings | None = None) -> FastAPI:
     """Create the FastAPI application with routers and middleware."""
     cfg = config or settings
+    docs_enabled = cfg.app_env == "development"
     application = FastAPI(
         title="Personal Finance Platform API",
         version="0.1.0",
+        docs_url="/docs" if docs_enabled else None,
+        redoc_url="/redoc" if docs_enabled else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
     )
 
     application.add_middleware(
@@ -28,6 +33,7 @@ def build_app(config: Settings | None = None) -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     )
 
+    application.include_router(households_router)
     application.include_router(accounts_router)
     application.include_router(analysis_router)
     application.include_router(financial_goals_router)

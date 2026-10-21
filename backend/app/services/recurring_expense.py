@@ -23,10 +23,20 @@ class InvalidRecurringExpenseDatesError(Exception):
 class RecurringExpenseService:
     """Coordinate recurring expense operations."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        household_id: int,
+    ) -> None:
         """Bind the service to one database session."""
-        self._repository = RecurringExpenseRepository(session)
-        self._account_repository = AccountRepository(session)
+        self._repository = RecurringExpenseRepository(
+            session,
+            household_id,
+        )
+        self._account_repository = AccountRepository(
+            session,
+            household_id,
+        )
 
     def _validate_dates(
         self,

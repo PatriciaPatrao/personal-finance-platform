@@ -6,16 +6,22 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from app.db.session import Session
+from app.models.account import Account
 from app.models.transaction import Transaction
 from app.models.transaction import TransactionType
 
 
 class TransactionRepository:
-    """Store transaction rows."""
+    """Store transaction rows scoped to one household."""
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        household_id: int,
+    ) -> None:
         """Bind the repository to one database session."""
         self._session = session
+        self._household_id = household_id
 
     def add(
         self,
@@ -61,17 +67,27 @@ class TransactionRepository:
         return transaction
 
     def list_all(self) -> list[Transaction]:
-        """Return every transaction, newest first."""
-        statement = select(Transaction).order_by(
-            Transaction.occurred_on.desc(),
-            Transaction.id.desc(),
+        """Return every transaction in the household, newest first."""
+        statement = (
+            select(Transaction)
+            .join(Account, Transaction.account_id == Account.id)
+            .where(Account.household_id == self._household_id)
+            .order_by(
+                Transaction.occurred_on.desc(),
+                Transaction.id.desc(),
+            )
         )
         return list(self._session.scalars(statement).all())
 
     def get_by_id(self, transaction_id: int) -> Transaction | None:
-        """Return one transaction by its primary key, if it exists."""
-        statement = select(Transaction).where(
-            Transaction.id == transaction_id,
+        """Return one transaction in this household, if it exists."""
+        statement = (
+            select(Transaction)
+            .join(Account, Transaction.account_id == Account.id)
+            .where(
+                Transaction.id == transaction_id,
+                Account.household_id == self._household_id,
+            )
         )
         return self._session.scalars(statement).one_or_none()
 

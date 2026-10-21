@@ -5,6 +5,8 @@ from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status
 
+from app.api.deps import get_current_member
+from app.core.auth.context import AuthenticatedMember
 from app.db.session import Session
 from app.db.session import get_db
 from app.schemas.financial_goal import FinancialGoalCreate
@@ -33,9 +35,10 @@ router = APIRouter()
 def create_financial_goal(
     data: FinancialGoalCreate,
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> FinancialGoalResponse:
     """Create a financial goal and return it."""
-    service = FinancialGoalService(session)
+    service = FinancialGoalService(session, member.household_id)
     return service.create(data)
 
 
@@ -45,9 +48,10 @@ def create_financial_goal(
 )
 def list_financial_goals(
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> list[FinancialGoalResponse]:
     """Return every stored financial goal."""
-    service = FinancialGoalService(session)
+    service = FinancialGoalService(session, member.household_id)
     return service.list_all()
 
 
@@ -58,9 +62,10 @@ def list_financial_goals(
 def get_financial_goal(
     goal_id: int,
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> FinancialGoalResponse:
     """Return one stored financial goal."""
-    service = FinancialGoalService(session)
+    service = FinancialGoalService(session, member.household_id)
     goal = service.get_by_id(goal_id)
     if goal is None:
         raise HTTPException(
@@ -78,9 +83,10 @@ def update_financial_goal(
     goal_id: int,
     data: FinancialGoalUpdate,
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> FinancialGoalResponse:
     """Fully update a financial goal and return it."""
-    service = FinancialGoalService(session)
+    service = FinancialGoalService(session, member.household_id)
     try:
         goal = service.update(goal_id, data)
     except CurrencyChangeBlockedError as error:
@@ -105,9 +111,10 @@ def create_goal_allocation(
     goal_id: int,
     data: GoalAllocationCreate,
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> FinancialGoalResponse:
     """Create an allocation for a goal and return the goal."""
-    service = FinancialGoalService(session)
+    service = FinancialGoalService(session, member.household_id)
     try:
         return service.create_allocation(goal_id, data)
     except GoalNotFoundError:
@@ -146,9 +153,10 @@ def update_goal_allocation(
     allocation_id: int,
     data: GoalAllocationUpdate,
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> FinancialGoalResponse:
     """Update an allocation amount and return the goal."""
-    service = FinancialGoalService(session)
+    service = FinancialGoalService(session, member.household_id)
     try:
         return service.update_allocation(goal_id, allocation_id, data)
     except GoalNotFoundError:
@@ -181,9 +189,10 @@ def delete_goal_allocation(
     goal_id: int,
     allocation_id: int,
     session: Session = Depends(get_db),
+    member: AuthenticatedMember = Depends(get_current_member),
 ) -> FinancialGoalResponse:
     """Delete an allocation and return the goal."""
-    service = FinancialGoalService(session)
+    service = FinancialGoalService(session, member.household_id)
     try:
         return service.delete_allocation(goal_id, allocation_id)
     except GoalNotFoundError:

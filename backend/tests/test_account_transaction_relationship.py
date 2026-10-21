@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.account import Account
 from app.models.account import AccountType
+from tests.test_household_helpers import household_id_for_session
 from app.models.transaction import Transaction
 from app.models.transaction import TransactionType
 
@@ -16,6 +17,7 @@ def test_account_and_transaction_relationship_is_bidirectional(
 ) -> None:
     """Account.transactions and Transaction.account load each other."""
     account = Account(
+        household_id=household_id_for_session(db_session),
         name="Conta Principal",
         account_type=AccountType.BANK,
     )
