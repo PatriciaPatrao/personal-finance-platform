@@ -1,9 +1,11 @@
 """Persistence for households and memberships."""
 
+from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.db.session import Session
+from app.models.account import Account
 from app.models.household import Household
 from app.models.household_membership import HouseholdMembership
 from app.models.household_membership import HouseholdRole
@@ -61,6 +63,32 @@ class HouseholdRepository:
     def refresh(self, entity: Household | HouseholdMembership) -> None:
         """Refresh an entity from the database."""
         self._session.refresh(entity)
+
+    def count_memberships(self, household_id: int) -> int:
+        """Return how many users belong to a household."""
+        statement = (
+            select(func.count())
+            .select_from(HouseholdMembership)
+            .where(HouseholdMembership.household_id == household_id)
+        )
+        return int(self._session.scalar(statement) or 0)
+
+    def household_has_accounts(self, household_id: int) -> bool:
+        """Return True when the household owns at least one account."""
+        statement = (
+            select(func.count())
+            .select_from(Account)
+            .where(Account.household_id == household_id)
+        )
+        return int(self._session.scalar(statement) or 0) > 0
+
+    def delete_membership(self, membership: HouseholdMembership) -> None:
+        """Remove one membership row."""
+        self._session.delete(membership)
+
+    def delete_household(self, household: Household) -> None:
+        """Remove one household row."""
+        self._session.delete(household)
 
     def add_member_idempotent(
         self,

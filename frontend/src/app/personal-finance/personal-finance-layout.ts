@@ -68,6 +68,11 @@ export class PersonalFinanceLayout {
       icon: 'pi pi-flag',
       routerLink: '/personal_finance/goals',
     },
+    {
+      label: 'Household',
+      icon: 'pi pi-users',
+      routerLink: '/personal_finance/household',
+    },
   ];
 
   signOut(): void {

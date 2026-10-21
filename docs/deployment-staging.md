@@ -1,6 +1,6 @@
 # Staging deployment (Vercel + Render + Neon)
 
-This guide prepares a **disposable staging** environment for the Personal Finance Platform. Staging is for demo and UAT only. **Do not enter real household financial data** — there is **no authentication**; anyone who can reach the URLs can read and change data through the API.
+This guide prepares a **disposable staging** environment for the Personal Finance Platform. Staging is for demo and UAT only. **Do not enter real client financial data** — use synthetic demo data only. The API requires Auth0 access tokens on all financial routes (see [auth-production-config.md](auth-production-config.md)).
 
 Nothing in this document assumes cloud accounts, services, or URLs already exist. Replace every `YOUR-*` placeholder with values from your own dashboards after provisioning.
 
@@ -86,6 +86,8 @@ Render injects `PORT`; binding to `0.0.0.0` is required.
 | `DATABASE_URL` | Yes | Neon staging connection string (secret). |
 | `APP_ENV` | Yes | `production` (required for strict CORS on staging). |
 | `CORS_ORIGINS` | Yes when `APP_ENV=production` | Exact Vercel staging origin, no trailing slash, e.g. `https://YOUR-PROJECT.vercel.app` |
+| `AUTH0_DOMAIN` | Yes | Same tenant domain as the SPA, e.g. `your-tenant.us.auth0.com` |
+| `AUTH0_AUDIENCE` | Yes | Auth0 API identifier, e.g. `https://api.personal-finance` |
 | `PYTHON_VERSION` | Recommended | `3.12` |
 
 Do **not** set `ALEMBIC_SCHEMA` on Render unless you intentionally use a non-`public` schema (default is `public`).
@@ -119,6 +121,9 @@ Angular’s application builder emits static files under `dist/frontend/browser`
 | Variable | When | Value |
 | --- | --- | --- |
 | `NG_APP_API_BASE_URL` | **Build** time | Render API origin **without** trailing slash, e.g. `https://YOUR-SERVICE.onrender.com` |
+| `NG_APP_AUTH0_DOMAIN` | **Build** time | Same as Render `AUTH0_DOMAIN` |
+| `NG_APP_AUTH0_CLIENT_ID` | **Build** time | Auth0 SPA client ID |
+| `NG_APP_AUTH0_AUDIENCE` | **Build** time | Same as Render `AUTH0_AUDIENCE` |
 
 Set this in Vercel **before** the first production build. The build script [`frontend/scripts/build-production.mjs`](../frontend/scripts/build-production.mjs) validates the URL and injects it at compile time; do not hardcode the API URL in source.
 
@@ -129,6 +134,9 @@ Set this in Vercel **before** the first production build. The build script [`fro
 ```powershell
 cd frontend
 $env:NG_APP_API_BASE_URL = "https://api-placeholder.example"
+$env:NG_APP_AUTH0_DOMAIN = "your-tenant.auth0.com"
+$env:NG_APP_AUTH0_CLIENT_ID = "YOUR_SPA_CLIENT_ID"
+$env:NG_APP_AUTH0_AUDIENCE = "https://api.personal-finance"
 npm run build
 ```
 
@@ -139,21 +147,23 @@ Artifacts appear under `frontend/dist/frontend/browser`.
 Configure and deploy in this order to avoid CORS mismatches and failed builds:
 
 1. **Neon** — Create staging database; save `DATABASE_URL` securely.
-2. **Render** — Create service; set `DATABASE_URL`, `APP_ENV=production`, and a **temporary** or final `CORS_ORIGINS` (you can update CORS after Vercel URL is known). Deploy; confirm `GET /health`.
-3. **Vercel** — Create project; set `NG_APP_API_BASE_URL` to the Render URL; deploy.
-4. **Render (again)** — Set `CORS_ORIGINS` to the **exact** Vercel deployment origin (preview URLs differ from production domain — list each origin you use, comma-separated).
-5. **Optional demo data** — From a machine with staging `DATABASE_URL`, run `python scripts/seed_demo_data.py` only after double-checking the target database.
-6. **UAT** — Run [staging-uat-checklist.md](staging-uat-checklist.md) and the smoke tests below.
+2. **Auth0** — Create API + SPA; note domain, client ID, and audience (see [auth-production-config.md](auth-production-config.md)).
+3. **Render** — Create service; set `DATABASE_URL`, `APP_ENV=production`, `AUTH0_DOMAIN`, `AUTH0_AUDIENCE`, and a **temporary** or final `CORS_ORIGINS`. Deploy; confirm `GET /health`.
+4. **Vercel** — Create project; set all `NG_APP_*` variables; deploy.
+5. **Render (again)** — Set `CORS_ORIGINS` to the **exact** Vercel deployment origin (preview URLs differ from production domain — list each origin you use, comma-separated).
+6. **Optional demo data** — From a machine with staging `DATABASE_URL`, run `python scripts/seed_demo_data.py` only after double-checking the target database.
+7. **UAT** — Run [staging-uat-checklist.md](staging-uat-checklist.md) and the smoke tests below.
 
 ## 5. Post-deployment smoke test
 
 Replace placeholders with your deployed URLs.
 
 1. `GET https://YOUR-SERVICE.onrender.com/health` → **200**, body includes `current_domain_date`.
-2. Open `https://YOUR-VERCEL-ORIGIN/personal_finance` → Dashboard loads without CORS errors in the browser console.
-3. Open **Analysis**, set a valid range, **Apply** → summary or empty state (not a persistent error).
-4. Open **Forecast** → projections per currency when multiple account currencies exist.
-5. If any step fails, treat deployment as **not verified**.
+2. Sign in via Auth0 on `https://YOUR-VERCEL-ORIGIN/personal_finance` → dashboard loads; API calls return **200** (not **401**).
+3. Create an account → **201**; sign out and confirm financial routes are unreachable without a token.
+4. Owner: **Household** → create invitation; second user opens `/join?token=…`, signs in, lands on shared household data.
+5. Open **Analysis** and **Forecast** with a valid range → data or empty state (not persistent **401**/**403**).
+6. If any step fails, treat deployment as **not verified**.
 
 ## 6. Free-tier limitations (manual expectations)
 
@@ -174,6 +184,9 @@ pytest tests/test_health.py tests/test_cors_settings.py tests/test_database_url.
 cd ..\frontend
 npm test
 $env:NG_APP_API_BASE_URL = "https://api-placeholder.example"
+$env:NG_APP_AUTH0_DOMAIN = "your-tenant.auth0.com"
+$env:NG_APP_AUTH0_CLIENT_ID = "YOUR_SPA_CLIENT_ID"
+$env:NG_APP_AUTH0_AUDIENCE = "https://api.personal-finance"
 npm run build
 ```
 

@@ -21,6 +21,12 @@ export const routes: Routes = [
       import('./auth/sign-in').then((m) => m.SignIn),
   },
   {
+    path: 'join',
+    title: pageTitle('Join household'),
+    loadComponent: () =>
+      import('./auth/join-household').then((m) => m.JoinHousehold),
+  },
+  {
     path: 'personal_finance',
     canActivate: [authGuardFn],
     loadComponent: () =>
@@ -77,6 +83,14 @@ export const routes: Routes = [
         title: pageTitle('Transactions'),
         loadComponent: () =>
           import('./transactions/transactions').then((m) => m.Transactions),
+      },
+      {
+        path: 'household',
+        title: pageTitle('Household'),
+        loadComponent: () =>
+          import('./household/household-invite').then(
+            (m) => m.HouseholdInvite,
+          ),
       },
     ],
   },

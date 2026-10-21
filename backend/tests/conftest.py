@@ -43,6 +43,7 @@ from app.models.account import Account  # noqa: E402
 from app.models.financial_goal import FinancialGoal  # noqa: E402
 from app.models.goal_allocation import GoalAllocation  # noqa: E402
 from app.models.household import Household  # noqa: E402
+from app.models.household_invitation import HouseholdInvitation  # noqa: E402
 from app.models.household_membership import HouseholdMembership  # noqa: E402
 from app.models.income import Income  # noqa: E402
 from app.models.recurring_expense import RecurringExpense  # noqa: E402
@@ -84,6 +85,7 @@ def override_get_db() -> Generator[Session, None, None]:
 
 _TABLES_TO_CLEAN = (
     Household,
+    HouseholdInvitation,
     HouseholdMembership,
     Account,
     Transaction,

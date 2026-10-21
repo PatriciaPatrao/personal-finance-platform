@@ -46,6 +46,17 @@ Public build-time variables only:
 
 Never commit client secrets to the frontend; the SPA uses PKCE without a client secret.
 
+The SPA requests an **API access token** via `authorizationParams.audience` (same value as `AUTH0_AUDIENCE`). The FastAPI backend validates `iss`, `aud`, `exp`, and signature via Auth0 JWKS. ID tokens are not accepted for API calls.
+
+## Multi-user households
+
+1. The **owner** signs in (first login creates a household automatically).
+2. The owner opens **Household** in the app and creates an invitation link (`POST /households/invitations`).
+3. The second user opens the link (`/join?token=…`), signs in with Auth0, and the app calls `POST /households/invitations/accept` using their JWT `sub` (not a browser-supplied user id).
+4. Optional advanced path: `POST /households/members` with a known Auth0 `sub` (owner only).
+
+Invitation links expire after 72 hours and are single-use.
+
 ## Local development
 
 Copy `backend/.env.example` and set `AUTH0_*` variables. For backend tests, JWKS is loaded from `tests/_test_auth_jwks.json` via `AUTH0_JWKS_JSON`.

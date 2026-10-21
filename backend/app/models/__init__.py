@@ -3,6 +3,7 @@
 from app.models.account import Account
 from app.models.financial_goal import FinancialGoal
 from app.models.household import Household
+from app.models.household_invitation import HouseholdInvitation
 from app.models.household_membership import HouseholdMembership
 from app.models.household_membership import HouseholdRole
 from app.models.goal_allocation import GoalAllocation
@@ -16,6 +17,7 @@ __all__ = [
     "Account",
     "FinancialGoal",
     "Household",
+    "HouseholdInvitation",
     "HouseholdMembership",
     "HouseholdRole",
     "GoalAllocation",
